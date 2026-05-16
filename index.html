@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GlobalPulse Terminal — Financial Market Research Dashboard</title>
+<style>
+  :root {
+    --amber: #ff8c00;
+    --amber-bright: #ffa500;
+    --amber-dim: #8a4d00;
+    --amber-faint: #3a2000;
+    --text: #e8e8e8;
+    --text-dim: #888;
+    --up: #00d26a;
+    --down: #ff3b5c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+    background: #0a0a0a;
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 24px;
+  }
+  header {
+    border-bottom: 1px solid var(--amber-faint);
+    padding-bottom: 24px;
+    margin-bottom: 40px;
+  }
+  .logo {
+    font-size: 28px;
+    color: var(--amber);
+    letter-spacing: 0.1em;
+    font-weight: 700;
+  }
+  .tag {
+    color: var(--text-dim);
+    font-size: 13px;
+    margin-top: 6px;
+    letter-spacing: 0.05em;
+  }
+  h2 {
+    color: var(--amber);
+    font-size: 16px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin: 36px 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px dotted var(--amber-faint);
+  }
+  p { margin-bottom: 14px; color: var(--text); font-size: 14px; }
+  ul { margin: 12px 0 20px 24px; }
+  li { color: var(--text); font-size: 14px; margin-bottom: 6px; }
+  li::marker { color: var(--amber); }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+    margin: 20px 0;
+  }
+  .card {
+    border: 1px solid var(--amber-faint);
+    padding: 16px;
+    background: rgba(255, 140, 0, 0.03);
+  }
+  .card h3 {
+    color: var(--amber-bright);
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+  }
+  .card p { font-size: 12px; color: var(--text-dim); margin: 0; }
+  .meta {
+    display: flex;
+    gap: 24px;
+    margin-top: 16px;
+    font-size: 12px;
+    color: var(--text-dim);
+    flex-wrap: wrap;
+  }
+  .meta span { letter-spacing: 0.05em; }
+  .meta strong { color: var(--amber); margin-right: 6px; }
+  .status {
+    display: inline-block;
+    padding: 2px 10px;
+    background: var(--up);
+    color: #000;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+  }
+  footer {
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid var(--amber-faint);
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+  code {
+    background: rgba(255, 140, 0, 0.08);
+    color: var(--amber-bright);
+    padding: 1px 6px;
+    border: 1px solid var(--amber-faint);
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="logo">◉ GLOBALPULSE TERMINAL</div>
+    <div class="tag">Financial market research dashboard · Real-time data aggregation · Technical analysis</div>
+    <div class="meta">
+      <span><strong>STATUS</strong><span class="status">PRODUCTION</span></span>
+      <span><strong>STACK</strong> JavaScript · Cloudflare Workers · WebSocket</span>
+      <span><strong>USERS</strong> Internal research team</span>
+    </div>
+  </header>
+
+  <h2>Overview</h2>
+  <p>GlobalPulse Terminal is a Bloomberg-style market research dashboard built for internal investment research workflows. The platform aggregates macroeconomic indicators, market news, and real-time equity quotes into a single unified interface, enabling researchers to monitor cross-asset signals and identify trade setups efficiently.</p>
+  <p>The dashboard is currently in production use for daily market analysis, with ongoing development to expand technical analysis capabilities, sector coverage, and risk modeling features.</p>
+
+  <h2>Core Modules</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>FRED Economic Decoder</h3>
+      <p>Multi-component macro risk scoring engine. Decodes yield curve, Sahm Rule, real rates, and term premium into a tactical risk score (0-100).</p>
+    </div>
+    <div class="card">
+      <h3>Market Flash Stream</h3>
+      <p>Aggregated news feed from Finnhub with automated risk classification, geographic tagging, and Chinese translation pipeline.</p>
+    </div>
+    <div class="card">
+      <h3>Economic Calendar</h3>
+      <p>Weekly auto-rolling calendar of high-impact US economic releases with estimate/actual tracking.</p>
+    </div>
+    <div class="card">
+      <h3>Live Equity Quotes</h3>
+      <p>WebSocket-driven tape for 37 curated US equities across 9 sector categories, with real-time price flash animations.</p>
+    </div>
+    <div class="card">
+      <h3>Multi-Timeframe K-Line</h3>
+      <p>1m / 5m / 15m / 1h / 1d candle charts with technical indicators (MA, BB, MACD, RSI) and drawing tools.</p>
+    </div>
+    <div class="card">
+      <h3>AIS Maritime Stream</h3>
+      <p>Real-time vessel tracking via AIS WebSocket for shipping disruption signals integrated into macro risk scoring.</p>
+    </div>
+  </div>
+
+  <h2>Technical Stack</h2>
+  <ul>
+    <li>Single-page web application — responsive frontend with bilingual UI (Traditional Chinese / English)</li>
+    <li>Cloudflare Workers backend — API proxy with edge caching, WebSocket bridge, and translation pipeline</li>
+    <li>Data sources — FRED, Finnhub, Twelve Data, AISStream, MyMemory translation API</li>
+    <li>Charting — Currently <code>lightweight-charts</code>; evaluating professional charting library upgrade for advanced technical analysis tools</li>
+  </ul>
+
+  <h2>Use Cases</h2>
+  <ul>
+    <li>Daily morning briefing — quick scan of overnight news, economic releases, and overnight equity movements</li>
+    <li>Macro risk monitoring — track FRED decoder score for regime changes</li>
+    <li>Technical analysis — multi-timeframe K-line charting with indicators and drawing tools for entry/exit timing</li>
+    <li>Event-driven research — economic calendar correlated with news flow and market reaction</li>
+  </ul>
+
+  <h2>Roadmap</h2>
+  <ul>
+    <li>Q2 2026 — Advanced charting integration with full drawing tool suite</li>
+    <li>Q2 2026 — Crypto market module (BTC, ETH, major altcoins)</li>
+    <li>Q3 2026 — Taiwan equity market coverage (TWSE / TPEx)</li>
+    <li>Q3 2026 — Geopolitical event tracking module</li>
+    <li>Q4 2026 — Portfolio backtesting and signal validation framework</li>
+  </ul>
+
+  <footer>
+    <p>GlobalPulse Terminal · Internal financial research project · Built for market analysis</p>
+    <p style="margin-top: 8px;">Contact: via repository owner</p>
+  </footer>
+
+</div>
+</body>
+</html>
