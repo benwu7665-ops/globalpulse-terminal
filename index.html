@@ -2690,9 +2690,13 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
   const WORKER_BASE = 'https://' + WORKER_HOST;
 
   // ---------- fetch monkey-patch ----------
-  // Adds credentials:'include' to every request hitting the worker, so the
-  // session cookie travels with all data API calls. Without this we'd have
-  // to edit 76 fetch callsites.
+  // v181.1 — Only attach credentials:'include' to /auth/* requests. Adding
+  // it to ALL worker calls breaks the existing data endpoints because their
+  // corsHeaders() returns wildcard '*' and no Allow-Credentials header, which
+  // the browser then rejects. /auth/* uses authCorsHeaders() server-side
+  // which echoes Origin + includes Allow-Credentials, so those work.
+  // When we later wire cookie-gating to data endpoints (next milestone),
+  // we'll switch them to authCorsHeaders too and broaden this patch.
   const _origFetch = window.fetch.bind(window);
   let _authPromptRequested = false;
   window.fetch = function(input, init) {
@@ -2701,14 +2705,14 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
       if (typeof input === 'string') url = input;
       else if (input && input.url) url = input.url;
     } catch(e) {}
-    const isWorker = url.indexOf(WORKER_HOST) >= 0;
-    if (isWorker) {
+    const isAuth = url.indexOf(WORKER_HOST) >= 0 && url.indexOf('/auth/') >= 0;
+    if (isAuth) {
       init = init || {};
       // Don't clobber an existing credentials value (rare but possible)
       if (!init.credentials) init.credentials = 'include';
     }
     const p = _origFetch(input, init);
-    if (!isWorker) return p;
+    if (!isAuth) return p;
     // Watch for 401 from /auth-gated endpoints. If session expired mid-session,
     // surface the login panel again.
     return p.then(resp => {
