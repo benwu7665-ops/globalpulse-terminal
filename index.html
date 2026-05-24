@@ -2690,15 +2690,20 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
   const WORKER_BASE = 'https://' + WORKER_HOST;
 
   // ---------- fetch monkey-patch ----------
-  // v181.1 — Only attach credentials:'include' to /auth/* requests. Adding
-  // it to ALL worker calls breaks the existing data endpoints because their
-  // corsHeaders() returns wildcard '*' and no Allow-Credentials header, which
-  // the browser then rejects. /auth/* uses authCorsHeaders() server-side
-  // which echoes Origin + includes Allow-Credentials, so those work.
-  // When we later wire cookie-gating to data endpoints (next milestone),
-  // we'll switch them to authCorsHeaders too and broaden this patch.
+  // v182 — Bearer token (localStorage) instead of cookie. Safari ITP blocks
+  // 3p cookies between pages.dev and workers.dev (cross-site), so the cookie
+  // route never worked. Token in localStorage.gp_token, sent as
+  // Authorization: Bearer <token>. Loses HttpOnly protection — tolerable
+  // since this site has no untrusted input surface and no 3p scripts.
+  const TOKEN_KEY = 'gp_token';
+  function _getToken() { try { return localStorage.getItem(TOKEN_KEY) || ''; } catch(e) { return ''; } }
+  function _setToken(t) { try { localStorage.setItem(TOKEN_KEY, t); } catch(e) {} }
+  function _clearToken() { try { localStorage.removeItem(TOKEN_KEY); } catch(e) {} }
+  window.__authGetToken = _getToken;
+  window.__authSetToken = _setToken;
+  window.__authClearToken = _clearToken;
+
   const _origFetch = window.fetch.bind(window);
-  let _authPromptRequested = false;
   window.fetch = function(input, init) {
     let url = '';
     try {
@@ -2707,27 +2712,16 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
     } catch(e) {}
     const isAuth = url.indexOf(WORKER_HOST) >= 0 && url.indexOf('/auth/') >= 0;
     if (isAuth) {
-      init = init || {};
-      // Don't clobber an existing credentials value (rare but possible)
-      if (!init.credentials) init.credentials = 'include';
-    }
-    const p = _origFetch(input, init);
-    if (!isAuth) return p;
-    // Watch for 401 from /auth-gated endpoints. If session expired mid-session,
-    // surface the login panel again.
-    return p.then(resp => {
-      try {
-        if (resp.status === 401 && !_authPromptRequested && !url.endsWith('/auth/me')) {
-          _authPromptRequested = true;
-          // Soft re-prompt — only if we previously thought we were authed
-          if (window.__authed) {
-            window.__authed = false;
-            showAuthOverlay('Session 已過期,請重新登入。', 'err');
-          }
+      const tok = _getToken();
+      if (tok) {
+        init = init || {};
+        init.headers = new Headers(init.headers || {});
+        if (!init.headers.has('Authorization')) {
+          init.headers.set('Authorization', 'Bearer ' + tok);
         }
-      } catch(e) {}
-      return resp;
-    });
+      }
+    }
+    return _origFetch(input, init);
   };
 
   // ---------- WebAuthn glue ----------
@@ -2852,6 +2846,8 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         return false;
       }
       setMsg('註冊成功 · 已登入', 'ok');
+      // v182: persist Bearer token to localStorage (cookie won't survive ITP)
+      if (j2.token) _setToken(j2.token);
       window.__authed = true;
       window.__authedName = j2.name;
       return true;
@@ -2914,6 +2910,8 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         return false;
       }
       setMsg('登入成功', 'ok');
+      // v182: persist Bearer token to localStorage
+      if (j2.token) _setToken(j2.token);
       window.__authed = true;
       window.__authedName = j2.name;
       return true;
@@ -2954,26 +2952,26 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
       showAuthOverlay('此瀏覽器不支援 WebAuthn,請改用 Safari / Chrome 最新版。', 'err');
       return new Promise(()=>{});  // never resolves — block dashboard
     }
-    try {
-      const r = await fetch(WORKER_BASE + '/auth/me');
-      if (r.ok) {
-        const j = await r.json();
-        if (j && j.ok) {
-          window.__authed = true;
-          window.__authedName = j.name;
-          return;  // already logged in
+    // v182: only probe /auth/me if we have a token. No token → straight to login.
+    // This eliminates the flash entirely on first visit / after logout.
+    const tok = _getToken();
+    if (tok) {
+      try {
+        const r = await fetch(WORKER_BASE + '/auth/me');
+        if (r.ok) {
+          const j = await r.json();
+          if (j && j.ok) {
+            window.__authed = true;
+            window.__authedName = j.name;
+            return;  // already logged in
+          }
         }
+      } catch (e) {
+        // network error — fall through to login
       }
-    } catch (e) {
-      // network error — still show login panel; user will see what happens
+      // Token exists but rejected (expired / server lost session) → clear it
+      _clearToken();
     }
-    // 401 / network fail: show panel and wait until login completes.
-    // v181.2 — Tiny delay before showAuthOverlay so that if /auth/me is
-    // simultaneously resolving in another async path (race condition with
-    // browser autofill / cookie attach timing), we don't flash the panel
-    // for one frame. If __authed becomes true within this window, skip.
-    await new Promise(r => setTimeout(r, 120));
-    if (window.__authed) return;
     showAuthOverlay('請登入或註冊', 'info');
     await new Promise(resolve => {
       const iv = setInterval(() => {
@@ -3172,7 +3170,6 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
     overlay.style.opacity = '0';
     setTimeout(async () => {
       overlay.remove();
-      // v181 — Auth gate: blocks dashboard until session valid
       try {
         if (typeof window.checkAuthGate === 'function') {
           await window.checkAuthGate();
