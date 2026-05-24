@@ -2933,7 +2933,8 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
       if (!name) { setMsg('請輸入名稱', 'err'); nameEl.focus(); return; }
       const ok = await fn(name);
       if (ok) {
-        _authPromptRequested = false;
+        // v182.2: removed obsolete _authPromptRequested (was throwing
+        // ReferenceError and aborting hideAuthOverlay).
         setTimeout(() => { hideAuthOverlay(); }, 600);
       }
     }
@@ -3192,10 +3193,6 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
     overlay.style.opacity = '0';
     setTimeout(async () => {
       overlay.remove();
-      // v182.1 — Gate was started at DOMContentLoaded (in parallel with boot),
-      // so the auth overlay is already mounted underneath (z-index 99998 vs
-      // boot 99999). Awaiting __authGatePromise (set by _startGate) blocks
-      // any post-auth init the caller wants to do.
       try {
         if (window.__authGatePromise) await window.__authGatePromise;
       } catch(e) { console.error('[auth] gate error', e); }
