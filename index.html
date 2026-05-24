@@ -2615,6 +2615,377 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
 </head>
 <body>
 
+<!-- v181 — Auth gate (real WebAuthn). Inserts before bootOverlay script.
+     Three parts:
+       1. window.fetch monkey-patch: adds credentials:'include' to all
+          requests to the worker (Pages can't change those callsites
+          one by one — there are 35+ hardcoded URLs across 76 fetches).
+       2. Login overlay UI (full-screen, sits ON TOP of bootOverlay so
+          it appears after boot fade-out).
+       3. checkAuthGate() — called after boot animation. Hits /auth/me;
+          on 401 shows the panel. Returns a promise that resolves once
+          the user is authenticated.
+     Backend: worker.js v47, endpoints /auth/{me,register/begin,...}.
+     Cookies: HttpOnly+Secure+SameSite=None — only readable by worker. -->
+
+<style>
+#authOverlay{position:fixed;inset:0;background:#000;z-index:99998;display:none;justify-content:center;align-items:center;font-family:var(--font-mono,'JetBrains Mono',monospace);color:#ff8c00}
+#authOverlay.show{display:flex}
+#authOverlay::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,140,0,.025) 2px,rgba(255,140,0,.025) 3px);pointer-events:none}
+#authOverlay::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,.7) 100%);pointer-events:none}
+.auth-card{position:relative;z-index:2;width:420px;max-width:90vw;border:1px solid rgba(255,140,0,.4);background:rgba(8,6,3,.92);padding:36px 32px;box-shadow:0 0 60px rgba(255,140,0,.15)}
+.auth-title{font-size:13px;color:rgba(255,140,0,.7);letter-spacing:2px;margin-bottom:6px;text-transform:uppercase}
+.auth-h1{font-size:22px;color:#ff8c00;margin-bottom:20px;font-weight:700;letter-spacing:1px}
+.auth-desc{font-size:11px;color:rgba(255,140,0,.55);line-height:1.7;margin-bottom:22px}
+.auth-field{margin-bottom:18px}
+.auth-label{display:block;font-size:10px;color:rgba(255,140,0,.6);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px}
+.auth-input{width:100%;background:rgba(0,0,0,.5);border:1px solid rgba(255,140,0,.3);color:#ffa500;padding:10px 12px;font-family:var(--font-mono,'JetBrains Mono',monospace);font-size:14px;outline:none;letter-spacing:1px}
+.auth-input:focus{border-color:#ff8c00;box-shadow:0 0 0 1px rgba(255,140,0,.3)}
+.auth-input[disabled]{opacity:.4;cursor:not-allowed}
+.auth-buttons{display:flex;gap:10px;margin-top:8px}
+.auth-btn{flex:1;background:transparent;border:1px solid rgba(255,140,0,.5);color:#ff8c00;padding:11px 14px;font-family:var(--font-mono,'JetBrains Mono',monospace);font-size:12px;letter-spacing:2px;cursor:pointer;text-transform:uppercase;transition:all .15s ease;font-weight:600}
+.auth-btn:hover:not([disabled]){background:rgba(255,140,0,.1);border-color:#ff8c00;box-shadow:0 0 12px rgba(255,140,0,.3)}
+.auth-btn.primary{background:rgba(255,140,0,.15);border-color:#ff8c00}
+.auth-btn.primary:hover:not([disabled]){background:rgba(255,140,0,.25)}
+.auth-btn[disabled]{opacity:.3;cursor:not-allowed}
+.auth-msg{margin-top:14px;font-size:11px;line-height:1.6;min-height:34px}
+.auth-msg.err{color:#ff5566}
+.auth-msg.ok{color:#00d2aa}
+.auth-msg.info{color:rgba(255,140,0,.7)}
+.auth-foot{margin-top:24px;font-size:9px;color:rgba(255,140,0,.35);letter-spacing:1px;text-align:center;text-transform:uppercase}
+</style>
+
+<div id="authOverlay">
+  <div class="auth-card">
+    <div class="auth-title">// AUTHENTICATION REQUIRED</div>
+    <div class="auth-h1">GLOBALPULSE TERMINAL</div>
+    <div class="auth-desc">
+      授權使用者請以 Touch ID / Face ID 認證。<br>
+      首次使用請輸入授權名稱並按「註冊」。
+    </div>
+    <div class="auth-field">
+      <label class="auth-label">Operator Name</label>
+      <input type="text" id="authNameInput" class="auth-input" autocomplete="username" spellcheck="false" autocapitalize="none" />
+    </div>
+    <div class="auth-buttons">
+      <button id="authLoginBtn" class="auth-btn primary">登入</button>
+      <button id="authRegisterBtn" class="auth-btn">註冊</button>
+    </div>
+    <div id="authMsg" class="auth-msg info">準備認證 · WebAuthn ready</div>
+    <div class="auth-foot">WebAuthn / FIDO2 · Passkey · Session 3 days</div>
+  </div>
+</div>
+
+<script>
+// =============================================================================
+// v181 — Auth gate (real WebAuthn). Loaded BEFORE bootOverlay script so the
+// fetch patch is in effect when widgets first hit the worker. The visual
+// flow is: boot animation runs → boot fades out → checkAuthGate() runs →
+// if 401, authOverlay shows and blocks UI until login → dashboard visible.
+// =============================================================================
+(function(){
+  'use strict';
+
+  const WORKER_HOST = 'ais-proxy.2syzkjy2vq.workers.dev';
+  const WORKER_BASE = 'https://' + WORKER_HOST;
+
+  // ---------- fetch monkey-patch ----------
+  // Adds credentials:'include' to every request hitting the worker, so the
+  // session cookie travels with all data API calls. Without this we'd have
+  // to edit 76 fetch callsites.
+  const _origFetch = window.fetch.bind(window);
+  let _authPromptRequested = false;
+  window.fetch = function(input, init) {
+    let url = '';
+    try {
+      if (typeof input === 'string') url = input;
+      else if (input && input.url) url = input.url;
+    } catch(e) {}
+    const isWorker = url.indexOf(WORKER_HOST) >= 0;
+    if (isWorker) {
+      init = init || {};
+      // Don't clobber an existing credentials value (rare but possible)
+      if (!init.credentials) init.credentials = 'include';
+    }
+    const p = _origFetch(input, init);
+    if (!isWorker) return p;
+    // Watch for 401 from /auth-gated endpoints. If session expired mid-session,
+    // surface the login panel again.
+    return p.then(resp => {
+      try {
+        if (resp.status === 401 && !_authPromptRequested && !url.endsWith('/auth/me')) {
+          _authPromptRequested = true;
+          // Soft re-prompt — only if we previously thought we were authed
+          if (window.__authed) {
+            window.__authed = false;
+            showAuthOverlay('Session 已過期,請重新登入。', 'err');
+          }
+        }
+      } catch(e) {}
+      return resp;
+    });
+  };
+
+  // ---------- WebAuthn glue ----------
+  function b64urlToBytes(s) {
+    s = String(s).replace(/-/g, '+').replace(/_/g, '/');
+    while (s.length % 4) s += '=';
+    const bin = atob(s);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  function bytesToB64url(bytes) {
+    let s = '';
+    const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+    for (let i = 0; i < arr.length; i++) s += String.fromCharCode(arr[i]);
+    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  // Convert PublicKeyCredentialCreationOptions (b64url strings from server)
+  // into the BufferSource form the browser API expects.
+  function decodeCreationOptions(opts) {
+    return {
+      challenge: b64urlToBytes(opts.challenge),
+      rp: opts.rp,
+      user: {
+        id: b64urlToBytes(opts.user.id),
+        name: opts.user.name,
+        displayName: opts.user.displayName,
+      },
+      pubKeyCredParams: opts.pubKeyCredParams,
+      timeout: opts.timeout,
+      attestation: opts.attestation,
+      authenticatorSelection: opts.authenticatorSelection,
+    };
+  }
+  function decodeRequestOptions(opts) {
+    return {
+      challenge: b64urlToBytes(opts.challenge),
+      rpId: opts.rpId,
+      timeout: opts.timeout,
+      userVerification: opts.userVerification,
+      allowCredentials: (opts.allowCredentials || []).map(c => ({
+        type: c.type,
+        id: b64urlToBytes(c.id),
+        transports: c.transports,
+      })),
+    };
+  }
+
+  // ---------- UI helpers ----------
+  function $(id) { return document.getElementById(id); }
+  function showAuthOverlay(msg, kind) {
+    const ov = $('authOverlay');
+    if (!ov) return;
+    ov.classList.add('show');
+    if (msg) setMsg(msg, kind);
+    setTimeout(() => { try { $('authNameInput').focus(); } catch(e) {} }, 50);
+  }
+  function hideAuthOverlay() {
+    const ov = $('authOverlay');
+    if (ov) ov.classList.remove('show');
+  }
+  function setMsg(text, kind) {
+    const el = $('authMsg');
+    if (!el) return;
+    el.className = 'auth-msg ' + (kind || 'info');
+    el.textContent = text;
+  }
+  function setBusy(busy) {
+    ['authNameInput','authLoginBtn','authRegisterBtn'].forEach(id => {
+      const el = $(id);
+      if (el) el.disabled = !!busy;
+    });
+  }
+
+  // ---------- Core flows ----------
+  async function registerFlow(name) {
+    setBusy(true);
+    setMsg('產生註冊挑戰...', 'info');
+    try {
+      const r1 = await fetch(WORKER_BASE + '/auth/register/begin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      const j1 = await r1.json();
+      if (!r1.ok || !j1.ok) {
+        setMsg('註冊失敗:' + (j1.error || r1.status), 'err');
+        return false;
+      }
+      setMsg('請以 Touch ID / Face ID 完成驗證...', 'info');
+      const creationOptions = decodeCreationOptions(j1.options);
+      let cred;
+      try {
+        cred = await navigator.credentials.create({ publicKey: creationOptions });
+      } catch (e) {
+        setMsg('使用者取消或裝置不支援:' + (e && e.message || e), 'err');
+        return false;
+      }
+      if (!cred) {
+        setMsg('沒有取得 credential', 'err');
+        return false;
+      }
+      const credData = {
+        id: cred.id,
+        rawId: bytesToB64url(cred.rawId),
+        type: cred.type,
+        response: {
+          clientDataJSON: bytesToB64url(cred.response.clientDataJSON),
+          attestationObject: bytesToB64url(cred.response.attestationObject),
+        },
+      };
+      setMsg('驗證註冊資料中...', 'info');
+      const r2 = await fetch(WORKER_BASE + '/auth/register/finish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challenge_token: j1.challenge_token, credential: credData }),
+      });
+      const j2 = await r2.json();
+      if (!r2.ok || !j2.ok) {
+        setMsg('註冊驗證失敗:' + (j2.error || r2.status), 'err');
+        return false;
+      }
+      setMsg('註冊成功 · 已登入', 'ok');
+      window.__authed = true;
+      window.__authedName = j2.name;
+      return true;
+    } catch (e) {
+      setMsg('註冊例外:' + (e && e.message || e), 'err');
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loginFlow(name) {
+    setBusy(true);
+    setMsg('查詢登入挑戰...', 'info');
+    try {
+      const r1 = await fetch(WORKER_BASE + '/auth/login/begin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      const j1 = await r1.json();
+      if (!r1.ok || !j1.ok) {
+        const hint = (r1.status === 404) ? ' (尚未註冊,請按註冊)' : '';
+        setMsg('登入失敗:' + (j1.error || r1.status) + hint, 'err');
+        return false;
+      }
+      setMsg('請以 Touch ID / Face ID 驗證...', 'info');
+      const reqOptions = decodeRequestOptions(j1.options);
+      let assertion;
+      try {
+        assertion = await navigator.credentials.get({ publicKey: reqOptions });
+      } catch (e) {
+        setMsg('使用者取消:' + (e && e.message || e), 'err');
+        return false;
+      }
+      if (!assertion) {
+        setMsg('沒有取得 assertion', 'err');
+        return false;
+      }
+      const assertData = {
+        id: assertion.id,
+        rawId: bytesToB64url(assertion.rawId),
+        type: assertion.type,
+        response: {
+          clientDataJSON: bytesToB64url(assertion.response.clientDataJSON),
+          authenticatorData: bytesToB64url(assertion.response.authenticatorData),
+          signature: bytesToB64url(assertion.response.signature),
+          userHandle: assertion.response.userHandle ? bytesToB64url(assertion.response.userHandle) : null,
+        },
+      };
+      setMsg('驗證簽名中...', 'info');
+      const r2 = await fetch(WORKER_BASE + '/auth/login/finish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challenge_token: j1.challenge_token, credential: assertData }),
+      });
+      const j2 = await r2.json();
+      if (!r2.ok || !j2.ok) {
+        setMsg('登入驗證失敗:' + (j2.error || r2.status), 'err');
+        return false;
+      }
+      setMsg('登入成功', 'ok');
+      window.__authed = true;
+      window.__authedName = j2.name;
+      return true;
+    } catch (e) {
+      setMsg('登入例外:' + (e && e.message || e), 'err');
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function wireButtons() {
+    const nameEl = $('authNameInput');
+    const loginBtn = $('authLoginBtn');
+    const regBtn = $('authRegisterBtn');
+    if (!nameEl || !loginBtn || !regBtn) return;
+    async function go(fn) {
+      const name = (nameEl.value || '').trim().toLowerCase();
+      if (!name) { setMsg('請輸入名稱', 'err'); nameEl.focus(); return; }
+      const ok = await fn(name);
+      if (ok) {
+        _authPromptRequested = false;
+        setTimeout(() => { hideAuthOverlay(); }, 600);
+      }
+    }
+    loginBtn.addEventListener('click', () => go(loginFlow));
+    regBtn.addEventListener('click', () => go(registerFlow));
+    nameEl.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); loginBtn.click(); }
+    });
+  }
+
+  // ---------- Gate entry point ----------
+  // Called by boot script after fade-out. Resolves when authenticated.
+  window.checkAuthGate = async function() {
+    // Sanity: browser supports WebAuthn?
+    if (!window.PublicKeyCredential || !navigator.credentials) {
+      showAuthOverlay('此瀏覽器不支援 WebAuthn,請改用 Safari / Chrome 最新版。', 'err');
+      return new Promise(()=>{});  // never resolves — block dashboard
+    }
+    try {
+      const r = await fetch(WORKER_BASE + '/auth/me');
+      if (r.ok) {
+        const j = await r.json();
+        if (j && j.ok) {
+          window.__authed = true;
+          window.__authedName = j.name;
+          return;  // already logged in
+        }
+      }
+    } catch (e) {
+      // network error — still show login panel; user will see what happens
+    }
+    // 401 / network fail: show panel and wait until login completes
+    showAuthOverlay('請登入或註冊', 'info');
+    await new Promise(resolve => {
+      const iv = setInterval(() => {
+        if (window.__authed) {
+          clearInterval(iv);
+          resolve();
+        }
+      }, 200);
+    });
+  };
+
+  // Wire UI as soon as DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', wireButtons);
+  } else {
+    wireButtons();
+  }
+})();
+</script>
+<!-- v181 end auth gate -->
+
+
 <!-- v180.75 — boot sequence overlay (cinematic) -->
 <style>
 #bootOverlay{position:fixed;inset:0;background:#000;z-index:99999;display:flex;justify-content:center;align-items:center;font-family:'Courier New',monospace;color:#ff8c00;overflow:hidden}
@@ -2789,7 +3160,15 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
     clearInterval(clockId);
     overlay.style.transition = 'opacity .4s ease';
     overlay.style.opacity = '0';
-    setTimeout(() => { overlay.remove(); }, 420);
+    setTimeout(async () => {
+      overlay.remove();
+      // v181 — Auth gate: blocks dashboard until session valid
+      try {
+        if (typeof window.checkAuthGate === 'function') {
+          await window.checkAuthGate();
+        }
+      } catch(e) { console.error('[auth] gate error', e); }
+    }, 420);
   }, TOTAL + 350);
 })();
 </script>
