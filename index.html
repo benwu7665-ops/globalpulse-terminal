@@ -2989,6 +2989,28 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
   } else {
     wireButtons();
   }
+
+  // v182.1 — Start the auth gate IMMEDIATELY at DOM ready, not after boot.
+  // Previously: boot → fade-out → checkAuthGate → overlay. This caused a
+  // flash of the (still-loading) dashboard before the overlay appeared.
+  // Now: gate runs in parallel with boot. If unauthenticated, the login
+  // overlay is mounted underneath the boot overlay (z-index lower), so when
+  // boot fades out the user sees the login screen directly.
+  // The boot script's await on checkAuthGate still works because the same
+  // promise is reused (gate sets window.__authed only after login succeeds).
+  function _startGate() {
+    if (typeof window.checkAuthGate === 'function' && !window.__authGateStarted) {
+      window.__authGateStarted = true;
+      window.__authGatePromise = window.checkAuthGate().catch(e => {
+        console.error('[auth] gate error', e);
+      });
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _startGate);
+  } else {
+    _startGate();
+  }
 })();
 </script>
 <!-- v181 end auth gate -->
@@ -3170,10 +3192,12 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
     overlay.style.opacity = '0';
     setTimeout(async () => {
       overlay.remove();
+      // v182.1 — Gate was started at DOMContentLoaded (in parallel with boot),
+      // so the auth overlay is already mounted underneath (z-index 99998 vs
+      // boot 99999). Awaiting __authGatePromise (set by _startGate) blocks
+      // any post-auth init the caller wants to do.
       try {
-        if (typeof window.checkAuthGate === 'function') {
-          await window.checkAuthGate();
-        }
+        if (window.__authGatePromise) await window.__authGatePromise;
       } catch(e) { console.error('[auth] gate error', e); }
     }, 420);
   }, TOTAL + 350);
