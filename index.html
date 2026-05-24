@@ -2967,7 +2967,13 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
     } catch (e) {
       // network error — still show login panel; user will see what happens
     }
-    // 401 / network fail: show panel and wait until login completes
+    // 401 / network fail: show panel and wait until login completes.
+    // v181.2 — Tiny delay before showAuthOverlay so that if /auth/me is
+    // simultaneously resolving in another async path (race condition with
+    // browser autofill / cookie attach timing), we don't flash the panel
+    // for one frame. If __authed becomes true within this window, skip.
+    await new Promise(r => setTimeout(r, 120));
+    if (window.__authed) return;
     showAuthOverlay('請登入或註冊', 'info');
     await new Promise(resolve => {
       const iv = setInterval(() => {
