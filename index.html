@@ -3102,7 +3102,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v180.75</b></div>
+        <div>BUILD <b>v183.5</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -12962,9 +12962,11 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
       // Rate monitor — count messages per second (sync, before parse)
       const now = Date.now();
       if (now - _liveMsgWindowStart > 1000) {
-        if (_liveMsgCount > 0) {
-          console.log('[AIS] msg rate last second:', _liveMsgCount);
-        }
+        // v183.4 — Removed per-second console.log('[AIS] msg rate...').
+        // With DevTools open, Safari retains every logged line + referenced
+        // objects indefinitely; at ~150 logs/sec this was a major memory
+        // sink. Rate is still tracked in _dbgRateSnapshot (visible via
+        // window.__aisDbg.rate) for debugging without the console spam.
         _dbgRateSnapshot = _liveMsgCount;
         // v180.38 — Adapt drop rate based on observed throughput.
         // If receiving more than target/sec, raise drop rate so the effective
@@ -18552,6 +18554,36 @@ async function loadSpotPrices() {
   }
 }
 
+// v183.5 — Maritime chokepoint disruption via worker /chokepoints (IMF
+// PortWatch). Populates state.chokepoints for the maritimeAnomaly score
+// component. PortWatch only updates weekly, so we throttle client refetch to
+// once per 6h (the worker also KV-caches 24h). Returns true if data changed
+// so the caller can re-render. Fire-and-forget — never blocks the dashboard.
+let _chokepointsLastFetch = 0;
+async function loadChokepoints(force) {
+  const now = Date.now();
+  if (!force && state.chokepoints && (now - _chokepointsLastFetch) < 6 * 60 * 60 * 1000) {
+    return false;   // still fresh, skip
+  }
+  try {
+    const r = await fetch(WORKER_BASE + '/chokepoints?_t=' + now);
+    if (!r.ok) { console.warn('[CHOKE] /chokepoints', r.status); return false; }
+    const j = await r.json();
+    if (!j || !j.ok || !j.chokepoints || Object.keys(j.chokepoints).length === 0) {
+      console.warn('[CHOKE] empty/unsuccessful', j);
+      return false;
+    }
+    state.chokepoints = j.chokepoints;
+    state.chokepointsMeta = { fetched_at: j.fetched_at, source: j.source };
+    _chokepointsLastFetch = now;
+    console.log('[CHOKE]', Object.keys(j.chokepoints).length, 'straits', j.chokepoints);
+    return true;
+  } catch (e) {
+    console.warn('[CHOKE] fetch failed', e);
+    return false;
+  }
+}
+
 async function loadFred() {
   // Pull every series we have a mock value for, in one batched request.
   // We ask for 36 periods of history so the FRED_DECODED scoring engine
@@ -18563,6 +18595,13 @@ async function loadFred() {
   // load from 56 → 46, safely under Cloudflare's 50 limit. The excluded
   // series get populated later by loadSpotPrices().
   const _SPOT_KEYS = new Set(Object.values(SPOT_FRED_REMAP));
+  // v183.5 — Keep DCOILWTICO in the FRED batch: the oilShock score component
+  // needs 30 days of WTI *history* (30-day % change), which /spot (latest
+  // value only) can't supply. We still fetch its history from FRED here, then
+  // loadSpotPrices() overwrites only the *latest* value with the live quote.
+  // Net: 23 series (excl 4) + DCOILWTICO history = 24 series ≈ 48 subrequests,
+  // still under Cloudflare's 50 limit.
+  _SPOT_KEYS.delete('DCOILWTICO');
   const seriesList = Object.keys(MOCK_FRED).filter(k => !_SPOT_KEYS.has(k));
   const observations = await fetchFredAll(seriesList, 36);
 
@@ -18612,6 +18651,16 @@ async function loadFred() {
   renderFred();
   renderMacro();
   if (typeof renderGeoPanels === 'function') renderGeoPanels();
+  // v183.5 — Load IMF PortWatch chokepoint data asynchronously (non-blocking).
+  // maritimeAnomaly reads state.chokepoints; re-render the FRED panel + geo
+  // panels once it arrives so the maritime signal lights up without delaying
+  // the rest of the dashboard.
+  loadChokepoints().then(changed => {
+    if (changed) {
+      renderFred();
+      if (typeof renderGeoPanels === 'function') renderGeoPanels();
+    }
+  }).catch(() => {});
 }
 
 /* ========== FINANCE RENDER ========== */
@@ -19716,71 +19765,53 @@ const FRED_COMPONENTS = [
     id: 'maritimeAnomaly',
     label_zh: '海事擾動',
     label_en: 'Maritime Anomaly',
-    source: 'AIS · 6 大海峽即時統計',
-    formula_zh: '海峽船舶減少率 + AIS 訊號異常率',
-    formula_en: 'Strait vessel drop rate + AIS signal anomaly rate',
-    explanation_zh: '從 AIS 即時資料統計六大海峽(荷莫茲、馬六甲、巴拿馬、蘇伊士、台海、博斯普魯斯)的船舶通行量變化,以及 AIS 訊號異常率(熄燈、跳號)。海事擾動通常領先大宗商品價格 5-10 天。等加上異常偵測邏輯後啟用。',
-    explanation_en: 'From live AIS data, tracks changes in vessel throughput across the 6 major straits (Hormuz, Malacca, Panama, Suez, Taiwan, Bosphorus), plus AIS signal anomaly rates (dark vessels, MMSI spoofing). Maritime disruption typically leads commodity prices by 5-10 days. Activates once anomaly detection is implemented.',
+    source: 'IMF PortWatch · 6 大海峽每日通行量',
+    formula_zh: '海峽通行量相對歷史基線的減少率(多海峽同時下降加權)',
+    formula_en: 'Strait transit drop vs historical baseline (co-disruption weighted)',
+    explanation_zh: '資料來自 IMF PortWatch — 用全球約 9 萬艘船的衛星 AIS 訊號統計六大海峽(荷莫茲、曼德、蘇伊士、馬六甲、台海、巴拿馬)的每日通行船數。將近 7 日平均與歷史基線(整段期間中位數)比較,通行量驟降通常意味海峽封閉、制裁或戰事。多個海峽同時下降會加權,代表系統性事件。海事擾動通常領先大宗商品價格 5-10 天。',
+    explanation_en: 'Data from IMF PortWatch — daily transit counts for 6 major straits (Hormuz, Bab el-Mandeb, Suez, Malacca, Taiwan, Panama) derived from satellite AIS of ~90k ships. Compares the recent 7-day average against a historical baseline (window median); a sharp drop signals closure, sanctions, or conflict. Simultaneous drops across multiple straits are weighted up as a systemic-event signal. Maritime disruption typically leads commodity prices by 5-10 days.',
     weightMin: 0,
     weightMax: 6,
     compute() {
-      // v180.71 — 從 window.__ais.getVessels() 計算 6 海峽船數,
-      // 與滾動 baseline 比較。船數驟降通常意味海峽封閉/制裁/戰事。
-      // STRATEGIC_HOTSPOTS 6 bbox 同 AIS 模組 (Hormuz/BabElMandeb/Suez/Malacca/Taiwan/Panama)
-      // v180.73 — baseline 調高(避免 AIS 剛連線就誤判)、threshold 收緊到 70% drop。
-      const STRAITS = [
-        { id: 'hormuz',  bbox: [[22.0, 48.0], [30.0, 65.0]],  baseline: 400, name: 'Hormuz' },
-        { id: 'babmnd',  bbox: [[10.0, 38.0], [20.0, 52.0]],  baseline: 320, name: 'Bab el-Mandeb' },
-        { id: 'suez',    bbox: [[27.0, 28.0], [37.0, 38.0]],  baseline: 280, name: 'Suez' },
-        { id: 'malacca', bbox: [[-8.0, 95.0], [10.0, 115.0]], baseline: 650, name: 'Malacca' },
-        { id: 'taiwan',  bbox: [[20.0, 113.0],[35.0, 128.0]], baseline: 480, name: 'Taiwan' },
-        { id: 'panama',  bbox: [[ 5.0,-85.0], [15.0,-72.0]],  baseline: 180, name: 'Panama' },
-      ];
-      const vessels = (window.__ais && typeof window.__ais.getVessels === 'function')
-        ? window.__ais.getVessels()
-        : null;
-      if (!Array.isArray(vessels) || vessels.length === 0) {
+      // v183.5 — Switched from client-side AIS bbox vessel-counting to IMF
+      // PortWatch data (state.chokepoints, populated by loadChokepoints()).
+      // The old approach counted AIS vessels inside strait bounding boxes, but
+      // the 500-vessel render cap meant strait counts were near-zero and every
+      // strait looked "closed" → false anomalies. PortWatch gives real daily
+      // transit counts + a historical baseline, so the drop ratio is reliable.
+      const cp = state.chokepoints;
+      if (!cp || typeof cp !== 'object' || Object.keys(cp).length === 0) {
         return {
           contribution: null,
           status: 'na',
-          inputs: { reason: 'AIS 即時資料尚未連線 · awaiting AIS stream' },
+          inputs: { reason: 'PortWatch 海峽資料尚未載入 · awaiting PortWatch data' },
         };
-      }
-      // 至少要有 1000 艘船才開始評分(避免剛連線時誤判)
-      if (vessels.length < 1000) {
-        return {
-          contribution: null,
-          status: 'na',
-          inputs: { reason: 'AIS 船數累積中 · warming up', vessels_total: vessels.length },
-        };
-      }
-      function inBbox(v, bbox) {
-        if (typeof v.lat !== 'number' || typeof v.lon !== 'number') return false;
-        return v.lat >= bbox[0][0] && v.lat <= bbox[1][0]
-            && v.lon >= bbox[0][1] && v.lon <= bbox[1][1];
       }
       let anomalyScore = 0;
+      let droppedCount = 0;
       const perStrait = {};
-      for (const s of STRAITS) {
-        const count = vessels.filter(v => inBbox(v, s.bbox)).length;
-        perStrait[s.id] = count;
-        // v180.73 — 70% drop threshold (was 50% which was too sensitive)
-        const dropRatio = (s.baseline - count) / s.baseline;
-        if (dropRatio >= 0.7) anomalyScore += Math.min(1.5, dropRatio * 2);
+      for (const id of Object.keys(cp)) {
+        const d = cp[id];
+        if (!d || d.dropPct == null) continue;
+        const drop = d.dropPct;   // 0..1, fraction below baseline
+        const label = d.name || id;
+        perStrait[label] = '−' + Math.round(drop * 100) + '% (7d ' + d.recent7 + ' vs base ' + d.baseline + ')';
+        // Severity tiers. A strait counts as "disrupted" at ≥50% drop.
+        if (drop >= 0.7)      { anomalyScore += 2;   droppedCount++; }
+        else if (drop >= 0.5) { anomalyScore += 1;   droppedCount++; }
+        else if (drop >= 0.3) { anomalyScore += 0.5; }
       }
-      // 多海峽同時異常追加 (協同事件信號)
-      const droppedStraits = STRAITS.filter(s => (perStrait[s.id] / s.baseline) < 0.3).length;
-      if (droppedStraits >= 2) anomalyScore += 1;
-      if (droppedStraits >= 4) anomalyScore += 2;
+      // Co-disruption bonus — multiple straits down at once = systemic event.
+      if (droppedCount >= 2) anomalyScore += 1;
+      if (droppedCount >= 3) anomalyScore += 1;
       const contribution = clampNum(anomalyScore, 0, 6);
       return {
         contribution,
         status: 'ok',
-        inputs: {
-          ...perStrait,
-          'total_in_straits': Object.values(perStrait).reduce((a,b) => a+b, 0),
-          'dropped_straits': droppedStraits,
-        },
+        inputs: Object.assign({}, perStrait, {
+          'straits_disrupted': droppedCount,
+          'source': 'IMF PortWatch',
+        }),
       };
     },
   },
