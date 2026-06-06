@@ -18470,13 +18470,100 @@ function initWatchlist() {
   setInterval(saveWatchlistCache, 30 * 1000);
 }
 
+// v183.3 — Spot / intraday quote integration via worker /spot endpoint.
+// Why: FRED's VIXCLS, DCOILWTICO, DCOILBRENTEU, DEXUSEU, DEXJPUS are all
+// daily-close lagged AND routinely dropped by Cloudflare's 50-subrequest
+// limit during the /fred batch fetch. Result: stale fallback values from
+// MOCK_FRED leaked into the UI. This module fetches those 5 series (plus
+// gold, silver, natgas, copper) from Twelve Data via worker /spot, on a
+// separate invocation (its own 50-subrequest budget) and overwrites
+// state.fred for the 5 FRED-compatible keys.
+const SPOT_FRED_REMAP = {
+  // Twelve Data symbol → state.fred key (so existing UI keeps working)
+  'VIX':       'VIXCLS',
+  'WTI/USD':   'DCOILWTICO',
+  'BRENT':     'DCOILBRENTEU',
+  'EUR/USD':   'DEXUSEU',
+  'USD/JPY':   'DEXJPUS',
+};
+// Symbols that don't map to a FRED key — stored in state.spot for future
+// widgets to display.
+const SPOT_NEW = ['XAU/USD', 'XAG/USD', 'NG/USD', 'HG/USD'];
+
+async function loadSpotPrices() {
+  // Seed state.fred for spot keys with MOCK fallback first — if /spot
+  // fails entirely, the rest of the dashboard still has a value to read.
+  // (The MOCK is still wrong, but better than `undefined` crashing things.)
+  for (const [_tdSym, fredKey] of Object.entries(SPOT_FRED_REMAP)) {
+    if (state.fred[fredKey] == null && MOCK_FRED[fredKey] != null) {
+      state.fred[fredKey] = MOCK_FRED[fredKey];
+    }
+  }
+  // All requested symbols in one batched call
+  const allSymbols = Object.keys(SPOT_FRED_REMAP).concat(SPOT_NEW);
+  try {
+    const r = await fetch(WORKER_BASE + '/spot?symbols=' + encodeURIComponent(allSymbols.join(',')) + '&_t=' + Date.now());
+    if (!r.ok) {
+      console.warn('[SPOT] /spot returned', r.status);
+      return;
+    }
+    const j = await r.json();
+    if (!j || !j.ok || !j.prices) {
+      console.warn('[SPOT] /spot empty / unsuccessful', j);
+      return;
+    }
+
+    // Overwrite state.fred for FRED-keyed entries
+    for (const [tdSym, fredKey] of Object.entries(SPOT_FRED_REMAP)) {
+      const p = j.prices[tdSym];
+      if (p && typeof p.value === 'number' && isFinite(p.value)) {
+        state.fred[fredKey] = p.value;
+        if (state.fredMeta) {
+          state.fredMeta[fredKey] = Object.assign({}, state.fredMeta[fredKey], {
+            value: p.value,
+            date: (p.datetime || j.fetched_at || '').slice(0, 10),
+            source: 'twelvedata',
+          });
+        }
+      }
+    }
+
+    // Store standalone spot prices (gold/silver/natgas/copper) for widgets
+    state.spot = state.spot || {};
+    const _put = (sym, key) => {
+      const p = j.prices[sym];
+      if (p && typeof p.value === 'number' && isFinite(p.value)) {
+        state.spot[key] = {
+          value: p.value,
+          change: p.change,
+          changePercent: p.changePercent,
+          datetime: p.datetime,
+        };
+      }
+    };
+    _put('XAU/USD', 'gold');
+    _put('XAG/USD', 'silver');
+    _put('NG/USD', 'natgas');
+    _put('HG/USD', 'copper');
+
+    console.log('[SPOT] live', j.live_count, '/', j.total_count, 'symbols', state.spot);
+  } catch (e) {
+    console.warn('[SPOT] fetch failed', e);
+  }
+}
+
 async function loadFred() {
   // Pull every series we have a mock value for, in one batched request.
   // We ask for 36 periods of history so the FRED_DECODED scoring engine
   // can compute components that need trailing data (Sahm rule, CPI YoY)
   // even after FRED filters out missing observations (value='.').
   // v180.71 — bumped from 14 to 36 to fix Sahm N/A issue.
-  const seriesList = Object.keys(MOCK_FRED);
+  // v183.3 — exclude series now sourced from Twelve Data /spot (VIXCLS,
+  // DCOILWTICO, DCOILBRENTEU, DEXUSEU, DEXJPUS). Reduces FRED subrequest
+  // load from 56 → 46, safely under Cloudflare's 50 limit. The excluded
+  // series get populated later by loadSpotPrices().
+  const _SPOT_KEYS = new Set(Object.values(SPOT_FRED_REMAP));
+  const seriesList = Object.keys(MOCK_FRED).filter(k => !_SPOT_KEYS.has(k));
   const observations = await fetchFredAll(seriesList, 36);
 
   let live = 0;
@@ -18517,6 +18604,11 @@ async function loadFred() {
       el.innerHTML = '<span class="src-badge src-mock">MOCK</span>';
     }
   });
+  // v183.3 — Fetch live spot/intraday prices for VIX, oil, forex (and
+  // gold/silver/natgas/copper extras). Awaited so render below sees real
+  // values, not MOCK. /spot is a separate worker invocation = own
+  // subrequest budget = won't be starved by FRED's batch.
+  await loadSpotPrices();
   renderFred();
   renderMacro();
   if (typeof renderGeoPanels === 'function') renderGeoPanels();
