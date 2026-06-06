@@ -23597,7 +23597,14 @@ function showFredModal() {
   }).join('');
 
   // Summary
-  const dateStr = (state.fredMeta && Object.values(state.fredMeta)[0]?.date) || '—';
+  // v183.1 — dateStr was showing only the first series' date alphabetically
+  // (e.g. BOERUKM, an energy series with stale last-datapoint timestamps),
+  // which gave misleading dates like "2017-01-01" even when other series
+  // were current. Pick the MOST RECENT date across all loaded series.
+  const _allDates = state.fredMeta
+    ? Object.values(state.fredMeta).map(v => v && v.date).filter(Boolean).sort()
+    : [];
+  const dateStr = _allDates.length ? _allDates[_allDates.length - 1] : '—';
 
   const wrap = document.createElement('div');
   wrap.className = 'si-popup-wrap';
