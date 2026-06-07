@@ -3106,7 +3106,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.7</b></div>
+        <div>BUILD <b>v183.8</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -10963,48 +10963,13 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
   })();
   applyTransform();
 
-  // v183.7 — touch pinch-zoom. Desktop zooms with the wheel handler below;
-  // touch devices have no wheel, so two-finger pinch is wired here, reusing
-  // the same zoom/panX/panY state and applyTransform() (which clamps via
-  // clampPan). Single-finger panning already works through the pointer
-  // handlers. touch-action:none on #map2d-wrap stops Safari hijacking the
-  // gesture as a page zoom.
-  const _ptrs = new Map();        // active pointers: id -> {x, y}
-  let _pinch = null;              // non-null while two fingers are down
-  let _pinchRAF = null;
-
-  function _pinchStart() {
-    const p = [..._ptrs.values()];
-    const midSx = (p[0].x + p[1].x) / 2, midSy = (p[0].y + p[1].y) / 2;
-    const mid = screenToSvg(midSx, midSy);
-    const ctm = svg.getScreenCTM();
-    _pinch = {
-      dist: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1,
-      cx: mid.x, cy: mid.y,                 // zoom anchor (viewBox coords)
-      zoom0: zoom, panX0: panX, panY0: panY,
-      sx0: midSx, sy0: midSy,               // start midpoint (screen px)
-      scale0: (ctm ? ctm.a : 1)             // screen px -> viewBox unit
-    };
-  }
-  function _pinchMove() {
-    if (_pinchRAF) return;
-    _pinchRAF = requestAnimationFrame(() => {
-      _pinchRAF = null;
-      if (!_pinch || _ptrs.size < 2) return;
-      const p = [..._ptrs.values()];
-      const newDist = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1;
-      const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, _pinch.zoom0 * (newDist / _pinch.dist)));
-      // zoom toward the original pinch midpoint
-      let nx = _pinch.cx - (_pinch.cx - _pinch.panX0) * (newZoom / _pinch.zoom0);
-      let ny = _pinch.cy - (_pinch.cy - _pinch.panY0) * (newZoom / _pinch.zoom0);
-      // two-finger drag: follow the midpoint as it moves (screen -> viewBox)
-      const midSx = (p[0].x + p[1].x) / 2, midSy = (p[0].y + p[1].y) / 2;
-      nx += (midSx - _pinch.sx0) / (_pinch.scale0 || 1);
-      ny += (midSy - _pinch.sy0) / (_pinch.scale0 || 1);
-      zoom = newZoom; panX = nx; panY = ny;
-      applyTransform();
-    });
-  }
+  // v183.8 — touch zoom is handled by iOS Safari gesture events (further
+  // below), not by pointer-distance math. The old pointer pinch fought iOS:
+  // Safari fires pointercancel for the touches once it recognises a two-finger
+  // gesture, which tore down the pinch mid-way (janky / inverted). A single
+  // finger still pans through these pointer handlers; _gesturing suppresses
+  // panning while a pinch is in progress.
+  let _gesturing = false;
 
   wrap.addEventListener('pointerdown', e => {
     // Hotspots are interactive (click to open detail), so don't start a drag
@@ -11020,15 +10985,7 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
     // does nothing. Hotspots already had this carve-out; vessels need it
     // too because they get click handlers attached in the AIS module.
     if (e.target.closest('.hotspot, .ais-vessel')) return;
-    _ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (_ptrs.size === 2) {
-      // second finger down → switch from single-finger pan to pinch
-      isDrag = false;
-      wrap.classList.remove('dragging');
-      _pinchStart();
-      return;
-    }
-    if (_ptrs.size > 2) return;   // ignore 3rd+ finger
+    if (_gesturing) return;              // a pinch is in progress; don't pan
     isDrag = true;
     _dragMoved = false;   // track whether the pointer actually moved
     wrap.classList.add('dragging');
@@ -11054,10 +11011,7 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
   let _pendingPanFrame = false;
 
   wrap.addEventListener('pointermove', e => {
-    // v183.7 — keep pinch pointers fresh; when two are down, pinch-zoom and
-    // skip the single-finger pan path below.
-    if (_ptrs.has(e.pointerId)) _ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (_pinch && _ptrs.size >= 2) { _pinchMove(); return; }
+    if (_gesturing) return;              // v183.8 — pinch in progress, don't pan
     // coords readout (always runs, but it's cheap)
     const { x: svgX, y: svgY } = screenToSvg(e.clientX, e.clientY);
     const worldX = (svgX - panX) / zoom;
@@ -11111,33 +11065,10 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
     });
   });
   function endDrag(e) {
-    // v183.7 — pinch teardown. Must run even when isDrag is false (we're
-    // mid-pinch), so drop the pointer + release capture BEFORE the isDrag
-    // early-return that handles the single-finger-drag case.
-    const wasPinch = !!_pinch;
-    if (_ptrs.has(e.pointerId)) _ptrs.delete(e.pointerId);
-    try { wrap.releasePointerCapture(e.pointerId); } catch {}
-    if (wasPinch) {
-      if (_ptrs.size >= 2) { _pinchStart(); return; }   // 3-finger: re-base on the remaining two
-      _pinch = null;
-      if (_ptrs.size === 1) {
-        // one finger left → resume single-finger pan from its current spot
-        const [p] = [..._ptrs.values()];
-        isDrag = true; _dragMoved = false;
-        wrap.classList.add('dragging');
-        dragSX = p.x; dragSY = p.y;
-        dragPX = panX; dragPY = panY;
-        const ctm0 = svg.getScreenCTM();
-        _dragScale = ctm0 ? ctm0.a : 1;
-      } else {
-        isDrag = false;
-        wrap.classList.remove('dragging');
-      }
-      return;
-    }
     if (!isDrag) return;
     isDrag = false;
     wrap.classList.remove('dragging');
+    try { wrap.releasePointerCapture(e.pointerId); } catch {}
     // v171: reset _dragMoved on the NEXT tick. We can't reset synchronously
     // here because the click event fires after pointerup — if we cleared
     // _dragMoved now, a real drag would still trigger the click handler.
@@ -11174,6 +11105,56 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
       applyTransform();
     });
   }, { passive: false });
+
+  // v183.8 — iOS Safari pinch-zoom via gesture events. These are Apple's
+  // native two-finger gesture API: e.scale is the cumulative scale since
+  // gesturestart (>1 = fingers spread = zoom IN, <1 = pinch = zoom OUT), and
+  // e.clientX/Y is the gesture centroid. preventDefault stops Safari zooming
+  // the whole page. We reuse zoom/panX/panY + applyTransform (which clamps via
+  // clampPan), so detail (city tiers, vessels) appears exactly like wheel zoom.
+  // On Mac Safari this also enables trackpad pinch-zoom. Other browsers don't
+  // fire these — they use the wheel handler above for trackpad pinch.
+  let _g = null, _gRAF = null, _gScale = 1, _gCx = 0, _gCy = 0;
+  wrap.addEventListener('gesturestart', e => {
+    e.preventDefault();
+    _gesturing = true;
+    isDrag = false;                       // cancel any single-finger drag
+    wrap.classList.remove('dragging');
+    const a = screenToSvg(e.clientX, e.clientY);
+    const ctm = svg.getScreenCTM();
+    _g = {
+      zoom0: zoom, panX0: panX, panY0: panY,
+      ax: a.x, ay: a.y,                   // zoom anchor (viewBox coords)
+      sx0: e.clientX, sy0: e.clientY,     // start centroid (screen px)
+      scale0: (ctm ? ctm.a : 1)           // screen px -> viewBox unit
+    };
+  });
+  wrap.addEventListener('gesturechange', e => {
+    e.preventDefault();
+    if (!_g) return;
+    _gScale = e.scale || 1; _gCx = e.clientX; _gCy = e.clientY;
+    if (_gRAF) return;
+    _gRAF = requestAnimationFrame(() => {
+      _gRAF = null;
+      if (!_g) return;
+      const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, _g.zoom0 * _gScale));
+      // zoom toward the gesture anchor
+      let nx = _g.ax - (_g.ax - _g.panX0) * (newZoom / _g.zoom0);
+      let ny = _g.ay - (_g.ay - _g.panY0) * (newZoom / _g.zoom0);
+      // follow the centroid as it drifts (lets you reposition while zooming)
+      nx += (_gCx - _g.sx0) / (_g.scale0 || 1);
+      ny += (_gCy - _g.sy0) / (_g.scale0 || 1);
+      zoom = newZoom; panX = nx; panY = ny;
+      applyTransform();
+    });
+  });
+  function _gestureEnd(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    _gesturing = false;
+    _g = null;
+    if (_gRAF) { cancelAnimationFrame(_gRAF); _gRAF = null; }
+  }
+  wrap.addEventListener('gestureend', _gestureEnd);
 
   // double-click to zoom in to cursor, shift+dblclick to zoom out
   wrap.addEventListener('dblclick', e => {
