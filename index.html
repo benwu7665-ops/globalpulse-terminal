@@ -3106,7 +3106,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.8</b></div>
+        <div>BUILD <b>v183.9</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -5021,10 +5021,11 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
           <div style="display:flex;gap:10px;align-items:flex-end;">
             <textarea id="aiInput" placeholder="問我市場、投資組合分析、新聞摘要⋯ Cmd+Enter 送出 / Ask about markets, portfolio, news. Cmd+Enter to send."
               style="flex:1;background:rgba(255,255,255,.04);color:var(--text);border:1px solid var(--amber-faint);padding:8px 10px;font-family:var(--font-mono);font-size:12px;resize:vertical;min-height:42px;max-height:200px;line-height:1.5;"></textarea>
+            <button id="aiBriefBtn" class="btn" title="把目前頁面上的即時資料整理成重點" style="background:transparent;color:var(--amber);border:1px solid var(--amber-dim);padding:8px 12px;font-family:var(--font-mono);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.05em;white-space:nowrap;">[整理]</button>
             <button id="aiSendBtn" class="btn" style="background:var(--amber);color:var(--bg);border:1px solid var(--amber);padding:8px 18px;font-family:var(--font-mono);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.05em;">[送出]</button>
           </div>
           <div id="aiHint" style="margin-top:6px;font-size:10px;color:var(--text-dim);font-family:var(--font-mono);">
-            <span class="t-zh">提示:</span><span class="t-en">Tips:</span> "分析我的投資組合風險" · "VIX 在 25 意味著什麼" · "解釋台積電財報重點"
+            <span class="t-zh">已連線到即時儀表板資料。試試 "整理現在的局勢"、"摘要最近的快訊"、"分析我的投資組合風險"。</span><span class="t-en">Connected to live dashboard data. Try "summarize the current situation".</span>
           </div>
         </div>
       </section>
@@ -34102,11 +34103,12 @@ setRoute((location.hash.replace('#/', '') || 'geo'));
         '<div style="text-align:center;color:var(--text-dim);padding:40px 20px;font-size:12px;line-height:1.8;">' +
           '<div style="color:var(--amber);font-size:14px;margin-bottom:8px;">▸ GLOBALPULSE AI 投資助理</div>' +
           '<div>整合 Llama 3.3 70B (Groq) — 對話速度 300+ tokens/秒</div>' +
+          '<div style="margin-top:8px;color:var(--ok,#5fd38d);font-size:11px;">✓ 已連線到即時儀表板資料(快訊 / 新聞 / 威脅分數 / 報價)</div>' +
           '<div style="margin-top:14px;">試試問:</div>' +
           '<div style="margin-top:6px;color:var(--amber);font-size:11px;">' +
-            '"VIX 在 25 意味著什麼"<br>' +
-            '"幫我分析 76% 集中在 2330 的投組風險"<br>' +
-            '"解釋什麼是夏普值"' +
+            '"整理現在的局勢"<br>' +
+            '"摘要最近的快訊重點"<br>' +
+            '"幫我分析 76% 集中在 2330 的投組風險"' +
           '</div>' +
         '</div>';
       return;
@@ -34148,11 +34150,22 @@ setRoute((location.hash.replace('#/', '') || 'geo'));
     streaming = true;
 
     try {
+      // v183.9 — fold the live dashboard snapshot into the latest user turn so
+      // the AI can "整理" the actual page data. Built fresh each send and only
+      // added to the request payload — the saved chat history stays clean, and
+      // this works regardless of the worker's own system prompt.
+      const convo = messages.slice(0, -1).map(m => ({ role: m.role, content: m.content }));   // strip streaming placeholder
+      try {
+        const ctx = (typeof window.__buildAiContext === 'function') ? window.__buildAiContext() : '';
+        if (ctx && convo.length && convo[convo.length - 1].role === 'user') {
+          convo[convo.length - 1].content = ctx + '\n\n———\n使用者提問:\n' + convo[convo.length - 1].content;
+        }
+      } catch (_ctxErr) { /* context is best-effort */ }
       const resp = await fetch(AI_WORKER_BASE + '/ai-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: messages.slice(0, -1).map(m => ({ role: m.role, content: m.content })),   // strip streaming placeholder
+          messages: convo,
           stream: true,
         }),
       });
@@ -34233,6 +34246,14 @@ setRoute((location.hash.replace('#/', '') || 'geo'));
       });
     }
     if (sendBtn) sendBtn.addEventListener('click', sendMessage);
+    // v183.9 — [整理] quick action: ask the AI to summarise the live dashboard
+    const briefBtn = document.getElementById('aiBriefBtn');
+    if (briefBtn) briefBtn.addEventListener('click', () => {
+      if (streaming) return;
+      const inp = document.getElementById('aiInput');
+      if (inp) inp.value = '請根據目前儀表板上的即時資料(威脅分數、即時報價、最近的快訊與新聞),整理一份重點摘要:先給一句整體研判,再用條列列出最重要的幾則訊息及其市場影響,最後點出需要留意的風險。用繁體中文、精簡。';
+      sendMessage();
+    });
     if (clearBtn) clearBtn.addEventListener('click', () => {
       if (!confirm('清空所有對話歷史?')) return;
       messages = [];
@@ -34456,6 +34477,94 @@ window.fmtHHMM = function(date) {
   } else {
     init();
   }
+})();
+</script>
+
+<script>
+/* ========== v183.9 — AI 即時資料橋接 (AI live-data bridge) ==========
+   Captures every message rendered into the dashboard feeds into a rolling
+   buffer, and exposes window.__buildAiContext() which the AI chat folds into
+   each request so "整理" works on the live page data. No worker change needed. */
+(function(){
+  var FEED_IDS = ['flashList','newsFlashImportantList','newsFlashAllList','newsCenterFeed','signalLog'];
+  var LABEL = { flashList:'快訊', newsFlashImportantList:'重要快訊', newsFlashAllList:'快訊', newsCenterFeed:'新聞', signalLog:'號誌' };
+  var MAX_ITEMS = 400;
+  var buf = (window.__aiFeed = window.__aiFeed || []);
+  var seen = new Set();
+
+  function norm(s){ return (s||'').replace(/\s+/g,' ').trim(); }
+  function push(src, raw){
+    var text = norm(raw);
+    if (text.length < 8 || text.length > 1200) return;
+    var key = src + '|' + text;
+    if (seen.has(key)) return;
+    seen.add(key);
+    buf.push({ t: Date.now(), src: src, text: text });
+    while (buf.length > MAX_ITEMS){ var old = buf.shift(); seen.delete(old.src + '|' + old.text); }
+  }
+  function scan(el, src){
+    el.querySelectorAll(':scope > *').forEach(function(n){ if (n.nodeType === 1) push(src, n.textContent); });
+  }
+  function observe(el, src){
+    scan(el, src);
+    new MutationObserver(function(muts){
+      for (var i=0;i<muts.length;i++){
+        var an = muts[i].addedNodes;
+        if (!an) continue;
+        an.forEach(function(n){ if (n.nodeType === 1) push(src, n.textContent); });
+      }
+    }).observe(el, { childList: true });
+  }
+  function setup(){
+    FEED_IDS.forEach(function(id){
+      var el = document.getElementById(id);
+      if (el && !el.__aiObserved){ el.__aiObserved = true; observe(el, LABEL[id] || id); }
+    });
+  }
+  setup();
+  var tries = 0;
+  var iv = setInterval(function(){ setup(); if (++tries > 20) clearInterval(iv); }, 1500);
+
+  function clip(s, n){ s = norm(s); return s.length > n ? s.slice(0, n) + '…' : s; }
+  function readMetrics(){
+    var out = [];
+    var th = document.getElementById('fp-threat');
+    if (th) out.push('威脅分數: ' + clip(th.textContent, 400));
+    var tg = document.getElementById('tickerGrid');
+    if (tg){
+      var tiles = [];
+      tg.querySelectorAll(':scope > *').forEach(function(t){ var s = norm(t.textContent); if (s) tiles.push(s); });
+      if (tiles.length) out.push('即時報價: ' + clip(tiles.join(' | '), 800));
+    }
+    return out;
+  }
+
+  var CHAR_BUDGET = 10000;
+  window.__buildAiContext = function(){
+    var lines = [];
+    var ts = new Date().toLocaleString('zh-TW', { hour12:false });
+    lines.push('[GLOBALPULSE 即時儀表板快照 · ' + ts + ']');
+    readMetrics().forEach(function(m){ lines.push(m); });
+    lines.push('');
+    lines.push('近期訊息(新→舊):');
+    var items = buf.slice().sort(function(a,b){ return b.t - a.t; });
+    var used = lines.join('\n').length;
+    var n = 0;
+    for (var i=0;i<items.length;i++){
+      var it = items[i];
+      var d = new Date(it.t);
+      var hhmm = ('0'+d.getHours()).slice(-2) + ':' + ('0'+d.getMinutes()).slice(-2);
+      var line = '• [' + hhmm + '][' + it.src + '] ' + it.text;
+      if (used + line.length + 1 > CHAR_BUDGET) break;
+      lines.push(line); used += line.length + 1; n++;
+    }
+    if (!n) lines.push('(緩衝區目前沒有訊息;可能剛開頁面、資料還沒進來,或在其他分頁。)');
+    lines.push('');
+    lines.push('以上是使用者網站目前的即時資料,回答或整理時請依據這些內容。');
+    return lines.join('\n');
+  };
+
+  console.log('[ai-bridge] v183.9 ready — observing:', FEED_IDS.join(','));
 })();
 </script>
 
