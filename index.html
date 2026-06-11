@@ -3106,7 +3106,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.11</b></div>
+        <div>BUILD <b>v183.12</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -5010,7 +5010,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="box-head">
           <span><span class="t-zh">AI 對話 / 投資助理</span><span class="t-en">AI_CHAT</span></span>
           <span class="box-meta">
-            <span id="aiModelLabel" style="color:var(--text-dim);">Kimi K2 · Groq</span>
+            <span id="aiModelLabel" style="color:var(--text-dim);">GPT-OSS 120B · Groq</span>
             <button id="aiClearBtn" class="btn" style="margin-left:10px;background:transparent;border:1px solid var(--amber-faint);color:var(--text);padding:3px 8px;font-family:var(--font-mono);font-size:11px;cursor:pointer;">[清空對話]</button>
           </span>
         </div>
@@ -34102,7 +34102,7 @@ setRoute((location.hash.replace('#/', '') || 'geo'));
       body.innerHTML =
         '<div style="text-align:center;color:var(--text-dim);padding:40px 20px;font-size:12px;line-height:1.8;">' +
           '<div style="color:var(--amber);font-size:14px;margin-bottom:8px;">▸ GLOBALPULSE AI 投資助理</div>' +
-          '<div>整合 Kimi K2 (Groq) — 中文表現更佳、忠實摘要</div>' +
+          '<div>整合 GPT-OSS 120B (Groq) — 強推理、忠實摘要</div>' +
           '<div style="margin-top:8px;color:var(--ok,#5fd38d);font-size:11px;">✓ 已連線到即時儀表板資料(快訊 / 新聞 / 威脅分數 / 報價)</div>' +
           '<div style="margin-top:14px;">試試問:</div>' +
           '<div style="margin-top:6px;color:var(--amber);font-size:11px;">' +
@@ -34168,7 +34168,8 @@ setRoute((location.hash.replace('#/', '') || 'geo'));
           messages: convo,
           stream: true,
           temperature: 0.2,
-          model: 'moonshotai/kimi-k2-instruct-0905',
+          model: 'openai/gpt-oss-120b',
+          max_tokens: 2048,
         }),
       });
       if (!resp.ok) {
