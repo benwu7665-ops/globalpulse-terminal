@@ -3106,7 +3106,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.9</b></div>
+        <div>BUILD <b>v183.10</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -34167,6 +34167,7 @@ setRoute((location.hash.replace('#/', '') || 'geo'));
         body: JSON.stringify({
           messages: convo,
           stream: true,
+          temperature: 0.2,
         }),
       });
       if (!resp.ok) {
@@ -34251,7 +34252,7 @@ setRoute((location.hash.replace('#/', '') || 'geo'));
     if (briefBtn) briefBtn.addEventListener('click', () => {
       if (streaming) return;
       const inp = document.getElementById('aiInput');
-      if (inp) inp.value = '請根據目前儀表板上的即時資料(威脅分數、即時報價、最近的快訊與新聞),整理一份重點摘要:先給一句整體研判,再用條列列出最重要的幾則訊息及其市場影響,最後點出需要留意的風險。用繁體中文、精簡。';
+      if (inp) inp.value = '根據下方「即時儀表板快照」整理重點。嚴格規則:(1) 只根據快照內的事實,絕對不要編造或臆測沒寫的因果關係;(2) 新聞標題多為英文,忠實對應原意,人名/公司/機構/專有名詞與數字一律保留原文,不要硬翻成不通順的中文;(3) 看不懂、殘缺或重複的條目直接略過,不要腦補;(4) 格式:先一句整體研判(含威脅分數),再分「地緣 / 總經 / 科技 / 市場」四類,每類最多 3 則最重要的、每則一句話,最後列 1–2 個風險。繁體中文、精簡。';
       sendMessage();
     });
     if (clearBtn) clearBtn.addEventListener('click', () => {
@@ -34546,7 +34547,7 @@ window.fmtHHMM = function(date) {
     lines.push('[GLOBALPULSE 即時儀表板快照 · ' + ts + ']');
     readMetrics().forEach(function(m){ lines.push(m); });
     lines.push('');
-    lines.push('近期訊息(新→舊):');
+    lines.push('近期訊息(原始標題,多為英文,新→舊):');
     var items = buf.slice().sort(function(a,b){ return b.t - a.t; });
     var used = lines.join('\n').length;
     var n = 0;
@@ -34560,7 +34561,7 @@ window.fmtHHMM = function(date) {
     }
     if (!n) lines.push('(緩衝區目前沒有訊息;可能剛開頁面、資料還沒進來,或在其他分頁。)');
     lines.push('');
-    lines.push('以上是使用者網站目前的即時資料,回答或整理時請依據這些內容。');
+    lines.push('以上是使用者網站目前的即時資料(新聞為英文原始標題)。摘要時必須忠實對應原意,專有名詞保留原文,不得編造、不得臆測未寫明的因果;看不懂或殘缺的條目請略過。');
     return lines.join('\n');
   };
 
