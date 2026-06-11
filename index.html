@@ -3106,7 +3106,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.12</b></div>
+        <div>BUILD <b>v183.13</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -34169,7 +34169,7 @@ setRoute((location.hash.replace('#/', '') || 'geo'));
           stream: true,
           temperature: 0.2,
           model: 'openai/gpt-oss-120b',
-          max_tokens: 2048,
+          max_tokens: 1024,
         }),
       });
       if (!resp.ok) {
@@ -34542,7 +34542,7 @@ window.fmtHHMM = function(date) {
     return out;
   }
 
-  var CHAR_BUDGET = 10000;
+  var CHAR_BUDGET = 4000;
   window.__buildAiContext = function(){
     var lines = [];
     var ts = new Date().toLocaleString('zh-TW', { hour12:false });
