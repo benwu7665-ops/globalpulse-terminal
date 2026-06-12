@@ -3106,7 +3106,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.14</b></div>
+        <div>BUILD <b>v183.16</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -17961,7 +17961,7 @@ async function loadCalendar() {
       : `Week ${short(data.from)} – ${short(data.to)}`;
   }
   const meta = document.getElementById('calSrc');
-  if (meta) meta.innerHTML = '<span class="src-badge src-live" title="Finnhub /calendar/economic via Worker · cache 10min">LIVE · FINNHUB</span>';
+  if (meta) meta.innerHTML = '<span class="src-badge src-live" title="ForexFactory weekly export via Worker · cache 1h">LIVE · ForexFactory</span>';
 
   renderCalendar('calendarHome');
   renderCalendar('calendarMacro');
@@ -18695,7 +18695,10 @@ async function loadFred() {
       if (obs && typeof obs.value === 'number' && !isNaN(obs.value)) {
         state.fred[s] = obs.value;
         live++;
-      } else {
+      } else if (!state.fredLiveOnce) {
+        // Only seed an approximate value if we've NEVER had a live load yet.
+        // After a prior success, keep the last good number for this series
+        // instead of overwriting a real figure with MOCK_FRED.
         state.fred[s] = MOCK_FRED[s];
       }
     }
@@ -18710,17 +18713,29 @@ async function loadFred() {
         state.fredHistory[s] = obs.history;
       }
     }
-  } else {
-    // Total fallback — proxy unreachable
+  } else if (!state.fredLiveOnce) {
+    // Total fetch failure AND we've never succeeded — seed MOCK so the
+    // panel isn't blank on a cold start.
     for (const s of seriesList) state.fred[s] = MOCK_FRED[s];
     state.fredMeta = null;
     state.fredHistory = {};
   }
+  // else (observations null but we HAVE been live before): a transient
+  // refresh miss. Keep the last known-good values, meta and history exactly
+  // as they are — the data is at most ~5min stale, which beats flipping the
+  // whole panel back to MOCK. /spot prices are refreshed separately in
+  // loadSpotPrices() below and are unaffected by this branch.
 
+  // Latch: once any series has loaded live, remember it for the session.
+  if (live > 0) state.fredLiveOnce = true;
+
+  // Badge: LIVE if this load got data, OR if we've ever had a live load
+  // (one transient miss must not downgrade a panel that is actually working).
+  const _fredShowLive = (live > 0) || state.fredLiveOnce;
   ['fredSrc', 'macroSrc'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
-    if (live > 0) {
+    if (_fredShowLive) {
       el.innerHTML = '<span class="src-badge src-live" title="FRED via Cloudflare Worker · cache 5min">LIVE · FRED</span>';
     } else {
       el.innerHTML = '<span class="src-badge src-mock">MOCK</span>';
