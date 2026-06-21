@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>GLOBALPULSE / 終端機</title>
 
 <!-- v183 PWA — Progressive Web App support -->
@@ -3108,6 +3108,13 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
     width: auto !important; min-width: 0 !important; max-width: none !important;
     max-height: 64vh; overflow-y: auto;
   }
+
+  /* ── 設定頁(SYSTEM_SETTINGS):雙欄 280px+1fr → 單欄,避免左標籤被擠出畫面 ── */
+  .setting-row { grid-template-columns: 1fr !important; gap: 10px !important; }
+  .preset-row { flex-wrap: wrap; }                       /* [慢][標準][快][極快] 等按鈕群可換行 */
+  .box-body input, .box-body .stock-input, .box-body select {
+    max-width: 100%; min-width: 0; box-sizing: border-box;  /* min-width:0 讓 flex:1 的 wss 輸入框能縮 */
+  }
 }
 </style>
 
@@ -3138,7 +3145,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.18</b></div>
+        <div>BUILD <b>v183.20</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
