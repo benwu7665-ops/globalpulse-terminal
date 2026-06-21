@@ -3079,6 +3079,38 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
 .boot-footer{margin-top:12px;display:flex;justify-content:space-between;font-size:9px;letter-spacing:.2em;color:rgba(255,140,0,.4);text-transform:uppercase}
 </style>
 
+<!-- v183.18 — 手機版(直式)修正:此區塊刻意放在所有 <style> 之後,確保覆蓋桌機規則 -->
+<style id="gp-mobile-fixes">
+@media (max-width: 640px) {
+  /* ── 儀表板上方控制列:允許換行、縮小、文字不被擠成直書 ── */
+  #page-geo .geo-header { top: 8px; left: 8px; right: 8px; flex-wrap: wrap; gap: 6px; }
+  #page-geo .geo-left   { flex-wrap: wrap; gap: 6px 10px; width: 100%; }
+  #page-geo .geo-title  { font-size: 12px; gap: 6px; white-space: nowrap; }   /* nowrap 是避免「海峽態勢」直書的關鍵 */
+  #page-geo .geo-title.strait-chip { flex: 0 0 auto; }
+  #page-geo .view-toggle button { padding: 4px 9px; font-size: 12px; }
+
+  /* ── 可拖曳浮動列(衝突詳情/國防預算…):改成標題列下方、整條可橫向捲動、不蓋住東西 ── */
+  #page-geo .dock-bar {
+    position: absolute !important;
+    top: 78px !important;          /* 換行後的標題列下方;若仍重疊我再往下調 */
+    left: 8px !important; right: 8px !important;
+    transform: none !important;     /* 覆蓋 left:50% 置中 */
+    max-width: none !important;
+    overflow-x: auto; flex-wrap: nowrap; justify-content: flex-start;
+    -webkit-overflow-scrolling: touch;
+  }
+  #page-geo .dock-bar .dock-grip { display: none; }     /* 手機不需拖曳把手 */
+  #page-geo .dock-btn { flex: 0 0 auto; padding: 5px 9px; font-size: 12px; }
+
+  /* ── 浮動資訊面板:吃滿手機寬度、可上下捲動(覆蓋 inline 寫死的 top/left/width)── */
+  #page-geo .float-panel {
+    left: 8px !important; right: 8px !important; top: 120px !important;
+    width: auto !important; min-width: 0 !important; max-width: none !important;
+    max-height: 64vh; overflow-y: auto;
+  }
+}
+</style>
+
 <div id="bootOverlay">
   <div class="boot-grid"></div>
   <div class="boot-scan"></div>
@@ -3106,7 +3138,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.17</b></div>
+        <div>BUILD <b>v183.18</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
