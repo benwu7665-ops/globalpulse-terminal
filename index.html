@@ -2,8 +2,19 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>GLOBALPULSE / 終端機</title>
+
+<!-- v183 PWA — Progressive Web App support -->
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GLOBALPULSE">
+<meta name="application-name" content="GLOBALPULSE">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
@@ -53,13 +64,17 @@ input,textarea,select,
 ::-webkit-scrollbar-thumb:hover{background:var(--amber)}
 
 .topbar{position:fixed;top:0;left:0;right:0;height:var(--topbar-h);background:var(--bg);border-bottom:1px solid var(--amber-dim);z-index:100;display:flex;flex-direction:column}
-.topbar-row1{height:40px;background:var(--amber);color:var(--bg);display:flex;align-items:center;padding:0 20px;gap:20px}
-.brand{font-weight:900;letter-spacing:.04em;font-size:17px;display:flex;align-items:center;gap:8px}
-.brand-sub{font-size:13px;font-weight:500;opacity:.85}
+.topbar-row1{height:40px;background:#000;color:var(--amber);display:flex;align-items:center;padding:0 20px;gap:20px;border-bottom:1px solid rgba(255,140,0,.18)}
+.brand{font-weight:600;letter-spacing:.22em;font-size:13px;display:flex;align-items:center;gap:14px;color:var(--amber)}
+.brand-mark{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;color:var(--amber)}
+.brand-mark svg{width:100%;height:100%;display:block}
+.brand-sep{width:1px;height:14px;background:rgba(255,140,0,.35)}
+.brand-sub{font-size:10px;font-weight:400;letter-spacing:.32em;color:rgba(255,140,0,.55);font-family:var(--font-mono);text-transform:uppercase}
 .topbar-row1 .spacer{flex:1}
-.top-actions{display:flex;gap:18px;align-items:center;font-size:13px;font-weight:700}
-.top-actions span{display:flex;align-items:center;gap:4px;cursor:pointer;padding:3px 8px}
-.top-actions span:hover{background:rgba(0,0,0,.15)}
+.top-actions{display:flex;gap:14px;align-items:center;font-size:12px;font-weight:500;color:rgba(255,140,0,.75);letter-spacing:.06em}
+.top-actions span{display:flex;align-items:center;gap:4px;cursor:pointer;padding:3px 8px;transition:color .15s,background .15s}
+.top-actions span:hover{color:var(--amber);background:rgba(255,140,0,.06)}
+#clockTime{color:var(--amber);font-weight:500;letter-spacing:.08em}
 .topbar-row2{height:48px;display:flex;flex-direction:column;padding:0;font-family:var(--font-cn);font-size:13px;background:var(--bg);position:relative}
 
 .tabbar-main{display:flex;align-items:stretch;gap:0;padding:0 16px;height:28px;border-bottom:1px solid var(--amber-faint);overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
@@ -86,6 +101,10 @@ input,textarea,select,
 .edge-trigger::before{content:'';position:absolute;top:50%;left:0;width:3px;height:60px;background:var(--amber-dim);transform:translateY(-50%);transition:background .2s,height .2s}
 .edge-trigger:hover::before{background:var(--amber);height:120px;box-shadow:0 0 12px rgba(255,140,0,.5)}
 .sidebar.open ~ .edge-trigger{pointer-events:none;opacity:0}
+/* v183.6 — hamburger for touch devices (phones/tablets have no hover) */
+.hamburger{display:none;align-items:center;justify-content:center;width:32px;height:28px;padding:0;background:transparent;border:1px solid var(--amber-dim);border-radius:6px;color:var(--amber);font-size:18px;line-height:1;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.hamburger:active{background:var(--amber-faint)}
+@media (hover:none) and (pointer:coarse){.hamburger{display:inline-flex}.edge-trigger{display:none}}
 .nav-group{margin-bottom:4px}
 .nav-item{display:flex;align-items:flex-start;gap:12px;padding:10px 18px;cursor:pointer;color:var(--text-dim);font-size:14px;border-left:2px solid transparent;transition:background .15s}
 .nav-item:hover{background:rgba(255,140,0,.06);color:var(--text)}
@@ -422,9 +441,9 @@ input,textarea,select,
 .view-toggle button.active{background:var(--amber);color:var(--bg);font-weight:800}
 .view-toggle button.active:hover{background:var(--amber-bright)}
 
-#map2d-wrap{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(255,140,0,.04),transparent 65%);overflow:hidden;cursor:grab}
+#map2d-wrap{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(255,140,0,.04),transparent 65%);overflow:hidden;cursor:grab;touch-action:none}
 #map2d-wrap.dragging{cursor:grabbing}
-#map2d-svg{width:100%;height:100%;display:block;user-select:none;position:absolute;top:0;left:0;right:0;bottom:0}
+#map2d-svg{width:100%;height:100%;display:block;user-select:none;position:absolute;top:0;left:0;right:0;bottom:0;touch-action:none}
 #map2d-svg .grat{stroke:#003040;stroke-width:.5;fill:none;opacity:.5;vector-effect:non-scaling-stroke}
 #map2d-svg .equator{stroke:#0a3a4a;stroke-width:.8;fill:none;vector-effect:non-scaling-stroke}
 #map2d-svg .country{fill:rgba(255,140,0,.05);stroke:#ff8c00;stroke-width:.6;stroke-linejoin:round;transition:fill .15s;vector-effect:non-scaling-stroke;cursor:inherit}
@@ -2610,11 +2629,668 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="" defer></script>
 </head>
 <body>
+
+<!-- v181 — Auth gate (real WebAuthn). Inserts before bootOverlay script.
+     Three parts:
+       1. window.fetch monkey-patch: adds credentials:'include' to all
+          requests to the worker (Pages can't change those callsites
+          one by one — there are 35+ hardcoded URLs across 76 fetches).
+       2. Login overlay UI (full-screen, sits ON TOP of bootOverlay so
+          it appears after boot fade-out).
+       3. checkAuthGate() — called after boot animation. Hits /auth/me;
+          on 401 shows the panel. Returns a promise that resolves once
+          the user is authenticated.
+     Backend: worker.js v47, endpoints /auth/{me,register/begin,...}.
+     Cookies: HttpOnly+Secure+SameSite=None — only readable by worker. -->
+
+<style>
+#authOverlay{position:fixed;inset:0;background:#000;z-index:99998;display:none;justify-content:center;align-items:center;font-family:var(--font-mono,'JetBrains Mono',monospace);color:#ff8c00}
+#authOverlay.show{display:flex}
+#authOverlay::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,140,0,.025) 2px,rgba(255,140,0,.025) 3px);pointer-events:none}
+#authOverlay::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,.7) 100%);pointer-events:none}
+.auth-card{position:relative;z-index:2;width:420px;max-width:90vw;border:1px solid rgba(255,140,0,.4);background:rgba(8,6,3,.92);padding:36px 32px;box-shadow:0 0 60px rgba(255,140,0,.15)}
+.auth-title{font-size:13px;color:rgba(255,140,0,.7);letter-spacing:2px;margin-bottom:6px;text-transform:uppercase}
+.auth-h1{font-size:22px;color:#ff8c00;margin-bottom:20px;font-weight:700;letter-spacing:1px}
+.auth-desc{font-size:11px;color:rgba(255,140,0,.55);line-height:1.7;margin-bottom:22px}
+.auth-field{margin-bottom:18px}
+.auth-label{display:block;font-size:10px;color:rgba(255,140,0,.6);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px}
+.auth-input{width:100%;background:rgba(0,0,0,.5);border:1px solid rgba(255,140,0,.3);color:#ffa500;padding:10px 12px;font-family:var(--font-mono,'JetBrains Mono',monospace);font-size:14px;outline:none;letter-spacing:1px}
+.auth-input:focus{border-color:#ff8c00;box-shadow:0 0 0 1px rgba(255,140,0,.3)}
+.auth-input[disabled]{opacity:.4;cursor:not-allowed}
+.auth-buttons{display:flex;gap:10px;margin-top:8px}
+.auth-btn{flex:1;background:transparent;border:1px solid rgba(255,140,0,.5);color:#ff8c00;padding:11px 14px;font-family:var(--font-mono,'JetBrains Mono',monospace);font-size:12px;letter-spacing:2px;cursor:pointer;text-transform:uppercase;transition:all .15s ease;font-weight:600}
+.auth-btn:hover:not([disabled]){background:rgba(255,140,0,.1);border-color:#ff8c00;box-shadow:0 0 12px rgba(255,140,0,.3)}
+.auth-btn.primary{background:rgba(255,140,0,.15);border-color:#ff8c00}
+.auth-btn.primary:hover:not([disabled]){background:rgba(255,140,0,.25)}
+.auth-btn[disabled]{opacity:.3;cursor:not-allowed}
+.auth-msg{margin-top:14px;font-size:11px;line-height:1.6;min-height:34px}
+.auth-msg.err{color:#ff5566}
+.auth-msg.ok{color:#00d2aa}
+.auth-msg.info{color:rgba(255,140,0,.7)}
+.auth-foot{margin-top:24px;font-size:9px;color:rgba(255,140,0,.35);letter-spacing:1px;text-align:center;text-transform:uppercase}
+</style>
+
+<div id="authOverlay">
+  <div class="auth-card">
+    <div class="auth-title">// AUTHENTICATION REQUIRED</div>
+    <div class="auth-h1">GLOBALPULSE TERMINAL</div>
+    <div class="auth-desc">
+      授權使用者請以 Touch ID / Face ID 認證。<br>
+      首次使用請輸入授權名稱並按「註冊」。
+    </div>
+    <div class="auth-field">
+      <label class="auth-label">Operator Name</label>
+      <input type="text" id="authNameInput" class="auth-input" autocomplete="username" spellcheck="false" autocapitalize="none" />
+    </div>
+    <div class="auth-buttons">
+      <button id="authLoginBtn" class="auth-btn primary">登入</button>
+      <button id="authRegisterBtn" class="auth-btn">註冊</button>
+    </div>
+    <div id="authMsg" class="auth-msg info">準備認證 · WebAuthn ready</div>
+    <div class="auth-foot">WebAuthn / FIDO2 · Passkey · Session 1 day</div>
+  </div>
+</div>
+
+<script>
+// =============================================================================
+// v181 — Auth gate (real WebAuthn). Loaded BEFORE bootOverlay script so the
+// fetch patch is in effect when widgets first hit the worker. The visual
+// flow is: boot animation runs → boot fades out → checkAuthGate() runs →
+// if 401, authOverlay shows and blocks UI until login → dashboard visible.
+// =============================================================================
+(function(){
+  'use strict';
+
+  const WORKER_HOST = 'ais-proxy.2syzkjy2vq.workers.dev';
+  const WORKER_BASE = 'https://' + WORKER_HOST;
+
+  // ---------- fetch monkey-patch ----------
+  // v182 — Bearer token (localStorage) instead of cookie. Safari ITP blocks
+  // 3p cookies between pages.dev and workers.dev (cross-site), so the cookie
+  // route never worked. Token in localStorage.gp_token, sent as
+  // Authorization: Bearer <token>. Loses HttpOnly protection — tolerable
+  // since this site has no untrusted input surface and no 3p scripts.
+  const TOKEN_KEY = 'gp_token';
+  function _getToken() { try { return localStorage.getItem(TOKEN_KEY) || ''; } catch(e) { return ''; } }
+  function _setToken(t) { try { localStorage.setItem(TOKEN_KEY, t); } catch(e) {} }
+  function _clearToken() { try { localStorage.removeItem(TOKEN_KEY); } catch(e) {} }
+  window.__authGetToken = _getToken;
+  window.__authSetToken = _setToken;
+  window.__authClearToken = _clearToken;
+
+  const _origFetch = window.fetch.bind(window);
+  window.fetch = function(input, init) {
+    let url = '';
+    try {
+      if (typeof input === 'string') url = input;
+      else if (input && input.url) url = input.url;
+    } catch(e) {}
+    const isAuth = url.indexOf(WORKER_HOST) >= 0 && url.indexOf('/auth/') >= 0;
+    if (isAuth) {
+      const tok = _getToken();
+      if (tok) {
+        init = init || {};
+        init.headers = new Headers(init.headers || {});
+        if (!init.headers.has('Authorization')) {
+          init.headers.set('Authorization', 'Bearer ' + tok);
+        }
+      }
+    }
+    return _origFetch(input, init);
+  };
+
+  // ---------- WebAuthn glue ----------
+  function b64urlToBytes(s) {
+    s = String(s).replace(/-/g, '+').replace(/_/g, '/');
+    while (s.length % 4) s += '=';
+    const bin = atob(s);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  function bytesToB64url(bytes) {
+    let s = '';
+    const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+    for (let i = 0; i < arr.length; i++) s += String.fromCharCode(arr[i]);
+    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  // Convert PublicKeyCredentialCreationOptions (b64url strings from server)
+  // into the BufferSource form the browser API expects.
+  function decodeCreationOptions(opts) {
+    return {
+      challenge: b64urlToBytes(opts.challenge),
+      rp: opts.rp,
+      user: {
+        id: b64urlToBytes(opts.user.id),
+        name: opts.user.name,
+        displayName: opts.user.displayName,
+      },
+      pubKeyCredParams: opts.pubKeyCredParams,
+      timeout: opts.timeout,
+      attestation: opts.attestation,
+      authenticatorSelection: opts.authenticatorSelection,
+    };
+  }
+  function decodeRequestOptions(opts) {
+    return {
+      challenge: b64urlToBytes(opts.challenge),
+      rpId: opts.rpId,
+      timeout: opts.timeout,
+      userVerification: opts.userVerification,
+      allowCredentials: (opts.allowCredentials || []).map(c => ({
+        type: c.type,
+        id: b64urlToBytes(c.id),
+        transports: c.transports,
+      })),
+    };
+  }
+
+  // ---------- UI helpers ----------
+  function $(id) { return document.getElementById(id); }
+  function showAuthOverlay(msg, kind) {
+    const ov = $('authOverlay');
+    if (!ov) return;
+    ov.classList.add('show');
+    if (msg) setMsg(msg, kind);
+    setTimeout(() => { try { $('authNameInput').focus(); } catch(e) {} }, 50);
+  }
+  function hideAuthOverlay() {
+    const ov = $('authOverlay');
+    if (ov) ov.classList.remove('show');
+  }
+  function setMsg(text, kind) {
+    const el = $('authMsg');
+    if (!el) return;
+    el.className = 'auth-msg ' + (kind || 'info');
+    el.textContent = text;
+  }
+  function setBusy(busy) {
+    ['authNameInput','authLoginBtn','authRegisterBtn'].forEach(id => {
+      const el = $(id);
+      if (el) el.disabled = !!busy;
+    });
+  }
+
+  // ---------- Core flows ----------
+  async function registerFlow(name) {
+    setBusy(true);
+    setMsg('產生註冊挑戰...', 'info');
+    try {
+      const r1 = await fetch(WORKER_BASE + '/auth/register/begin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      const j1 = await r1.json();
+      if (!r1.ok || !j1.ok) {
+        setMsg('註冊失敗:' + (j1.error || r1.status), 'err');
+        return false;
+      }
+      setMsg('請以 Touch ID / Face ID 完成驗證...', 'info');
+      const creationOptions = decodeCreationOptions(j1.options);
+      let cred;
+      try {
+        cred = await navigator.credentials.create({ publicKey: creationOptions });
+      } catch (e) {
+        setMsg('使用者取消或裝置不支援:' + (e && e.message || e), 'err');
+        return false;
+      }
+      if (!cred) {
+        setMsg('沒有取得 credential', 'err');
+        return false;
+      }
+      const credData = {
+        id: cred.id,
+        rawId: bytesToB64url(cred.rawId),
+        type: cred.type,
+        response: {
+          clientDataJSON: bytesToB64url(cred.response.clientDataJSON),
+          attestationObject: bytesToB64url(cred.response.attestationObject),
+        },
+      };
+      setMsg('驗證註冊資料中...', 'info');
+      const r2 = await fetch(WORKER_BASE + '/auth/register/finish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challenge_token: j1.challenge_token, credential: credData }),
+      });
+      const j2 = await r2.json();
+      if (!r2.ok || !j2.ok) {
+        setMsg('註冊驗證失敗:' + (j2.error || r2.status), 'err');
+        return false;
+      }
+      setMsg('註冊成功 · 已登入', 'ok');
+      // v182: persist Bearer token to localStorage (cookie won't survive ITP)
+      if (j2.token) _setToken(j2.token);
+      window.__authed = true;
+      window.__authedName = j2.name;
+      return true;
+    } catch (e) {
+      setMsg('註冊例外:' + (e && e.message || e), 'err');
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loginFlow(name) {
+    setBusy(true);
+    setMsg('查詢登入挑戰...', 'info');
+    try {
+      const r1 = await fetch(WORKER_BASE + '/auth/login/begin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      const j1 = await r1.json();
+      if (!r1.ok || !j1.ok) {
+        const hint = (r1.status === 404) ? ' (尚未註冊,請按註冊)' : '';
+        setMsg('登入失敗:' + (j1.error || r1.status) + hint, 'err');
+        return false;
+      }
+      setMsg('請以 Touch ID / Face ID 驗證...', 'info');
+      const reqOptions = decodeRequestOptions(j1.options);
+      let assertion;
+      try {
+        assertion = await navigator.credentials.get({ publicKey: reqOptions });
+      } catch (e) {
+        setMsg('使用者取消:' + (e && e.message || e), 'err');
+        return false;
+      }
+      if (!assertion) {
+        setMsg('沒有取得 assertion', 'err');
+        return false;
+      }
+      const assertData = {
+        id: assertion.id,
+        rawId: bytesToB64url(assertion.rawId),
+        type: assertion.type,
+        response: {
+          clientDataJSON: bytesToB64url(assertion.response.clientDataJSON),
+          authenticatorData: bytesToB64url(assertion.response.authenticatorData),
+          signature: bytesToB64url(assertion.response.signature),
+          userHandle: assertion.response.userHandle ? bytesToB64url(assertion.response.userHandle) : null,
+        },
+      };
+      setMsg('驗證簽名中...', 'info');
+      const r2 = await fetch(WORKER_BASE + '/auth/login/finish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challenge_token: j1.challenge_token, credential: assertData }),
+      });
+      const j2 = await r2.json();
+      if (!r2.ok || !j2.ok) {
+        setMsg('登入驗證失敗:' + (j2.error || r2.status), 'err');
+        return false;
+      }
+      setMsg('登入成功', 'ok');
+      // v182: persist Bearer token to localStorage
+      if (j2.token) _setToken(j2.token);
+      window.__authed = true;
+      window.__authedName = j2.name;
+      return true;
+    } catch (e) {
+      setMsg('登入例外:' + (e && e.message || e), 'err');
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function wireButtons() {
+    const nameEl = $('authNameInput');
+    const loginBtn = $('authLoginBtn');
+    const regBtn = $('authRegisterBtn');
+    if (!nameEl || !loginBtn || !regBtn) return;
+    async function go(fn) {
+      const name = (nameEl.value || '').trim().toLowerCase();
+      if (!name) { setMsg('請輸入名稱', 'err'); nameEl.focus(); return; }
+      const ok = await fn(name);
+      if (ok) {
+        // v182.2: removed obsolete _authPromptRequested (was throwing
+        // ReferenceError and aborting hideAuthOverlay).
+        setTimeout(() => { hideAuthOverlay(); }, 600);
+      }
+    }
+    loginBtn.addEventListener('click', () => go(loginFlow));
+    regBtn.addEventListener('click', () => go(registerFlow));
+    nameEl.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); loginBtn.click(); }
+    });
+  }
+
+  // ---------- Gate entry point ----------
+  // Called by boot script after fade-out. Resolves when authenticated.
+  window.checkAuthGate = async function() {
+    // Sanity: browser supports WebAuthn?
+    if (!window.PublicKeyCredential || !navigator.credentials) {
+      showAuthOverlay('此瀏覽器不支援 WebAuthn,請改用 Safari / Chrome 最新版。', 'err');
+      return new Promise(()=>{});  // never resolves — block dashboard
+    }
+    // v182: only probe /auth/me if we have a token. No token → straight to login.
+    // This eliminates the flash entirely on first visit / after logout.
+    const tok = _getToken();
+    if (tok) {
+      try {
+        const r = await fetch(WORKER_BASE + '/auth/me');
+        if (r.ok) {
+          const j = await r.json();
+          if (j && j.ok) {
+            window.__authed = true;
+            window.__authedName = j.name;
+            return;  // already logged in
+          }
+        }
+      } catch (e) {
+        // network error — fall through to login
+      }
+      // Token exists but rejected (expired / server lost session) → clear it
+      _clearToken();
+    }
+    showAuthOverlay('請登入或註冊', 'info');
+    await new Promise(resolve => {
+      const iv = setInterval(() => {
+        if (window.__authed) {
+          clearInterval(iv);
+          resolve();
+        }
+      }, 200);
+    });
+  };
+
+  // Wire UI as soon as DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', wireButtons);
+  } else {
+    wireButtons();
+  }
+
+  // v182.1 — Start the auth gate IMMEDIATELY at DOM ready, not after boot.
+  // Previously: boot → fade-out → checkAuthGate → overlay. This caused a
+  // flash of the (still-loading) dashboard before the overlay appeared.
+  // Now: gate runs in parallel with boot. If unauthenticated, the login
+  // overlay is mounted underneath the boot overlay (z-index lower), so when
+  // boot fades out the user sees the login screen directly.
+  // The boot script's await on checkAuthGate still works because the same
+  // promise is reused (gate sets window.__authed only after login succeeds).
+  function _startGate() {
+    if (typeof window.checkAuthGate === 'function' && !window.__authGateStarted) {
+      window.__authGateStarted = true;
+      window.__authGatePromise = window.checkAuthGate().catch(e => {
+        console.error('[auth] gate error', e);
+      });
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _startGate);
+  } else {
+    _startGate();
+  }
+})();
+</script>
+<!-- v181 end auth gate -->
+
+
+<!-- v180.75 — boot sequence overlay (cinematic) -->
+<style>
+#bootOverlay{position:fixed;inset:0;background:#000;z-index:99999;display:flex;justify-content:center;align-items:center;font-family:'Courier New',monospace;color:#ff8c00;overflow:hidden}
+#bootOverlay::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,140,0,.025) 2px,rgba(255,140,0,.025) 3px);pointer-events:none;z-index:2}
+#bootOverlay::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,.7) 100%);pointer-events:none;z-index:3}
+.boot-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,140,0,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,140,0,.06) 1px,transparent 1px);background-size:40px 40px;animation:bootGridDrift 8s linear infinite;z-index:1}
+@keyframes bootGridDrift{from{background-position:0 0}to{background-position:40px 40px}}
+.boot-scan{position:absolute;left:0;right:0;height:120px;background:linear-gradient(180deg,transparent,rgba(255,140,0,.08) 50%,transparent);animation:bootScan 3.5s linear infinite;z-index:2;pointer-events:none}
+@keyframes bootScan{from{top:-120px}to{top:100vh}}
+.boot-corners{position:absolute;inset:24px;pointer-events:none;z-index:4}
+.boot-corners>span{position:absolute;width:24px;height:24px;border:1px solid #ff8c00}
+.boot-corners>span:nth-child(1){top:0;left:0;border-right:0;border-bottom:0}
+.boot-corners>span:nth-child(2){top:0;right:0;border-left:0;border-bottom:0}
+.boot-corners>span:nth-child(3){bottom:0;left:0;border-right:0;border-top:0}
+.boot-corners>span:nth-child(4){bottom:0;right:0;border-left:0;border-top:0}
+.boot-content{position:relative;z-index:5;width:min(720px,90vw)}
+.boot-header{display:flex;align-items:center;gap:18px;margin-bottom:8px;padding-bottom:14px;border-bottom:1px solid rgba(255,140,0,.25)}
+.boot-mark{width:48px;height:48px;flex-shrink:0;position:relative}
+.boot-mark svg{width:100%;height:100%}
+.boot-mark .ring-outer{animation:bootSpin 4s linear infinite;transform-origin:center}
+.boot-mark .ring-inner{animation:bootSpin 2.5s linear infinite reverse;transform-origin:center}
+@keyframes bootSpin{to{transform:rotate(360deg)}}
+.boot-title{font-size:28px;font-weight:700;letter-spacing:.32em;color:#ff8c00;line-height:1;text-shadow:0 0 12px rgba(255,140,0,.4)}
+.boot-sub{font-size:10px;letter-spacing:.4em;color:rgba(255,140,0,.55);margin-top:8px;text-transform:uppercase}
+.boot-meta{margin-left:auto;text-align:right;font-size:10px;letter-spacing:.15em;color:rgba(255,140,0,.55);line-height:1.7}
+.boot-meta b{color:#ff8c00;font-weight:600}
+.boot-status-bar{display:flex;justify-content:space-between;align-items:center;margin:14px 0 18px;font-size:10px;letter-spacing:.2em;color:rgba(255,140,0,.6)}
+.boot-status-bar .left,.boot-status-bar .right{display:flex;gap:18px;align-items:center}
+.boot-dot{display:inline-block;width:6px;height:6px;background:#ff8c00;border-radius:50%;margin-right:6px;animation:bootPulse 1.2s ease-in-out infinite}
+@keyframes bootPulse{0%,100%{opacity:1;box-shadow:0 0 6px #ff8c00}50%{opacity:.3;box-shadow:0 0 2px #ff8c00}}
+#bootLog{font-size:11px;line-height:1.85;color:rgba(255,140,0,.78);min-height:300px;font-family:'Courier New',monospace}
+#bootLog .ok{color:#00d4aa;font-weight:600}
+#bootLog .warn{color:#ffcc44}
+#bootLog .dim{color:rgba(255,140,0,.45)}
+#bootLog .label{color:rgba(255,140,0,.5)}
+#bootLog .key{color:#ff8c00;font-weight:600}
+#bootLog>div{opacity:0;animation:bootLineIn .25s ease forwards}
+@keyframes bootLineIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
+.boot-cursor{display:inline-block;width:8px;height:11px;background:#ff8c00;animation:bootBlink .9s steps(2,start) infinite;vertical-align:middle;margin-left:4px}
+@keyframes bootBlink{to{visibility:hidden}}
+.boot-progress{margin-top:18px;display:flex;align-items:center;gap:14px}
+.boot-bar-wrap{flex:1;height:3px;background:rgba(255,140,0,.12);overflow:hidden;position:relative}
+#bootBar{height:100%;width:0;background:linear-gradient(90deg,#ff8c00,#ffaa44,#ff8c00);box-shadow:0 0 12px rgba(255,140,0,.6);transition:width .12s linear}
+.boot-pct{font-size:11px;font-weight:600;color:#ff8c00;letter-spacing:.1em;min-width:42px;text-align:right}
+.boot-footer{margin-top:12px;display:flex;justify-content:space-between;font-size:9px;letter-spacing:.2em;color:rgba(255,140,0,.4);text-transform:uppercase}
+</style>
+
+<!-- v183.18 — 手機版(直式)修正:此區塊刻意放在所有 <style> 之後,確保覆蓋桌機規則 -->
+<style id="gp-mobile-fixes">
+@media (max-width: 640px) {
+  /* ── 儀表板上方控制列:允許換行、縮小、文字不被擠成直書 ── */
+  #page-geo .geo-header { top: 8px; left: 8px; right: 8px; flex-wrap: wrap; gap: 6px; }
+  #page-geo .geo-left   { flex-wrap: wrap; gap: 6px 10px; width: 100%; }
+  #page-geo .geo-title  { font-size: 12px; gap: 6px; white-space: nowrap; }   /* nowrap 是避免「海峽態勢」直書的關鍵 */
+  #page-geo .geo-title.strait-chip { flex: 0 0 auto; }
+  #page-geo .view-toggle button { padding: 4px 9px; font-size: 12px; }
+
+  /* ── 可拖曳浮動列(衝突詳情/國防預算…):改成標題列下方、整條可橫向捲動、不蓋住東西 ── */
+  #page-geo .dock-bar {
+    position: absolute !important;
+    top: 78px !important;          /* 換行後的標題列下方;若仍重疊我再往下調 */
+    left: 8px !important; right: 8px !important;
+    transform: none !important;     /* 覆蓋 left:50% 置中 */
+    max-width: none !important;
+    overflow-x: auto; flex-wrap: nowrap; justify-content: flex-start;
+    -webkit-overflow-scrolling: touch;
+  }
+  #page-geo .dock-bar .dock-grip { display: none; }     /* 手機不需拖曳把手 */
+  #page-geo .dock-btn { flex: 0 0 auto; padding: 5px 9px; font-size: 12px; }
+
+  /* ── 浮動資訊面板:吃滿手機寬度、可上下捲動(覆蓋 inline 寫死的 top/left/width)── */
+  #page-geo .float-panel {
+    left: 8px !important; right: 8px !important; top: 120px !important;
+    width: auto !important; min-width: 0 !important; max-width: none !important;
+    max-height: 64vh; overflow-y: auto;
+  }
+
+  /* ── 設定頁(SYSTEM_SETTINGS):雙欄 280px+1fr → 單欄,避免左標籤被擠出畫面 ── */
+  .setting-row { grid-template-columns: 1fr !important; gap: 10px !important; }
+  .preset-row { flex-wrap: wrap; }                       /* [慢][標準][快][極快] 等按鈕群可換行 */
+  .box-body input, .box-body .stock-input, .box-body select {
+    max-width: 100%; min-width: 0; box-sizing: border-box;  /* min-width:0 讓 flex:1 的 wss 輸入框能縮 */
+  }
+
+  /* ── 儀表板觀察清單:4 欄 → 2 欄(代號/價格/漲跌幅不再擠成一團、互相溢出)── */
+  .wl-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .wl-cell { padding: 5px 6px; }
+
+  /* ── 全球市場快照熱圖:inline 寫死的 4 欄 → 2 欄(inline 樣式必須用 !important 蓋)── */
+  #sectorGrid { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* ── 即時報價大卡:允許卡片內容縮,大數字不溢出 ── */
+  #tickerGrid > * { min-width: 0; }
+
+  /* ── 關鍵:防止任何過寬子元素把整欄(進而整頁)撐出水平捲動 ── */
+  .layout { grid-template-columns: minmax(0, 1fr) !important; }
+  .layout > div, .layout > aside { min-width: 0; }
+  .terminal-page .box { min-width: 0; max-width: 100%; }
+}
+</style>
+
+<div id="bootOverlay">
+  <div class="boot-grid"></div>
+  <div class="boot-scan"></div>
+  <div class="boot-corners"><span></span><span></span><span></span><span></span></div>
+  <div class="boot-content">
+    <div class="boot-header">
+      <div class="boot-mark">
+        <svg viewBox="0 0 48 48" fill="none" stroke="#ff8c00" stroke-width="1">
+          <g class="ring-outer">
+            <circle cx="24" cy="24" r="22" stroke-dasharray="4 3"/>
+          </g>
+          <g class="ring-inner">
+            <circle cx="24" cy="24" r="15" stroke-dasharray="2 4"/>
+          </g>
+          <circle cx="24" cy="24" r="9"/>
+          <circle cx="24" cy="24" r="3" fill="#ff8c00" stroke="none"/>
+          <line x1="24" y1="0" x2="24" y2="8" stroke-width="1.2"/>
+          <line x1="24" y1="40" x2="24" y2="48" stroke-width="1.2"/>
+          <line x1="0" y1="24" x2="8" y2="24" stroke-width="1.2"/>
+          <line x1="40" y1="24" x2="48" y2="24" stroke-width="1.2"/>
+        </svg>
+      </div>
+      <div>
+        <div class="boot-title">GLOBALPULSE</div>
+        <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
+      </div>
+      <div class="boot-meta">
+        <div>BUILD <b>v183.21</b></div>
+        <div>NODE <b id="bootNode">XX-XX-XX</b></div>
+        <div>UTC <b id="bootUTC">00:00:00</b></div>
+      </div>
+    </div>
+    <div class="boot-status-bar">
+      <div class="left">
+        <span><span class="boot-dot"></span>SYSTEM ARMED</span>
+        <span class="dim">|</span>
+        <span>OPERATOR <b style="color:#ff8c00">AUTHENTICATED</b></span>
+      </div>
+      <div class="right">
+        <span class="dim">SECURE TUNNEL · TLS 1.3</span>
+      </div>
+    </div>
+    <div id="bootLog"></div>
+    <div class="boot-progress">
+      <div class="boot-bar-wrap"><div id="bootBar"></div></div>
+      <div class="boot-pct" id="bootPct">0%</div>
+    </div>
+    <div class="boot-footer">
+      <span>CONFIDENTIAL // OPERATIONS</span>
+      <span>NO REDISTRIBUTION</span>
+      <span id="bootClock">--:--:--</span>
+    </div>
+  </div>
+</div>
+
+<script>
+// Boot sequence — runs immediately on page load
+(function(){
+  const overlay = document.getElementById('bootOverlay');
+  const log = document.getElementById('bootLog');
+  const bar = document.getElementById('bootBar');
+  const pctEl = document.getElementById('bootPct');
+  if (!overlay || !log || !bar) return;
+
+  // Random node ID / UTC clock / footer clock
+  const hex = () => Math.floor(Math.random()*256).toString(16).padStart(2,'0').toUpperCase();
+  document.getElementById('bootNode').textContent = hex()+'-'+hex()+'-'+hex();
+  function tickClocks() {
+    const d = new Date();
+    const pad = n => String(n).padStart(2,'0');
+    document.getElementById('bootUTC').textContent =
+      pad(d.getUTCHours())+':'+pad(d.getUTCMinutes())+':'+pad(d.getUTCSeconds());
+    document.getElementById('bootClock').textContent =
+      pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+  }
+  tickClocks();
+  const clockId = setInterval(tickClocks, 1000);
+
+  // Render line with classes via HTML (small, controlled)
+  function ok(text)   { return text + ' <span class="ok">[ OK ]</span>'; }
+  function warn(text) { return text + ' <span class="warn">[ WARN ]</span>'; }
+  function dots(n)    { return '<span class="dim">' + '.'.repeat(n) + '</span>'; }
+
+  const lines = [
+    { t:0,    h: '<span class="label">[</span> <span class="key">0.001</span> <span class="label">]</span> POST <span class="dim">·</span> initializing GLOBALPULSE Terminal' },
+    { t:90,   h: '<span class="label">[</span> <span class="key">0.094</span> <span class="label">]</span> identity verified <span class="dim">·</span> operator clearance ' + ok('OMEGA') },
+    { t:200,  h: '<span class="label">[</span> <span class="key">0.207</span> <span class="label">]</span> allocating 2048MB heap <span class="dim">·</span> stream buffers ready ' + ok('') },
+    { t:340,  h: '<span class="label">[</span> <span class="key">0.345</span> <span class="label">]</span> probing Cloudflare edge node <span class="dim">→</span> ais-proxy ' + dots(8) + ok('') },
+    { t:490,  h: '<span class="label">[</span> <span class="key">0.493</span> <span class="label">]</span> AIS stream <span class="dim">·</span> wss://stream.aisstream.io ' + dots(6) + ok('') },
+    { t:620,  h: '<span class="label">[</span> <span class="key">0.625</span> <span class="label">]</span> FRED macro feed <span class="dim">·</span> 27 series <span class="dim">·</span> history depth 36 ' + ok('') },
+    { t:760,  h: '<span class="label">[</span> <span class="key">0.764</span> <span class="label">]</span> news rails <span class="dim">·</span> official <span class="dim">+</span> business <span class="dim">+</span> finnhub ' + ok('') },
+    { t:900,  h: '<span class="label">[</span> <span class="key">0.908</span> <span class="label">]</span> ADS-B transponder feed <span class="dim">·</span> hexdb upstream ' + ok('') },
+    { t:1050, h: '<span class="label">[</span> <span class="key">1.051</span> <span class="label">]</span> Binance spot WebSocket <span class="dim">·</span> 8 pairs subscribed ' + ok('') },
+    { t:1200, h: '<span class="label">[</span> <span class="key">1.203</span> <span class="label">]</span> FRED-DECODE engine <span class="dim">·</span> 10 components <span class="dim">·</span> scoring armed' },
+    { t:1340, h: '<span class="label">[</span> <span class="key">1.342</span> <span class="label">]</span> Groq inference channel <span class="dim">·</span> llama-3.3-70b ' + ok('') },
+    { t:1480, h: '<span class="label">[</span> <span class="key">1.486</span> <span class="label">]</span> dashboard widgets <span class="dim">·</span> 6 panels armed <span class="dim">·</span> live data wired' },
+    { t:1620, h: '<span class="label">[</span> <span class="key">1.624</span> <span class="label">]</span> handoff to UI runtime <span class="dim">·</span> rendering main view' },
+    { t:1780, h: '<span class="label">[</span> <span class="key">1.785</span> <span class="label">]</span> <span class="ok">ALL SYSTEMS NOMINAL</span> <span class="dim">·</span> awaiting operator input<span class="boot-cursor"></span>' },
+  ];
+
+  const TOTAL = 2100;
+  let i = 0;
+  function nextLine() {
+    if (i >= lines.length) return;
+    const line = lines[i++];
+    const div = document.createElement('div');
+    div.innerHTML = line.h;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+    if (i < lines.length) setTimeout(nextLine, lines[i].t - line.t);
+  }
+  function tickBar() {
+    const start = Date.now();
+    const id = setInterval(() => {
+      const elapsed = Date.now() - start;
+      const pct = Math.min(100, (elapsed / TOTAL) * 100);
+      bar.style.width = pct + '%';
+      pctEl.textContent = Math.floor(pct) + '%';
+      if (pct >= 100) clearInterval(id);
+    }, 40);
+  }
+  setTimeout(nextLine, lines[0].t);
+  tickBar();
+  setTimeout(() => {
+    clearInterval(clockId);
+    overlay.style.transition = 'opacity .4s ease';
+    overlay.style.opacity = '0';
+    setTimeout(async () => {
+      overlay.remove();
+      try {
+        if (window.__authGatePromise) await window.__authGatePromise;
+      } catch(e) { console.error('[auth] gate error', e); }
+    }, 420);
+  }, TOTAL + 350);
+})();
+</script>
+
 <header class="topbar">
   <div class="topbar-row1">
-    <div class="brand">⏣ GLOBALPULSE <span class="brand-sub">終端機</span></div>
+    <button class="hamburger" id="hamburgerBtn" aria-label="選單" aria-expanded="false">☰</button>
+    <div class="brand">
+      <span class="brand-mark">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1">
+          <circle cx="8" cy="8" r="6.5"/>
+          <circle cx="8" cy="8" r="3.5"/>
+          <circle cx="8" cy="8" r="1" fill="currentColor"/>
+          <line x1="8" y1="0" x2="8" y2="3"/>
+          <line x1="8" y1="13" x2="8" y2="16"/>
+          <line x1="0" y1="8" x2="3" y2="8"/>
+          <line x1="13" y1="8" x2="16" y2="8"/>
+        </svg>
+      </span>
+      <span>GLOBALPULSE</span>
+      <span class="brand-sep"></span>
+      <span class="brand-sub">terminal</span>
+    </div>
     <div class="spacer"></div>
-    <div class="top-actions"><span id="langToggle" title="切換語言 / Toggle language">文A <span id="langCur">中</span></span><span>🕐</span><span>⚡ 即時</span></div>
+    <div class="top-actions"><span id="langToggle" title="切換語言 / Toggle language">文A <span id="langCur">中</span></span><span id="clockBtn" title="點擊調整時區" style="cursor:pointer;user-select:none;font-family:var(--font-mono);"><span id="clockTime">--:--:--</span></span></div>
   </div>
   <div class="topbar-row2">
     <div class="tabbar-main" id="tabbarMain"></div>
@@ -2805,7 +3481,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="view-toggle" id="viewToggle">
           <button class="active" data-view="3d">[3D]</button>
           <button data-view="2d">[2D]</button>
-          <button data-view="sat" title="切換到衛星監控中心">[SAT]</button>
+          <button data-view="sat" title="切換到衛星監控中心">[<span class="t-zh">衛星</span><span class="t-en">SAT</span>]</button>
         </div>
       </div>
     </div>
@@ -3222,7 +3898,109 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
     </div>
   </section>
 
-  <!-- ============ 宏觀分析 ============ -->
+  <!-- ============ 美股市場 / US Market (v180.65) ============ -->
+  <section class="page" data-page="us-market">
+    <div class="terminal-page">
+
+      <!-- SPY 大字 hero -->
+      <section class="box">
+        <div class="box-head">
+          <span>S&P 500 / SPY <span style="color:var(--text-dim);">// 美股大盤 ETF</span></span>
+          <span class="box-meta">
+            <span id="usMarketState" style="color:var(--text-dim);font-size:10px;margin-right:8px;">—</span>
+            <span id="usMarketUpdated">--:--</span>
+            <button id="usRefreshBtn" class="db-refresh-btn" title="重新整理" onclick="if(typeof renderUsMarket==='function')renderUsMarket();">⟳</button>
+          </span>
+        </div>
+        <div class="box-body">
+          <div class="stock-hero">
+            <div>
+              <div class="stock-sym" id="usHeroSym">SPY</div>
+              <div class="stock-name" id="usHeroName">SPDR S&P 500 ETF Trust</div>
+              <div class="stock-bigpx" id="usHeroPx">—</div>
+              <div class="stock-bigchg" id="usHeroChg">—</div>
+            </div>
+            <div class="stock-stats" id="usHeroStats">
+              <div class="ss-cell"><div class="lbl">高</div><div class="val" id="usHeroHi">—</div></div>
+              <div class="ss-cell"><div class="lbl">低</div><div class="val" id="usHeroLo">—</div></div>
+              <div class="ss-cell"><div class="lbl">昨收</div><div class="val" id="usHeroPrev">—</div></div>
+              <div class="ss-cell"><div class="lbl">振幅</div><div class="val" id="usHeroRange">—</div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="layout">
+        <div>
+          <!-- 觀察清單 (重用 watchlistGrid render) -->
+          <section class="box">
+            <div class="box-head">即時觀察清單 :: 美股核心
+              <span class="box-meta"><span id="usWlMeta"><span class="src-badge src-mock">LOADING</span></span></span>
+            </div>
+            <div class="box-body">
+              <div id="usWatchlistGrid">
+                <div style="padding:16px;color:var(--text-dim);font-family:var(--font-mono);font-size:11px;">[ 資料載入中… ]</div>
+              </div>
+            </div>
+          </section>
+
+          <!-- SPY K 線 -->
+          <section class="box">
+            <div class="box-head">SPY · 日 K 線(近 2 月)
+              <span class="box-meta"><span id="usKlineSrc"><span class="src-badge src-mock">LOADING</span></span></span>
+            </div>
+            <div class="box-body">
+              <div class="kline-wrap" id="usKlineChart">
+                <div style="padding:16px;color:var(--text-dim);font-family:var(--font-mono);font-size:11px;">[ K 線載入中… ]</div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <aside>
+          <!-- 主要指數 / ETF (SPY/QQQ/DIA/IWM/VTI/VXUS/etc) -->
+          <section class="box">
+            <div class="box-head">主要指數 / ETF
+              <span class="box-meta"><span id="usIndexSrc"><span class="src-badge src-mock">LOADING</span></span></span>
+            </div>
+            <div class="box-body">
+              <div class="ticker-grid" id="usIndexGrid"></div>
+            </div>
+          </section>
+
+          <!-- 板塊強弱 (11 SPDR ETF: XLK, XLF, XLE, XLV, XLY, XLI, XLU, XLB, XLC, XLRE, XLP) -->
+          <section class="box">
+            <div class="box-head">板塊強弱 <span style="color:var(--text-dim);font-size:10px;">// 11 SPDR ETF</span></div>
+            <div class="box-body">
+              <div id="usSectorRank" style="font-family:var(--font-mono);font-size:12px;">
+                <div style="padding:6px;color:var(--text-dim);font-size:11px;">[ 載入中… ]</div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 漲跌幅排行 (從 49 watchlist 取 top/bottom) -->
+          <section class="box">
+            <div class="box-head">漲跌幅排行 <span style="color:var(--text-dim);font-size:10px;">// 觀察清單內</span></div>
+            <div class="box-body">
+              <div id="usChgRank" style="font-family:var(--font-mono);font-size:12px;">
+                <div style="padding:6px;color:var(--text-dim);font-size:11px;">[ 載入中… ]</div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 成交量排行 -->
+          <section class="box">
+            <div class="box-head">成交量排行 <span style="color:var(--text-dim);font-size:10px;">// 觀察清單內</span></div>
+            <div class="box-body">
+              <div id="usVolRank" style="font-family:var(--font-mono);font-size:12px;">
+                <div style="padding:6px;color:var(--text-dim);font-size:11px;">[ 載入中… ]</div>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </div>
+    </div>
+  </section>
   <section class="page" data-page="inv-macro">
     <div class="terminal-page">
       <section class="box">
@@ -4204,7 +4982,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="view-toggle" id="monViewToggle" style="margin-left:2px;">
           <button data-view="3d" title="切換到 3D 地球">[3D]</button>
           <button data-view="2d" title="切換到 2D 地圖">[2D]</button>
-          <button data-view="sat" class="active" title="衛星監控中心">[SAT]</button>
+          <button data-view="sat" class="active" title="衛星監控中心">[<span class="t-zh">衛星</span><span class="t-en">SAT</span>]</button>
         </div>
         <span style="color:var(--text-dim);">|</span>
         <label style="color:#ccc;cursor:pointer;display:flex;align-items:center;gap:6px;">
@@ -4244,7 +5022,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
       <!-- The actual map canvas — fills remaining vertical space -->
       <div id="monMap" style="flex:1;position:relative;background:#0a0a0a;min-height:0;"></div>
       <!-- Detail card (positioned inside the map). Hidden by default. -->
-      <div id="monDetailCard" style="position:absolute;top:60px;right:14px;width:280px;background:rgba(15,15,18,.94);border:1px solid var(--amber);box-shadow:0 4px 20px rgba(0,0,0,.6);padding:12px 14px;font-family:var(--font-mono);font-size:11px;color:#ddd;z-index:500;display:none;backdrop-filter:blur(6px);">
+      <div id="monDetailCard" style="position:absolute;top:60px;right:14px;width:240px;background:rgba(15,15,18,.94);border:1px solid var(--amber);box-shadow:0 4px 20px rgba(0,0,0,.6);padding:10px 12px;font-family:var(--font-mono);font-size:10.5px;color:#ddd;z-index:500;display:none;backdrop-filter:blur(6px);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px solid rgba(255,140,0,.25);padding-bottom:6px;">
           <span style="color:var(--amber);font-weight:700;letter-spacing:.08em;" id="monDetailTitle">飛機資訊</span>
           <span style="color:#888;cursor:pointer;font-size:14px;line-height:1;" id="monDetailClose">×</span>
@@ -4279,14 +5057,30 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
     </div>
   </section>
 
-  <!-- AI Chat placeholder (v180.62 — coming soon) -->
+  <!-- ============ AI 對話 / AI Chat (v180.63 — Groq Llama 3.3 70B) ============ -->
   <section class="page" data-page="ai">
     <div class="terminal-page">
-      <section class="box">
-        <div class="box-head"><span>AI_CHAT</span></div>
-        <div class="box-body" style="padding:40px;text-align:center;color:var(--text-dim);font-family:var(--font-mono);">
-          <div style="font-size:18px;color:var(--amber);margin-bottom:10px;">AI 對話模組</div>
-          <div style="font-size:11px;line-height:1.7;">建構中 — 即將整合 Claude API,提供即時市場分析、新聞摘要、決策建議。<br>Module under construction — Claude API integration coming.</div>
+      <section class="box" style="display:flex;flex-direction:column;height:calc(100vh - 200px);min-height:500px;">
+        <div class="box-head">
+          <span><span class="t-zh">AI 對話 / 投資助理</span><span class="t-en">AI_CHAT</span></span>
+          <span class="box-meta">
+            <span id="aiModelLabel" style="color:var(--text-dim);">GPT-OSS 120B · Groq</span>
+            <button id="aiClearBtn" class="btn" style="margin-left:10px;background:transparent;border:1px solid var(--amber-faint);color:var(--text);padding:3px 8px;font-family:var(--font-mono);font-size:11px;cursor:pointer;">[清空對話]</button>
+          </span>
+        </div>
+        <div class="box-body" id="aiChatBody" style="flex:1;overflow-y:auto;padding:18px 22px;font-family:var(--font-mono);font-size:13px;line-height:1.6;background:rgba(0,0,0,.2);">
+          <!-- Chat messages render here -->
+        </div>
+        <div style="border-top:1px solid var(--amber-faint);padding:12px 18px;background:rgba(0,0,0,.3);">
+          <div style="display:flex;gap:10px;align-items:flex-end;">
+            <textarea id="aiInput" placeholder="問我市場、投資組合分析、新聞摘要⋯ Cmd+Enter 送出 / Ask about markets, portfolio, news. Cmd+Enter to send."
+              style="flex:1;background:rgba(255,255,255,.04);color:var(--text);border:1px solid var(--amber-faint);padding:8px 10px;font-family:var(--font-mono);font-size:12px;resize:vertical;min-height:42px;max-height:200px;line-height:1.5;"></textarea>
+            <button id="aiBriefBtn" class="btn" title="把目前頁面上的即時資料整理成重點" style="background:transparent;color:var(--amber);border:1px solid var(--amber-dim);padding:8px 12px;font-family:var(--font-mono);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.05em;white-space:nowrap;">[整理]</button>
+            <button id="aiSendBtn" class="btn" style="background:var(--amber);color:var(--bg);border:1px solid var(--amber);padding:8px 18px;font-family:var(--font-mono);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.05em;">[送出]</button>
+          </div>
+          <div id="aiHint" style="margin-top:6px;font-size:10px;color:var(--text-dim);font-family:var(--font-mono);">
+            <span class="t-zh">已連線到即時儀表板資料。試試 "整理現在的局勢"、"摘要最近的快訊"、"分析我的投資組合風險"。</span><span class="t-en">Connected to live dashboard data. Try "summarize the current situation".</span>
+          </div>
         </div>
       </section>
     </div>
@@ -4581,6 +5375,8 @@ const state = {
   fred: {},
   currentStock: 'NVDA',
 };
+// v180.62 — expose state on window so non-module scripts (decision nodes) can read it
+window.state = state;
 
 const MOCK_QUOTES = {
   SPY:{px:589.12,chg:0.25,vol:'52.3M',hi:590.41,lo:587.20},
@@ -4651,6 +5447,8 @@ const SECTORS = [
   {name:'STPL', sym:'XLP',  chg:0.04},
   {name:'AGRI', sym:null,   chg:0.71},   // no SPDR equivalent; stays mock
 ];
+// v180.65 — expose for cross-module access (us-market reads it)
+window.SECTORS = SECTORS;
 const TABS = [
   { id: 'dashboard',  label: '儀錶板',   pinned: true },
   // v180.44: 監控中心 removed — accessed via dashboard [SAT] toggle
@@ -4659,7 +5457,7 @@ const TABS = [
   { id: 'tw-market',  label: '台股市場' },
   { id: 'crypto',     label: '加密市場' },
   { id: 'portfolio',  label: '投資組合' },
-  { id: 'chart',      label: '圖表分析' },
+  // v180.64: 圖表分析 removed — page never existed
   { id: 'node',       label: '節點規劃' },
   { id: 'ai',         label: 'AI 對話' },
   { id: 'settings',   label: '設定' },
@@ -4726,11 +5524,10 @@ function switchTab(id) {
     'dashboard':  'fin-home',
     'monitor':    'monitor',
     'news':       'news',
-    'us-market':  'fin-home',
+    'us-market':  'us-market',
     'tw-market':  'tw-market',
     'crypto':     'crypto',
     'portfolio':  'inv-portfolio',
-    'chart':      'chart',
     'node':       'node',
     'ai':         'ai',
     'settings':   'settings',
@@ -4745,10 +5542,13 @@ function closeTab(id) {
   const idx = tabState.open.indexOf(id);
   if (idx < 0) return;
   tabState.open.splice(idx, 1);
+  // v180.66 — was: only set tabState.active, but never called switchTab(),
+  // so the page DOM stayed on the closed tab's content. Now route too.
   if (tabState.active === id) {
-    // fall back to the previous open tab, or dashboard
-    tabState.active = tabState.open[idx - 1] || tabState.open[0] || 'dashboard';
-    if (!tabState.open.includes(tabState.active)) tabState.open.unshift(tabState.active);
+    const fallback = tabState.open[idx - 1] || tabState.open[0] || 'dashboard';
+    if (!tabState.open.includes(fallback)) tabState.open.unshift(fallback);
+    switchTab(fallback);   // updates tabState.active + renders + setRoute
+    return;
   }
   renderMainTabs();
   renderOpenTabs();
@@ -5317,7 +6117,25 @@ function setRoute(route) {
   if (route === 'fin-macro') renderMacro();
   if (route === 'fin-config') renderWorkerStatus();
   if (route === 'geo') setTimeout(onResize, 60);
+  if (route === 'us-market') {
+    // Trigger loadQuotes if not yet (so we can populate hero + indices)
+    if (typeof loadQuotes === 'function' && (!window.state || !window.state.quotes || Object.keys(window.state.quotes).length === 0)) {
+      loadQuotes();
+    }
+    if (typeof renderUsMarket === 'function') renderUsMarket();
+  }
+  if (route === 'ai') {
+    if (typeof window.__initAiChat === 'function') window.__initAiChat();
+  }
   if (route === 'node') {
+    // v180.62 — node page reads state.fred / state.quotes which are normally
+    // only populated when user visits dashboard. Trigger loads here too.
+    if (typeof loadFred === 'function' && (!window.state || !window.state.fred || Object.keys(window.state.fred).length === 0)) {
+      loadFred();
+    }
+    if (typeof loadQuotes === 'function' && (!window.state || !window.state.quotes || Object.keys(window.state.quotes).length === 0)) {
+      loadQuotes();
+    }
     if (typeof window.__renderNodes === 'function') window.__renderNodes();
   }
   if (route === 'monitor') {
@@ -5896,8 +6714,50 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
     return '';
   }
 
+  // v180.67/.68 — position the detail card near the click point (like Leaflet popup).
+  // Uses Leaflet's containerPoint (relative to map div) + map div getBoundingClientRect.
+  // Falls back to originalEvent.pageX/Y if containerPoint missing.
+  function _positionDetailCardAt(evt) {
+    const card = document.getElementById('monDetailCard');
+    if (!card) return;
+    if (!evt) return;
+    // Resolve absolute page coords
+    let px = null, py = null;
+    if (evt.containerPoint && typeof evt.containerPoint.x === 'number') {
+      const mapDiv = document.getElementById('monMap');
+      if (mapDiv) {
+        const r = mapDiv.getBoundingClientRect();
+        px = r.left + evt.containerPoint.x + window.scrollX;
+        py = r.top  + evt.containerPoint.y + window.scrollY;
+      }
+    }
+    if (px == null && evt.originalEvent) {
+      const oe = evt.originalEvent;
+      px = (typeof oe.pageX === 'number') ? oe.pageX : (oe.clientX + window.scrollX);
+      py = (typeof oe.pageY === 'number') ? oe.pageY : (oe.clientY + window.scrollY);
+    }
+    if (px == null) return;   // bail; card stays where CSS put it
+
+    card.style.right = 'auto';
+    card.style.display = 'block';
+    // Defer measurement to next frame so layout is complete
+    requestAnimationFrame(() => {
+      const cw = card.offsetWidth  || 240;
+      const ch = card.offsetHeight || 400;
+      const margin = 12;
+      let x = px + 18;
+      let y = py - 30;
+      if (x + cw + margin > window.innerWidth)  x = px - cw - 18;
+      if (x < margin) x = margin;
+      if (y + ch + margin > window.innerHeight) y = window.innerHeight - ch - margin;
+      if (y < margin) y = margin;
+      card.style.left = x + 'px';
+      card.style.top  = y + 'px';
+    });
+  }
+
   // Click handler — populate the detail card with all known fields.
-  function showAircraftDetail(state){
+  function showAircraftDetail(state, evt){
     const card = document.getElementById('monDetailCard');
     const body = document.getElementById('monDetailBody');
     const title = document.getElementById('monDetailTitle');
@@ -6066,7 +6926,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       };
     }
     repaint();
-    card.style.display = 'block';
+    card.style.display = 'block'; _positionDetailCardAt(window.__lastClickEvt);
 
     // 2) Async info lookup (only if we don't have builtin/cached data).
     if (!syncInfo) {
@@ -6171,7 +7031,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       renderAircraft();
       const t = new Date();
       const el = document.getElementById('monLastUpd');
-      if (el) el.textContent = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0') + ':' + String(t.getSeconds()).padStart(2,'0');
+      if (el) el.textContent = window.fmtTime(t);
       setStatus(
         'LIVE · ' + states.length + ' tracks',
         '#00d4aa',
@@ -6212,7 +7072,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       const show = isMil ? showMil : showCivil;
       if (!show) return;
       const marker = L.marker([s.latitude, s.longitude], { icon: aircraftIcon(s) });
-      marker.on('click', () => showAircraftDetail(s));
+      marker.on('click', (e) => { window.__lastClickEvt = e; showAircraftDetail(s, e); });
       aircraftLayer.addLayer(marker);
     });
     const milEl = document.getElementById('monMilCount');
@@ -6246,13 +7106,79 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
     vessels.forEach(v => {
       if (v.lat == null || v.lon == null) return;
       const marker = L.marker([v.lat, v.lon], { icon: shipIcon(v) });
-      marker.on('click', () => showVesselDetail(v));
+      marker.on('click', (e) => {
+        window.__lastClickEvt = e;
+        showVesselDetail(v, e);
+      });
       const name = v.name || ('MMSI ' + v.mmsi);
       marker.bindTooltip(name, { className: 'ship-tooltip' });
       shipLayer.addLayer(marker);
       count++;
     });
     if (countEl) countEl.textContent = count;
+  }
+
+  // ---- v180.69 — Vessel photo lookup (Wikimedia Commons) ----
+  // CORS-friendly with origin=*. Free, no key. Hits ~5% for cargo ships,
+  // higher for warships/cruise lines. Cached per name across the session.
+  const _vesselPhotoCache = new Map();
+  const _vesselPhotoInflight = new Map();
+
+  async function _fetchVesselPhoto(name) {
+    if (!name) return null;
+    const key = name.trim().toUpperCase();
+    if (_vesselPhotoCache.has(key)) return _vesselPhotoCache.get(key);
+    if (_vesselPhotoInflight.has(key)) return _vesselPhotoInflight.get(key);
+    const p = (async () => {
+      try {
+        // 1) Search Wikimedia Commons file namespace for ship name
+        // gsrsearch=intitle:NAME filters to filenames containing NAME
+        const url = 'https://commons.wikimedia.org/w/api.php?' +
+          'action=query&format=json&origin=*' +
+          '&generator=search&gsrnamespace=6&gsrlimit=3' +
+          '&gsrsearch=' + encodeURIComponent('intitle:"' + name + '" ship') +
+          '&prop=imageinfo&iiprop=url&iiurlwidth=320';
+        const r = await fetch(url);
+        if (!r.ok) return null;
+        const data = await r.json();
+        const pages = data?.query?.pages;
+        if (!pages) return null;
+        // Pick first page that has imageinfo with a usable url
+        for (const k of Object.keys(pages)) {
+          const p = pages[k];
+          const ii = p.imageinfo && p.imageinfo[0];
+          if (ii && (ii.thumburl || ii.url)) {
+            return { thumb: ii.thumburl || ii.url, page: 'https://commons.wikimedia.org/wiki/' + encodeURIComponent(p.title) };
+          }
+        }
+        return null;
+      } catch (e) {
+        return null;
+      } finally {
+        _vesselPhotoInflight.delete(key);
+      }
+    })();
+    _vesselPhotoInflight.set(key, p);
+    const result = await p;
+    _vesselPhotoCache.set(key, result);   // cache null too (avoid re-query)
+    return result;
+  }
+
+  // SVG type icon — used as photo fallback when Wikimedia search fails
+  function _vesselTypeIconSvg(type, size) {
+    const s = size || 60;
+    const color = { cargo:'#00d4aa', tanker:'#ff5577', military:'#5b9eff', fishing:'#ffcc44', passenger:'#ff9944', other:'#888' }[type] || '#888';
+    // Simple ship silhouette — hull + cabin/mast that hints at type
+    let extra = '';
+    if (type === 'military') extra = '<rect x="38" y="30" width="6" height="20" fill="' + color + '"/><circle cx="41" cy="28" r="2" fill="' + color + '"/>';
+    else if (type === 'cargo') extra = '<rect x="20" y="38" width="42" height="6" fill="' + color + '" opacity=".6"/><rect x="25" y="32" width="32" height="6" fill="' + color + '" opacity=".4"/>';
+    else if (type === 'tanker') extra = '<ellipse cx="41" cy="42" rx="22" ry="5" fill="' + color + '" opacity=".5"/>';
+    else if (type === 'passenger') extra = '<rect x="22" y="32" width="38" height="14" fill="' + color + '" opacity=".5"/><rect x="25" y="36" width="3" height="3" fill="#fff" opacity=".6"/><rect x="32" y="36" width="3" height="3" fill="#fff" opacity=".6"/><rect x="39" y="36" width="3" height="3" fill="#fff" opacity=".6"/><rect x="46" y="36" width="3" height="3" fill="#fff" opacity=".6"/><rect x="53" y="36" width="3" height="3" fill="#fff" opacity=".6"/>';
+    else if (type === 'fishing') extra = '<line x1="41" y1="48" x2="41" y2="22" stroke="' + color + '" stroke-width="1"/><line x1="41" y1="22" x2="55" y2="38" stroke="' + color + '" stroke-width="1" opacity=".5"/>';
+    return '<svg width="' + s + '" height="' + s + '" viewBox="0 0 82 60" fill="none">' +
+      '<path d="M 12 48 L 70 48 L 64 56 L 18 56 Z" fill="' + color + '" opacity=".7"/>' +
+      extra +
+      '</svg>';
   }
 
   // Vessel detail card — same anchor element as the aircraft card.
@@ -6321,6 +7247,13 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       : '';
 
     bodyEl.innerHTML = `
+      <div id="vesselPhotoWrap" style="margin:-2px 0 10px 0;height:140px;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid rgba(${carrier ? '255,215,0' : '0,212,170'},.2);position:relative;">
+        <div id="vesselPhotoFallback" style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#555;font-family:var(--font-mono);font-size:10px;">
+          ${_vesselTypeIconSvg(v.type, 70)}
+          <div>${isZh ? '查詢照片中…' : 'searching photo…'}</div>
+        </div>
+        <img id="vesselPhotoImg" style="display:none;width:100%;height:100%;object-fit:cover;" alt="" />
+      </div>
       ${carrier ? `
         <div style="margin:-2px 0 10px 0;padding:8px 10px;background:rgba(255,215,0,.08);border:1px solid rgba(255,215,0,.4);">
           <div style="font-size:13px;font-weight:700;color:#ffd700;line-height:1.3;">
@@ -6383,7 +7316,31 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         ${isZh ? '即時資料: AISStream.io · AIS 即時廣播' : 'Live: AISStream.io · Live AIS broadcast'}
       </div>
     `;
-    card.style.display = 'block';
+    card.style.display = 'block'; _positionDetailCardAt(window.__lastClickEvt);
+
+    // v180.69 — async Wikimedia photo lookup. Replaces fallback icon on hit;
+    // otherwise leaves SVG silhouette in place. We tag the body element with
+    // the vessel MMSI so a late-arriving photo response only paints if the
+    // card still shows this vessel.
+    if (v.name) {
+      bodyEl.dataset.activeMmsi = String(v.mmsi || '');
+      _fetchVesselPhoto(v.name).then(photo => {
+        if (bodyEl.dataset.activeMmsi !== String(v.mmsi || '')) return;
+        const img = document.getElementById('vesselPhotoImg');
+        const fb  = document.getElementById('vesselPhotoFallback');
+        if (!img || !fb) return;
+        if (photo && photo.thumb) {
+          img.onload = () => { img.style.display = 'block'; fb.style.display = 'none'; };
+          img.onerror = () => { fb.querySelector('div:last-child').textContent = isZh ? '(無照片)' : '(no photo)'; };
+          img.src = photo.thumb;
+          img.title = isZh ? '點擊查看 Wikimedia 來源' : 'Open on Wikimedia';
+          img.style.cursor = 'pointer';
+          img.onclick = () => window.open(photo.page, '_blank');
+        } else {
+          fb.querySelector('div:last-child').textContent = isZh ? '(無照片)' : '(no photo)';
+        }
+      });
+    }
   }
 
   // Public init — called by setRoute when the user opens the monitor tab.
@@ -6732,7 +7689,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         : (isZh ? '核設施' : 'NUCLEAR FACILITY');
       titleEl.style.color = accent;
       card.style.borderColor = accent;
-      card.style.display = 'block';
+      card.style.display = 'block'; _positionDetailCardAt(window.__lastClickEvt);
       bodyEl.innerHTML = `
         <div style="display:grid;grid-template-columns:80px 1fr;gap:4px 10px;">
           <span style="color:#888;">${isZh ? '名稱' : 'NAME'}</span><span style="color:#fff;font-weight:700;">${s.n}</span>
@@ -6946,7 +7903,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       titleEl.textContent = isZh ? '軍事基地' : 'MILITARY BASE';
       titleEl.style.color = t.color;
       card.style.borderColor = t.color;
-      card.style.display = 'block';
+      card.style.display = 'block'; _positionDetailCardAt(window.__lastClickEvt);
       bodyEl.innerHTML = `
         <div style="display:grid;grid-template-columns:80px 1fr;gap:4px 10px;">
           <span style="color:#888;">${isZh ? '名稱' : 'NAME'}</span><span style="color:#fff;font-weight:700;">${b.n}</span>
@@ -7872,7 +8829,7 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
     doc.appendChild(title);
     const sub = document.createElement('div');
     sub.className = 'pd-subtitle';
-    const ts = new Date().toLocaleString('zh-TW', { hour12: false });
+    const ts = window.fmtDateTime(new Date());
     sub.textContent = '匯出時間 ' + ts + ' · 即時新聞 5 分鐘更新 · 海峽情報人工編輯週更';
     doc.appendChild(sub);
 
@@ -9752,7 +10709,7 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
     if (news.length > 0) {
       const items = news.map(f => {
         const ts = f.timestamp ? new Date(f.timestamp) : null;
-        const tsStr = ts ? `${String(ts.getMonth()+1).padStart(2,'0')}/${String(ts.getDate()).padStart(2,'0')} ${String(ts.getHours()).padStart(2,'0')}:${String(ts.getMinutes()).padStart(2,'0')}` : '';
+        const tsStr = ts ? window.fmtMMDDhhmm(ts) : '';
         const text = isZh ? (f.msg_zh || f.msg) : (f.msg || f.msg_zh);
         const src = f.src || 'WIRE';
         const url = f.url || '';
@@ -10061,6 +11018,14 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
   })();
   applyTransform();
 
+  // v183.8 — touch zoom is handled by iOS Safari gesture events (further
+  // below), not by pointer-distance math. The old pointer pinch fought iOS:
+  // Safari fires pointercancel for the touches once it recognises a two-finger
+  // gesture, which tore down the pinch mid-way (janky / inverted). A single
+  // finger still pans through these pointer handlers; _gesturing suppresses
+  // panning while a pinch is in progress.
+  let _gesturing = false;
+
   wrap.addEventListener('pointerdown', e => {
     // Hotspots are interactive (click to open detail), so don't start a drag
     // when the pointer goes down on a hotspot. Countries are visually styled
@@ -10075,6 +11040,7 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
     // does nothing. Hotspots already had this carve-out; vessels need it
     // too because they get click handlers attached in the AIS module.
     if (e.target.closest('.hotspot, .ais-vessel')) return;
+    if (_gesturing) return;              // a pinch is in progress; don't pan
     isDrag = true;
     _dragMoved = false;   // track whether the pointer actually moved
     wrap.classList.add('dragging');
@@ -10100,6 +11066,7 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
   let _pendingPanFrame = false;
 
   wrap.addEventListener('pointermove', e => {
+    if (_gesturing) return;              // v183.8 — pinch in progress, don't pan
     // coords readout (always runs, but it's cheap)
     const { x: svgX, y: svgY } = screenToSvg(e.clientX, e.clientY);
     const worldX = (svgX - panX) / zoom;
@@ -10193,6 +11160,56 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
       applyTransform();
     });
   }, { passive: false });
+
+  // v183.8 — iOS Safari pinch-zoom via gesture events. These are Apple's
+  // native two-finger gesture API: e.scale is the cumulative scale since
+  // gesturestart (>1 = fingers spread = zoom IN, <1 = pinch = zoom OUT), and
+  // e.clientX/Y is the gesture centroid. preventDefault stops Safari zooming
+  // the whole page. We reuse zoom/panX/panY + applyTransform (which clamps via
+  // clampPan), so detail (city tiers, vessels) appears exactly like wheel zoom.
+  // On Mac Safari this also enables trackpad pinch-zoom. Other browsers don't
+  // fire these — they use the wheel handler above for trackpad pinch.
+  let _g = null, _gRAF = null, _gScale = 1, _gCx = 0, _gCy = 0;
+  wrap.addEventListener('gesturestart', e => {
+    e.preventDefault();
+    _gesturing = true;
+    isDrag = false;                       // cancel any single-finger drag
+    wrap.classList.remove('dragging');
+    const a = screenToSvg(e.clientX, e.clientY);
+    const ctm = svg.getScreenCTM();
+    _g = {
+      zoom0: zoom, panX0: panX, panY0: panY,
+      ax: a.x, ay: a.y,                   // zoom anchor (viewBox coords)
+      sx0: e.clientX, sy0: e.clientY,     // start centroid (screen px)
+      scale0: (ctm ? ctm.a : 1)           // screen px -> viewBox unit
+    };
+  });
+  wrap.addEventListener('gesturechange', e => {
+    e.preventDefault();
+    if (!_g) return;
+    _gScale = e.scale || 1; _gCx = e.clientX; _gCy = e.clientY;
+    if (_gRAF) return;
+    _gRAF = requestAnimationFrame(() => {
+      _gRAF = null;
+      if (!_g) return;
+      const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, _g.zoom0 * _gScale));
+      // zoom toward the gesture anchor
+      let nx = _g.ax - (_g.ax - _g.panX0) * (newZoom / _g.zoom0);
+      let ny = _g.ay - (_g.ay - _g.panY0) * (newZoom / _g.zoom0);
+      // follow the centroid as it drifts (lets you reposition while zooming)
+      nx += (_gCx - _g.sx0) / (_g.scale0 || 1);
+      ny += (_gCy - _g.sy0) / (_g.scale0 || 1);
+      zoom = newZoom; panX = nx; panY = ny;
+      applyTransform();
+    });
+  });
+  function _gestureEnd(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    _gesturing = false;
+    _g = null;
+    if (_gRAF) { cancelAnimationFrame(_gRAF); _gRAF = null; }
+  }
+  wrap.addEventListener('gestureend', _gestureEnd);
 
   // double-click to zoom in to cursor, shift+dblclick to zoom out
   wrap.addEventListener('dblclick', e => {
@@ -10495,6 +11512,23 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
   window.addEventListener('keydown', e => {
     if (e.key === 'Escape') sidebar.classList.remove('open');
   });
+
+  // v183.6 — touch devices: hamburger toggles the sidebar (mouseenter never fires on touch)
+  const hamburger = document.getElementById('hamburgerBtn');
+  if (hamburger) {
+    hamburger.addEventListener('click', e => {
+      e.stopPropagation();
+      const isOpen = sidebar.classList.toggle('open');
+      hamburger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    });
+    // tap outside the sidebar (and not on the button) closes it
+    document.addEventListener('click', e => {
+      if (!sidebar.classList.contains('open')) return;
+      if (sidebar.contains(e.target) || hamburger.contains(e.target)) return;
+      sidebar.classList.remove('open');
+      hamburger.setAttribute('aria-expanded', 'false');
+    });
+  }
 })();
 
 /* ========== DOCK BAR DRAG ========== */
@@ -12065,9 +13099,11 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
       // Rate monitor — count messages per second (sync, before parse)
       const now = Date.now();
       if (now - _liveMsgWindowStart > 1000) {
-        if (_liveMsgCount > 0) {
-          console.log('[AIS] msg rate last second:', _liveMsgCount);
-        }
+        // v183.4 — Removed per-second console.log('[AIS] msg rate...').
+        // With DevTools open, Safari retains every logged line + referenced
+        // objects indefinitely; at ~150 logs/sec this was a major memory
+        // sink. Rate is still tracked in _dbgRateSnapshot (visible via
+        // window.__aisDbg.rate) for debugging without the console spam.
         _dbgRateSnapshot = _liveMsgCount;
         // v180.38 — Adapt drop rate based on observed throughput.
         // If receiving more than target/sec, raise drop rate so the effective
@@ -12536,7 +13572,7 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
       '<div class="vp-row"><span class="vp-k">HDG</span><span class="vp-v">' + Math.round(v.hdg || 0) + '°</span></div>';
     if (v.destination) rows += '<div class="vp-row"><span class="vp-k">DEST</span><span class="vp-v">' + v.destination + '</span></div>';
     if (v.draught) rows += '<div class="vp-row"><span class="vp-k">DRAFT</span><span class="vp-v">' + v.draught.toFixed(1) + ' m</span></div>';
-    rows += '<div class="vp-row"><span class="vp-k">LAST</span><span class="vp-v">' + new Date(v.lastUpdate).toLocaleTimeString() + '</span></div>';
+    rows += '<div class="vp-row"><span class="vp-k">LAST</span><span class="vp-v">' + window.fmtTime(new Date(v.lastUpdate)) + '</span></div>';
     pop.innerHTML =
       '<div class="vp-head">' + (v.name || 'UNKNOWN') + '<span class="vp-close" id="vpClose">×</span></div>' + rows;
     const close = pop.querySelector('#vpClose');
@@ -13152,7 +14188,7 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
     const metaParts = [];
     if (data.us_meta) {
       metaParts.push('US: ' + (data.us_count || 0) + '/' + data.us_meta.totalSymbols + ' (batch '
-        + ((data.us_meta.lastBatch || 0) + 1) + '/' + data.us_meta.numBatches + ', ' + new Date(data.us_meta.lastRunAt).toLocaleTimeString() + ')');
+        + ((data.us_meta.lastBatch || 0) + 1) + '/' + data.us_meta.numBatches + ', ' + window.fmtTime(new Date(data.us_meta.lastRunAt)) + ')');
     }
     if (data.tw_count) {
       metaParts.push('TW: ' + data.tw_count + (data.tw_ts ? ' (' + new Date(data.tw_ts).toLocaleString() + ')' : ''));
@@ -13427,7 +14463,7 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
     // Meta line
     const metaEl = document.getElementById('cryptoMeta');
     if (metaEl) {
-      const ts = data.fetched_at ? new Date(data.fetched_at).toLocaleTimeString() : '—';
+      const ts = data.fetched_at ? window.fmtTime(new Date(data.fetched_at)) : '—';
       metaEl.textContent = 'CoinGecko top ' + data.items.length + ' · ' + ts;
     }
 
@@ -13701,7 +14737,7 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
 
     const metaEl = document.getElementById('etfMeta');
     if (metaEl) {
-      const ts = _etfQuoteCache.fetched_at ? new Date(_etfQuoteCache.fetched_at).toLocaleTimeString() : '—';
+      const ts = _etfQuoteCache.fetched_at ? window.fmtTime(new Date(_etfQuoteCache.fetched_at)) : '—';
       const retNote = _etfReturnsCache ? '· 1y 報酬已載入' : '· 1y 報酬未載入';
       metaEl.textContent = 'Finnhub · ' + ts + ' ' + retNote;
     }
@@ -13771,7 +14807,7 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
 
     const metaEl = document.getElementById('commodityMeta');
     if (metaEl) {
-      const ts = _commodityQuoteCache.fetched_at ? new Date(_commodityQuoteCache.fetched_at).toLocaleTimeString() : '—';
+      const ts = _commodityQuoteCache.fetched_at ? window.fmtTime(new Date(_commodityQuoteCache.fetched_at)) : '—';
       metaEl.textContent = 'Finnhub · ' + ts;
     }
 
@@ -14030,7 +15066,7 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
     }
     wrap.innerHTML = news.map(n => {
       const title = n.headline_zh || n.headline || '—';
-      const ts = n.datetime ? new Date(n.datetime * 1000).toLocaleString('zh-TW', { hour12:false }) : '—';
+      const ts = n.datetime ? window.fmtDateTime(new Date(n.datetime * 1000)) : '—';
       const clickJs = n.url ? "window.open('" + n.url + "','_blank')" : '';
       return '<div class="report-news-item">' +
         '<div class="report-news-title" onclick="' + clickJs + '">' + title + '</div>' +
@@ -14085,7 +15121,7 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
     const doc = document.createElement('div');
     doc.className = 'print-doc';
 
-    const ts = new Date().toLocaleString('zh-TW', { hour12: false });
+    const ts = window.fmtDateTime(new Date());
     const title = document.createElement('h1');
     title.textContent = '金融市場報告 · Finance Report';
     doc.appendChild(title);
@@ -14206,7 +15242,7 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
       const color = SC[intel.status] || '#888';
       const live = (LI[name] && LI[name][0]) || null;
       const newsTitle = live ? (live.title_zh || live.title || '') : '';
-      const newsMeta = live ? (_geoEscape(live.source || '') + (live.timestamp ? ' · ' + new Date(live.timestamp).toLocaleString('zh-TW', {hour12:false}) : '')) : '';
+      const newsMeta = live ? (_geoEscape(live.source || '') + (live.timestamp ? ' · ' + window.fmtDateTime(new Date(live.timestamp)) : '')) : '';
       const newsCell = live
         ? '<div style="line-height:1.5;">' + _geoEscape(newsTitle).slice(0, 120) + '</div><div style="font-size:10px;color:var(--text-dim);margin-top:2px;">' + newsMeta + '</div>'
         : '<span style="color:var(--text-dim);font-style:italic;">無即時新聞</span>';
@@ -14276,7 +15312,7 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
     wrap.innerHTML = items.slice(0, 15).map(it => {
       const title = it.title_zh || it.title || '—';
       const clickJs = it.link ? "window.open('" + it.link + "','_blank')" : '';
-      const ts = it.timestamp ? new Date(it.timestamp).toLocaleString('zh-TW', {hour12:false}) : '—';
+      const ts = it.timestamp ? window.fmtDateTime(new Date(it.timestamp)) : '—';
       const meta = (it.source || '') + ' · ' + ts;
       return '<div class="report-news-item">' +
         '<div class="report-news-title" onclick="' + clickJs + '">' + _geoEscape(title) + '</div>' +
@@ -14458,7 +15494,7 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
     const doc = document.createElement('div');
     doc.className = 'print-doc';
 
-    const ts = new Date().toLocaleString('zh-TW', { hour12: false });
+    const ts = window.fmtDateTime(new Date());
     const title = document.createElement('h1');
     title.textContent = '地緣政治報告 · Geopolitics Report';
     doc.appendChild(title);
@@ -15650,7 +16686,7 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
     const doc = document.createElement('div');
     doc.className = 'print-doc';
 
-    const ts = new Date().toLocaleString('zh-TW', { hour12: false });
+    const ts = window.fmtDateTime(new Date());
     const title = document.createElement('h1');
     title.textContent = '投資中心報告 · Investment Report';
     doc.appendChild(title);
@@ -16081,6 +17117,30 @@ async function fetchPolygonQuote(sym) {
 // need state.fredKey anymore for real data) and applies a 5-minute edge cache,
 // so we can hit this endpoint every page load without burning budget.
 const FRED_PROXY_URL = 'https://ais-proxy.2syzkjy2vq.workers.dev/fred';
+const ACLED_PROXY_URL = 'https://ais-proxy.2syzkjy2vq.workers.dev/acled';
+
+// v180.72 — ACLED conflict feed loader. Hit /acled, populate state.acled
+// with aggregated event totals + by-region breakdown. Refreshed once per
+// hour (Worker caches for 24h anyway). Failure leaves state.acled = null
+// and geoEvents falls back to the news-proxy heuristic.
+async function loadAcled() {
+  try {
+    const r = await fetch(ACLED_PROXY_URL + '?days=7&limit=1500', { cache: 'no-store' });
+    if (!r.ok) {
+      console.warn('[ACLED] proxy returned', r.status);
+      return;
+    }
+    const j = await r.json();
+    if (j && j.ok) {
+      state.acled = j;
+      console.log('[ACLED]', j.total_events, 'events ·', j.total_fatalities, 'fatalities (past', j.window_days, 'days)');
+    } else {
+      console.warn('[ACLED] proxy ok=false', j && j.error);
+    }
+  } catch (e) {
+    console.warn('[ACLED] fetch failed', e);
+  }
+}
 async function fetchFredAll(seriesList, historyDepth = 14) {
   try {
     // _t cache buster so manual page refresh always bypasses any stale
@@ -16233,14 +17293,9 @@ function classifyNewsItem(item) {
   // Clamp
   risk = Math.max(10, Math.min(95, risk));
 
-  // 4. Format time as MM/DD HH:MM:SS to match the new dated UI
+  // 4. Format time as MM/DD HH:MM:SS to match the new dated UI (tz-aware via helper)
   const dt = new Date((item.datetime || 0) * 1000);
-  const MM = String(dt.getMonth() + 1).padStart(2, '0');
-  const DD = String(dt.getDate()).padStart(2, '0');
-  const hh = String(dt.getHours()).padStart(2, '0');
-  const mm = String(dt.getMinutes()).padStart(2, '0');
-  const ss = String(dt.getSeconds()).padStart(2, '0');
-  const time = `${MM}/${DD} ${hh}:${mm}:${ss}`;
+  const time = window.fmtMMDDtime(dt);
 
   return {
     time,
@@ -16329,11 +17384,6 @@ function classifyBusinessFeedItem(item) {
   // Time from RSS pubDate (already a real timestamp from worker)
   const ts = item.timestamp || Date.now();
   const dt = new Date(ts);
-  const MM = String(dt.getMonth() + 1).padStart(2, '0');
-  const DD = String(dt.getDate()).padStart(2, '0');
-  const hh = String(dt.getHours()).padStart(2, '0');
-  const mm = String(dt.getMinutes()).padStart(2, '0');
-  const ss = String(dt.getSeconds()).padStart(2, '0');
 
   // Source short code — strip parentheses + lowercase + take initials
   const rawSrc = (item.source || 'WIRE').replace(/\s*\(.*?\)\s*$/, '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12) || 'WIRE';
@@ -16344,7 +17394,7 @@ function classifyBusinessFeedItem(item) {
               : 'MARKET';
 
   return {
-    time: `${MM}/${DD} ${hh}:${mm}:${ss}`,
+    time: window.fmtMMDDtime(dt),
     timestamp: ts,
     tag,
     src: `${prefix}@${rawSrc}`,
@@ -16565,16 +17615,11 @@ function classifyOfficialFeedItem(item) {
                  : item.source && item.source.toLowerCase().includes('treasury') ? 'TREASURY'
                  : 'OFFICIAL';
 
-  // Format time as MM/DD HH:MM:SS using the item's timestamp
+  // Format time as MM/DD HH:MM:SS using the item's timestamp (tz-aware)
   const dt = new Date(item.timestamp || Date.now());
-  const MM = String(dt.getMonth() + 1).padStart(2, '0');
-  const DD = String(dt.getDate()).padStart(2, '0');
-  const hh = String(dt.getHours()).padStart(2, '0');
-  const mm = String(dt.getMinutes()).padStart(2, '0');
-  const ss = String(dt.getSeconds()).padStart(2, '0');
 
   return {
-    time: `${MM}/${DD} ${hh}:${mm}:${ss}`,
+    time: window.fmtMMDDtime(dt),
     timestamp: item.timestamp || Date.now(),
     tag,
     src: `${srcShort}@OFFICIAL`,
@@ -16970,7 +18015,7 @@ async function loadCalendar() {
       : `Week ${short(data.from)} – ${short(data.to)}`;
   }
   const meta = document.getElementById('calSrc');
-  if (meta) meta.innerHTML = '<span class="src-badge src-live" title="Finnhub /calendar/economic via Worker · cache 10min">LIVE · FINNHUB</span>';
+  if (meta) meta.innerHTML = '<span class="src-badge src-live" title="ForexFactory weekly export via Worker · cache 1h">LIVE · ForexFactory</span>';
 
   renderCalendar('calendarHome');
   renderCalendar('calendarMacro');
@@ -17564,12 +18609,138 @@ function initWatchlist() {
   setInterval(saveWatchlistCache, 30 * 1000);
 }
 
+// v183.3 — Spot / intraday quote integration via worker /spot endpoint.
+// Why: FRED's VIXCLS, DCOILWTICO, DCOILBRENTEU, DEXUSEU, DEXJPUS are all
+// daily-close lagged AND routinely dropped by Cloudflare's 50-subrequest
+// limit during the /fred batch fetch. Result: stale fallback values from
+// MOCK_FRED leaked into the UI. This module fetches those 5 series (plus
+// gold, silver, natgas, copper) from Twelve Data via worker /spot, on a
+// separate invocation (its own 50-subrequest budget) and overwrites
+// state.fred for the 5 FRED-compatible keys.
+const SPOT_FRED_REMAP = {
+  // Twelve Data symbol → state.fred key (so existing UI keeps working)
+  'VIX':       'VIXCLS',
+  'WTI/USD':   'DCOILWTICO',
+  'BRENT':     'DCOILBRENTEU',
+  'EUR/USD':   'DEXUSEU',
+  'USD/JPY':   'DEXJPUS',
+};
+// Symbols that don't map to a FRED key — stored in state.spot for future
+// widgets to display.
+const SPOT_NEW = ['XAU/USD', 'XAG/USD', 'NG/USD', 'HG/USD'];
+
+async function loadSpotPrices() {
+  // Seed state.fred for spot keys with MOCK fallback first — if /spot
+  // fails entirely, the rest of the dashboard still has a value to read.
+  // (The MOCK is still wrong, but better than `undefined` crashing things.)
+  for (const [_tdSym, fredKey] of Object.entries(SPOT_FRED_REMAP)) {
+    if (state.fred[fredKey] == null && MOCK_FRED[fredKey] != null) {
+      state.fred[fredKey] = MOCK_FRED[fredKey];
+    }
+  }
+  // All requested symbols in one batched call
+  const allSymbols = Object.keys(SPOT_FRED_REMAP).concat(SPOT_NEW);
+  try {
+    const r = await fetch(WORKER_BASE + '/spot?symbols=' + encodeURIComponent(allSymbols.join(',')) + '&_t=' + Date.now());
+    if (!r.ok) {
+      console.warn('[SPOT] /spot returned', r.status);
+      return;
+    }
+    const j = await r.json();
+    if (!j || !j.ok || !j.prices) {
+      console.warn('[SPOT] /spot empty / unsuccessful', j);
+      return;
+    }
+
+    // Overwrite state.fred for FRED-keyed entries
+    for (const [tdSym, fredKey] of Object.entries(SPOT_FRED_REMAP)) {
+      const p = j.prices[tdSym];
+      if (p && typeof p.value === 'number' && isFinite(p.value)) {
+        state.fred[fredKey] = p.value;
+        if (state.fredMeta) {
+          state.fredMeta[fredKey] = Object.assign({}, state.fredMeta[fredKey], {
+            value: p.value,
+            date: (p.datetime || j.fetched_at || '').slice(0, 10),
+            source: 'twelvedata',
+          });
+        }
+      }
+    }
+
+    // Store standalone spot prices (gold/silver/natgas/copper) for widgets
+    state.spot = state.spot || {};
+    const _put = (sym, key) => {
+      const p = j.prices[sym];
+      if (p && typeof p.value === 'number' && isFinite(p.value)) {
+        state.spot[key] = {
+          value: p.value,
+          change: p.change,
+          changePercent: p.changePercent,
+          datetime: p.datetime,
+        };
+      }
+    };
+    _put('XAU/USD', 'gold');
+    _put('XAG/USD', 'silver');
+    _put('NG/USD', 'natgas');
+    _put('HG/USD', 'copper');
+
+    console.log('[SPOT] live', j.live_count, '/', j.total_count, 'symbols', state.spot);
+  } catch (e) {
+    console.warn('[SPOT] fetch failed', e);
+  }
+}
+
+// v183.5 — Maritime chokepoint disruption via worker /chokepoints (IMF
+// PortWatch). Populates state.chokepoints for the maritimeAnomaly score
+// component. PortWatch only updates weekly, so we throttle client refetch to
+// once per 6h (the worker also KV-caches 24h). Returns true if data changed
+// so the caller can re-render. Fire-and-forget — never blocks the dashboard.
+let _chokepointsLastFetch = 0;
+async function loadChokepoints(force) {
+  const now = Date.now();
+  if (!force && state.chokepoints && (now - _chokepointsLastFetch) < 6 * 60 * 60 * 1000) {
+    return false;   // still fresh, skip
+  }
+  try {
+    const r = await fetch(WORKER_BASE + '/chokepoints?_t=' + now);
+    if (!r.ok) { console.warn('[CHOKE] /chokepoints', r.status); return false; }
+    const j = await r.json();
+    if (!j || !j.ok || !j.chokepoints || Object.keys(j.chokepoints).length === 0) {
+      console.warn('[CHOKE] empty/unsuccessful', j);
+      return false;
+    }
+    state.chokepoints = j.chokepoints;
+    state.chokepointsMeta = { fetched_at: j.fetched_at, source: j.source };
+    _chokepointsLastFetch = now;
+    console.log('[CHOKE]', Object.keys(j.chokepoints).length, 'straits', j.chokepoints);
+    return true;
+  } catch (e) {
+    console.warn('[CHOKE] fetch failed', e);
+    return false;
+  }
+}
+
 async function loadFred() {
   // Pull every series we have a mock value for, in one batched request.
-  // We ask for 14 periods of history so the FRED_DECODED scoring engine
-  // can compute components that need trailing data (Sahm rule, CPI YoY).
-  const seriesList = Object.keys(MOCK_FRED);
-  const observations = await fetchFredAll(seriesList, 14);
+  // We ask for 36 periods of history so the FRED_DECODED scoring engine
+  // can compute components that need trailing data (Sahm rule, CPI YoY)
+  // even after FRED filters out missing observations (value='.').
+  // v180.71 — bumped from 14 to 36 to fix Sahm N/A issue.
+  // v183.3 — exclude series now sourced from Twelve Data /spot (VIXCLS,
+  // DCOILWTICO, DCOILBRENTEU, DEXUSEU, DEXJPUS). Reduces FRED subrequest
+  // load from 56 → 46, safely under Cloudflare's 50 limit. The excluded
+  // series get populated later by loadSpotPrices().
+  const _SPOT_KEYS = new Set(Object.values(SPOT_FRED_REMAP));
+  // v183.5 — Keep DCOILWTICO in the FRED batch: the oilShock score component
+  // needs 30 days of WTI *history* (30-day % change), which /spot (latest
+  // value only) can't supply. We still fetch its history from FRED here, then
+  // loadSpotPrices() overwrites only the *latest* value with the live quote.
+  // Net: 23 series (excl 4) + DCOILWTICO history = 24 series ≈ 48 subrequests,
+  // still under Cloudflare's 50 limit.
+  _SPOT_KEYS.delete('DCOILWTICO');
+  const seriesList = Object.keys(MOCK_FRED).filter(k => !_SPOT_KEYS.has(k));
+  const observations = await fetchFredAll(seriesList, 36);
 
   let live = 0;
   if (observations) {
@@ -17578,7 +18749,10 @@ async function loadFred() {
       if (obs && typeof obs.value === 'number' && !isNaN(obs.value)) {
         state.fred[s] = obs.value;
         live++;
-      } else {
+      } else if (!state.fredLiveOnce) {
+        // Only seed an approximate value if we've NEVER had a live load yet.
+        // After a prior success, keep the last good number for this series
+        // instead of overwriting a real figure with MOCK_FRED.
         state.fred[s] = MOCK_FRED[s];
       }
     }
@@ -17593,29 +18767,56 @@ async function loadFred() {
         state.fredHistory[s] = obs.history;
       }
     }
-  } else {
-    // Total fallback — proxy unreachable
+  } else if (!state.fredLiveOnce) {
+    // Total fetch failure AND we've never succeeded — seed MOCK so the
+    // panel isn't blank on a cold start.
     for (const s of seriesList) state.fred[s] = MOCK_FRED[s];
     state.fredMeta = null;
     state.fredHistory = {};
   }
+  // else (observations null but we HAVE been live before): a transient
+  // refresh miss. Keep the last known-good values, meta and history exactly
+  // as they are — the data is at most ~5min stale, which beats flipping the
+  // whole panel back to MOCK. /spot prices are refreshed separately in
+  // loadSpotPrices() below and are unaffected by this branch.
 
+  // Latch: once any series has loaded live, remember it for the session.
+  if (live > 0) state.fredLiveOnce = true;
+
+  // Badge: LIVE if this load got data, OR if we've ever had a live load
+  // (one transient miss must not downgrade a panel that is actually working).
+  const _fredShowLive = (live > 0) || state.fredLiveOnce;
   ['fredSrc', 'macroSrc'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
-    if (live > 0) {
+    if (_fredShowLive) {
       el.innerHTML = '<span class="src-badge src-live" title="FRED via Cloudflare Worker · cache 5min">LIVE · FRED</span>';
     } else {
       el.innerHTML = '<span class="src-badge src-mock">MOCK</span>';
     }
   });
+  // v183.3 — Fetch live spot/intraday prices for VIX, oil, forex (and
+  // gold/silver/natgas/copper extras). Awaited so render below sees real
+  // values, not MOCK. /spot is a separate worker invocation = own
+  // subrequest budget = won't be starved by FRED's batch.
+  await loadSpotPrices();
   renderFred();
   renderMacro();
   if (typeof renderGeoPanels === 'function') renderGeoPanels();
+  // v183.5 — Load IMF PortWatch chokepoint data asynchronously (non-blocking).
+  // maritimeAnomaly reads state.chokepoints; re-render the FRED panel + geo
+  // panels once it arrives so the maritime signal lights up without delaying
+  // the rest of the dashboard.
+  loadChokepoints().then(changed => {
+    if (changed) {
+      renderFred();
+      if (typeof renderGeoPanels === 'function') renderGeoPanels();
+    }
+  }).catch(() => {});
 }
 
 /* ========== FINANCE RENDER ========== */
-function timeStr() { return new Date().toLocaleTimeString('en-GB', { hour12: false }); }
+function timeStr() { return window.fmtTime(new Date()); }
 // Local HTML escape — the IIFE-scoped escapeHtml around line 3170 isn't
 // visible here, so renderFlashes uses this one. Same semantics, smaller scope.
 // Decode HTML entities that may have arrived in headlines (Russia&apos;s
@@ -18169,13 +19370,8 @@ const _ALERT_MAX = 100;
 // so it slots into renderNewsFlashFeed without special handling.
 function _makeAlert(opts) {
   const now = new Date();
-  const MM = String(now.getMonth() + 1).padStart(2, '0');
-  const DD = String(now.getDate()).padStart(2, '0');
-  const hh = String(now.getHours()).padStart(2, '0');
-  const mm = String(now.getMinutes()).padStart(2, '0');
-  const ss = String(now.getSeconds()).padStart(2, '0');
   return {
-    time: `${MM}/${DD} ${hh}:${mm}:${ss}`,
+    time: window.fmtMMDDtime(now),
     timestamp: now.getTime(),
     tag: opts.tag || '觀察-金融市場',
     src: opts.src || 'ALERT@TERMINAL',
@@ -18632,7 +19828,7 @@ const FRED_COMPONENTS = [
     explanation_zh: '統計新聞流中近 24 小時 RISK ≥ 60 的新聞篇數,並依照標籤(地緣政治、通膨、央行)加權。高風險新聞密度與市場波動率高度相關。',
     explanation_en: 'Counts past-24h news items with RISK ≥ 60 from the news stream, weighted by tag (geopolitics, inflation, central bank). Density correlates strongly with realized market volatility.',
     weightMin: 0,
-    weightMax: 15,
+    weightMax: 10,
     compute() {
       const flashes = state.flashes;
       if (!Array.isArray(flashes) || flashes.length === 0) {
@@ -18650,10 +19846,11 @@ const FRED_COMPONENTS = [
       const high = recent.filter(f => f.risk >= 60);
       const geo  = recent.filter(f => f.tag === '預警-地緣政治');
       const inf  = recent.filter(f => f.tag === '警示-通膨');
-      // Scoring: each high-risk item adds 2 (cap raw at 12); geo/inflation tag bonus
-      const rawHigh = Math.min(12, high.length * 2);
-      const tagBonus = Math.min(6, geo.length * 1 + inf.length * 1);
-      const contribution = clampNum(rawHigh + tagBonus, 0, 15);
+      // v180.73 — tighter weights to prevent always-saturating at max.
+      // High-risk: 1.5 per item cap 8; tag bonus: 0.6 per item cap 4
+      const rawHigh = Math.min(8, high.length * 1.5);
+      const tagBonus = Math.min(4, (geo.length + inf.length) * 0.6);
+      const contribution = clampNum(rawHigh + tagBonus, 0, 10);
       return {
         contribution,
         status: 'ok',
@@ -18678,34 +19875,174 @@ const FRED_COMPONENTS = [
     explanation_zh: '從監控中心的衝突追蹤資料取出當前活躍事件,依強度(高/中/低)和地緣規模(全球/區域/局部)加權。中東、台海、東歐三大區域權重最高。等接通地緣情報源後啟用。',
     explanation_en: 'Pulls active conflicts from the Monitor Panel, weighted by intensity (high/med/low) and geographic scale (global/regional/local). Middle East, Taiwan Strait, and Eastern Europe get the highest weights. Activates once geo intel source is wired in.',
     weightMin: 0,
-    weightMax: 15,
+    weightMax: 10,
     compute() {
+      // v180.73 — ACLED disabled (Open tier has no API access). Always
+      // falls through to news-proxy heuristic with tightened weights.
+      // Fallback:state.flashes 內 tag='預警-地緣政治' 的高風險新聞
+      const flashes = state.flashes;
+      if (!Array.isArray(flashes) || flashes.length === 0) {
+        return {
+          contribution: null,
+          status: 'na',
+          inputs: { reason: '新聞流尚未載入 · awaiting news feed' },
+        };
+      }
+      const cutoff = Date.now() - 72 * 60 * 60 * 1000;
+      const recent = flashes.filter(f => (f.timestamp || Date.now()) >= cutoff);
+      const geo = recent.filter(f => f.tag === '預警-地緣政治');
+      const KEY_REGIONS = /(iran|israel|gaza|hezbollah|houthi|red sea|taiwan|台海|台灣|ukraine|russia|烏克蘭|俄羅斯|north korea|north-korea|north korean)/i;
+      const flash = geo.filter(f => KEY_REGIONS.test(f.msg || '') || KEY_REGIONS.test(f.msg_zh || ''));
+      const avgRisk = geo.length > 0 ? geo.reduce((s, f) => s + (f.risk || 0), 0) / geo.length : 0;
+      // v180.73 — 收緊權重:base 0.5/件 cap 5、key region 1.0/件 cap 4、risk bonus cap 2
+      const base    = Math.min(5, geo.length * 0.5);
+      const flashBn = Math.min(4, flash.length * 1.0);
+      const riskBn  = avgRisk >= 65 ? 1.5 : avgRisk >= 55 ? 0.8 : 0;
+      const contribution = clampNum(base + flashBn + riskBn, 0, 10);
       return {
-        contribution: null,
-        status: 'na',
-        inputs: { reason: '地緣情報源尚未接通 · pending' },
+        contribution,
+        status: 'ok',
+        inputs: {
+          'geo_72h':    geo.length,
+          'key_region': flash.length,
+          'avg_risk':   avgRisk.toFixed(1),
+          'source':     '新聞代理 (gmail 帳號為 Open 級無 ACLED API)',
+        },
       };
     },
   },
 
-  // -------- 7. Maritime Anomaly (TODO) --------
+  // -------- 7. Maritime Anomaly --------
   {
     id: 'maritimeAnomaly',
     label_zh: '海事擾動',
     label_en: 'Maritime Anomaly',
-    source: 'AIS · 6 大海峽即時統計',
-    formula_zh: '海峽船舶減少率 + AIS 訊號異常率',
-    formula_en: 'Strait vessel drop rate + AIS signal anomaly rate',
-    explanation_zh: '從 AIS 即時資料統計六大海峽(荷莫茲、馬六甲、巴拿馬、蘇伊士、台海、博斯普魯斯)的船舶通行量變化,以及 AIS 訊號異常率(熄燈、跳號)。海事擾動通常領先大宗商品價格 5-10 天。等加上異常偵測邏輯後啟用。',
-    explanation_en: 'From live AIS data, tracks changes in vessel throughput across the 6 major straits (Hormuz, Malacca, Panama, Suez, Taiwan, Bosphorus), plus AIS signal anomaly rates (dark vessels, MMSI spoofing). Maritime disruption typically leads commodity prices by 5-10 days. Activates once anomaly detection is implemented.',
+    source: 'IMF PortWatch · 6 大海峽每日通行量',
+    formula_zh: '海峽通行量相對歷史基線的減少率(多海峽同時下降加權)',
+    formula_en: 'Strait transit drop vs historical baseline (co-disruption weighted)',
+    explanation_zh: '資料來自 IMF PortWatch — 用全球約 9 萬艘船的衛星 AIS 訊號統計六大海峽(荷莫茲、曼德、蘇伊士、馬六甲、台海、巴拿馬)的每日通行船數。將近 7 日平均與歷史基線(整段期間中位數)比較,通行量驟降通常意味海峽封閉、制裁或戰事。多個海峽同時下降會加權,代表系統性事件。海事擾動通常領先大宗商品價格 5-10 天。',
+    explanation_en: 'Data from IMF PortWatch — daily transit counts for 6 major straits (Hormuz, Bab el-Mandeb, Suez, Malacca, Taiwan, Panama) derived from satellite AIS of ~90k ships. Compares the recent 7-day average against a historical baseline (window median); a sharp drop signals closure, sanctions, or conflict. Simultaneous drops across multiple straits are weighted up as a systemic-event signal. Maritime disruption typically leads commodity prices by 5-10 days.',
     weightMin: 0,
-    weightMax: 10,
+    weightMax: 6,
     compute() {
+      // v183.5 — Switched from client-side AIS bbox vessel-counting to IMF
+      // PortWatch data (state.chokepoints, populated by loadChokepoints()).
+      // The old approach counted AIS vessels inside strait bounding boxes, but
+      // the 500-vessel render cap meant strait counts were near-zero and every
+      // strait looked "closed" → false anomalies. PortWatch gives real daily
+      // transit counts + a historical baseline, so the drop ratio is reliable.
+      const cp = state.chokepoints;
+      if (!cp || typeof cp !== 'object' || Object.keys(cp).length === 0) {
+        return {
+          contribution: null,
+          status: 'na',
+          inputs: { reason: 'PortWatch 海峽資料尚未載入 · awaiting PortWatch data' },
+        };
+      }
+      let anomalyScore = 0;
+      let droppedCount = 0;
+      const perStrait = {};
+      for (const id of Object.keys(cp)) {
+        const d = cp[id];
+        if (!d || d.dropPct == null) continue;
+        const drop = d.dropPct;   // 0..1, fraction below baseline
+        const label = d.name || id;
+        perStrait[label] = '−' + Math.round(drop * 100) + '% (7d ' + d.recent7 + ' vs base ' + d.baseline + ')';
+        // Severity tiers. A strait counts as "disrupted" at ≥50% drop.
+        if (drop >= 0.7)      { anomalyScore += 2;   droppedCount++; }
+        else if (drop >= 0.5) { anomalyScore += 1;   droppedCount++; }
+        else if (drop >= 0.3) { anomalyScore += 0.5; }
+      }
+      // Co-disruption bonus — multiple straits down at once = systemic event.
+      if (droppedCount >= 2) anomalyScore += 1;
+      if (droppedCount >= 3) anomalyScore += 1;
+      const contribution = clampNum(anomalyScore, 0, 6);
       return {
-        contribution: null,
-        status: 'na',
-        inputs: { reason: 'AIS 異常偵測邏輯尚未實作 · pending' },
+        contribution,
+        status: 'ok',
+        inputs: Object.assign({}, perStrait, {
+          'straits_disrupted': droppedCount,
+          'source': 'IMF PortWatch',
+        }),
       };
+    },
+  },
+
+  // -------- 8. VIX 波動率指數 (恐慌指標) --------
+  // v180.70 — VIXCLS 已抓 LIVE 但之前沒參與 score 計算
+  {
+    id: 'vix',
+    label_zh: 'VIX 波動率',
+    label_en: 'VIX Volatility Index',
+    source: 'FRED · VIXCLS',
+    formula_zh: '(VIX − 15) × 1.5',
+    formula_en: '(VIX − 15) × 1.5',
+    explanation_zh: 'VIX 是 S&P 500 隱含波動率,反映市場對 30 日後波動的預期。低於 15 = 平穩;15-20 正常;20-30 緊張;30+ = 恐慌。VIX 超過 25 通常意味系統性風險升高,投資人應降低槓桿。',
+    explanation_en: 'VIX measures S&P 500 implied volatility, reflecting market expectation of next 30 days. Below 15 = calm; 15-20 normal; 20-30 elevated; 30+ = panic. VIX above 25 typically signals systemic risk; investors should de-leverage.',
+    weightMin: -8,
+    weightMax: 25,
+    compute() {
+      const vix = fredVal('VIXCLS');
+      if (vix == null) return { contribution: null, status: 'na', inputs: { VIXCLS: vix } };
+      const contribution = clampNum((vix - 15) * 1.5, -8, 25);
+      return { contribution, status: 'ok', inputs: { VIXCLS: vix } };
+    },
+  },
+
+  // -------- 9. 通膨年增率 (CPI YoY) --------
+  {
+    id: 'cpiYoY',
+    label_zh: '通膨年增率',
+    label_en: 'CPI Year-over-Year',
+    source: 'FRED · CPIAUCSL 12-month',
+    formula_zh: '|CPI YoY − 2.0%| × 4',
+    formula_en: '|CPI YoY − 2.0%| × 4',
+    explanation_zh: 'CPI 年增率 = 當月對去年同月變化。聯準會目標 2%,高於 3% 通常引發升息預期,過熱;低於 1% 警示通縮。偏離 2% 越遠對市場越不利(聯準會被迫採取行動)。',
+    explanation_en: 'CPI YoY = current month vs same month a year ago. Fed targets 2%. Above 3% prompts rate-hike expectations; below 1% signals deflation. Wider deviation from 2% means more market stress (Fed forced to act).',
+    weightMin: 0,
+    weightMax: 20,
+    compute() {
+      const hist = fredHistVal('CPIAUCSL');
+      if (!hist || hist.length < 13) {
+        return { contribution: null, status: 'na', inputs: { reason: 'CPIAUCSL history < 13 months', got: hist ? hist.length : 0 } };
+      }
+      // history items are {value, date} — extract value
+      const latestObj  = hist[0];
+      const yearAgoObj = hist[12];
+      const latest = typeof latestObj === 'object' ? latestObj.value : latestObj;
+      const yearAgo = typeof yearAgoObj === 'object' ? yearAgoObj.value : yearAgoObj;
+      if (!isFinite(latest) || !isFinite(yearAgo) || yearAgo === 0) return { contribution: null, status: 'na', inputs: { reason: 'invalid history values' } };
+      const yoy = ((latest - yearAgo) / yearAgo) * 100;
+      const contribution = clampNum(Math.abs(yoy - 2.0) * 4, 0, 20);
+      return { contribution, status: 'ok', inputs: { 'CPI latest': latest, 'CPI 12mo ago': yearAgo, 'YoY %': yoy.toFixed(2) } };
+    },
+  },
+
+  // -------- 10. 油價衝擊 (WTI 30 日變化) --------
+  {
+    id: 'oilShock',
+    label_zh: '油價衝擊',
+    label_en: 'Oil Price Shock',
+    source: 'FRED · DCOILWTICO 30-day',
+    formula_zh: '|30天變化%| × 0.6',
+    formula_en: '|30-day change %| × 0.6',
+    explanation_zh: 'WTI 原油 30 日變化幅度。短期油價暴漲(>15%)推升通膨、擠壓企業利潤;暴跌(>15%)反映需求衰退。歷史上每次油價衝擊都伴隨重大地緣或經濟事件(波灣戰爭、雷曼、COVID、俄烏)。',
+    explanation_en: 'WTI crude 30-day price swing. Sharp spike (>15%) drives inflation and squeezes corporate margins; sharp drop (>15%) signals demand collapse. Historically every oil shock coincided with major geopolitical or economic events (Gulf War, Lehman, COVID, Russia-Ukraine).',
+    weightMin: 0,
+    weightMax: 15,
+    compute() {
+      const hist = fredHistVal('DCOILWTICO');
+      if (!hist || hist.length < 30) {
+        return { contribution: null, status: 'na', inputs: { reason: 'WTI history < 30 days', got: hist ? hist.length : 0 } };
+      }
+      const latestObj   = hist[0];
+      const monthAgoObj = hist[29];
+      const latest   = typeof latestObj === 'object' ? latestObj.value : latestObj;
+      const monthAgo = typeof monthAgoObj === 'object' ? monthAgoObj.value : monthAgoObj;
+      if (!isFinite(latest) || !isFinite(monthAgo) || monthAgo === 0) return { contribution: null, status: 'na', inputs: { reason: 'invalid values' } };
+      const chgPct = ((latest - monthAgo) / monthAgo) * 100;
+      const contribution = clampNum(Math.abs(chgPct) * 0.6, 0, 15);
+      return { contribution, status: 'ok', inputs: { 'WTI latest': latest.toFixed(2), 'WTI 30d ago': monthAgo.toFixed(2), '30d %': chgPct.toFixed(2) } };
     },
   },
 
@@ -18723,8 +20060,8 @@ function computeFredScore() {
     }
     return { ...c, ...result };
   });
-  const active   = components.filter(c => c.status === 'ok' && typeof c.contribution === 'number');
-  const inactive = components.filter(c => c.status !== 'ok');
+  const active   = components.filter(c => c.status === 'ok' && typeof c.contribution === 'number' && isFinite(c.contribution));
+  const inactive = components.filter(c => !(c.status === 'ok' && typeof c.contribution === 'number' && isFinite(c.contribution)));
   const sumContrib = active.reduce((sum, c) => sum + c.contribution, 0);
   const score = Math.round(clampNum(50 + sumContrib, 0, 100));
   return {
@@ -19479,7 +20816,7 @@ function renderNewsCenter() {
   }
   const items = filtered.slice(0, 100).map(f => {
     const ts = f.timestamp ? new Date(f.timestamp) : null;
-    const tsStr = ts ? `${String(ts.getMonth()+1).padStart(2,'0')}/${String(ts.getDate()).padStart(2,'0')} ${String(ts.getHours()).padStart(2,'0')}:${String(ts.getMinutes()).padStart(2,'0')}` : '';
+    const tsStr = ts ? window.fmtMMDDhhmm(ts) : '';
     const text = isZh ? (f.msg_zh || f.msg) : (f.msg || f.msg_zh);
     const orig = (isZh && f.msg_zh && f.msg && f.msg !== f.msg_zh) ? f.msg : null;
     const src = f.src || 'WIRE';
@@ -19727,7 +21064,7 @@ function renderDailyBrief() {
       ? '<div class="db-empty">' + (isZh ? '無重點新聞' : 'no relevant items') + '</div>'
       : '<ul class="db-headlines">' + headlines.map(h => {
           const dt = h.timestamp ? new Date(h.timestamp) : null;
-          const tsStr = dt ? `${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}` : '';
+          const tsStr = dt ? window.fmtMMDDhhmm(dt) : '';
           const text = isZh ? (h.msg_zh || h.msg) : (h.msg || h.msg_zh);
           const highlighted = _dbHighlight(text || '');
           const url = h.url || '';
@@ -19758,7 +21095,7 @@ function renderDailyBrief() {
       ? '<div class="db-empty">' + (isZh ? '今日無高重要性事件' : 'no high-impact events today') + '</div>'
       : '<ul class="db-events">' + events.map(e => {
           const t = new Date(e.time + ' UTC');
-          const timeStr = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
+          const timeStr = window.fmtHHMM(t);
           const name = isZh ? (e.event_zh || e.event) : (e.event || e.event_zh);
           return `<li class="db-event-row">
             <span class="db-event-time">${timeStr}</span>
@@ -19777,7 +21114,7 @@ function renderDailyBrief() {
   // Update timestamp
   if (updEl) {
     const d = new Date();
-    updEl.textContent = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    updEl.textContent = window.fmtHHMM(d);
   }
 
   // Bind click handlers
@@ -20047,7 +21384,7 @@ function showConflictModal(cid) {
   } else {
     newsListHtml = news.slice(0, 40).map(f => {
       const ts = f.timestamp ? new Date(f.timestamp) : null;
-      const tsStr = ts ? `${String(ts.getMonth()+1).padStart(2,'0')}/${String(ts.getDate()).padStart(2,'0')} ${String(ts.getHours()).padStart(2,'0')}:${String(ts.getMinutes()).padStart(2,'0')}` : '';
+      const tsStr = ts ? window.fmtMMDDhhmm(ts) : '';
       const text = isZh ? (f.msg_zh || f.msg) : (f.msg || f.msg_zh);
       const src = f.src || 'WIRE';
       const url = f.url || '';
@@ -20631,7 +21968,7 @@ document.addEventListener('keydown', e => {
     const d = new Date();
     const pad = n => String(n).padStart(2, '0');
     return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
-           ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+           ' ' + window.fmtHHMM(d);
   }
 
   // ----- Live econ snapshot fields. Each entry pulls from state.fred
@@ -21306,7 +22643,7 @@ document.addEventListener('keydown', e => {
     if (!el) return;
     const d = new Date();
     const pad = n => String(n).padStart(2, '0');
-    el.textContent = pad(d.getHours()) + ':' + pad(d.getMinutes());
+    el.textContent = window.fmtHHMM(d);
   }
 
   // ---- v180.12: marketState badge ----
@@ -21633,6 +22970,287 @@ document.addEventListener('keydown', e => {
 })();
 
 // =====================================================================
+// v180.65 — US MARKET MODULE
+// Reuses dashboard state.quotes (Finnhub LIVE), SECTORS (SPDR ETF LIVE),
+// and watchlist (49 US stocks WS+REST). Renders into us-market page.
+// =====================================================================
+(function () {
+  const US_WORKER_BASE = 'https://ais-proxy.2syzkjy2vq.workers.dev';
+  const POLL_MS = 15000;
+
+  // Indices/ETFs to show in the side panel — most are already in state.quotes
+  const US_INDEX_LIST = [
+    { sym: 'SPY',  name: 'S&P 500' },
+    { sym: 'QQQ',  name: 'Nasdaq 100' },
+    { sym: 'DIA',  name: 'Dow Jones' },
+    { sym: 'IWM',  name: 'Russell 2000' },
+    { sym: 'VTI',  name: 'US Total' },
+    { sym: 'VXUS', name: 'Ex-US' },
+    { sym: 'VGK',  name: 'Europe' },
+    { sym: 'EEM',  name: 'Emerg. Mkts' },
+  ];
+
+  // K-line cache (3-month, 1d candles via Twelve Data /candles)
+  let _spyCandlesCache = null;
+  let _spyCandlesAt = 0;
+  const CANDLES_TTL = 5 * 60 * 1000;
+
+  async function fetchSpyCandles() {
+    if (_spyCandlesCache && Date.now() - _spyCandlesAt < CANDLES_TTL) return _spyCandlesCache;
+    try {
+      const r = await fetch(US_WORKER_BASE + '/candles?sym=SPY&interval=1day&outputsize=60');
+      if (!r.ok) return null;
+      const d = await r.json();
+      const candles = (d.candles || []).map(c => ({
+        d: c.time || c.datetime || '',
+        o: parseFloat(c.open), h: parseFloat(c.high),
+        l: parseFloat(c.low), c: parseFloat(c.close),
+      })).filter(c => isFinite(c.c));
+      if (!candles.length) return null;
+      _spyCandlesCache = candles;
+      _spyCandlesAt = Date.now();
+      return candles;
+    } catch (e) { return null; }
+  }
+
+  // SVG candlestick renderer — same as tw-market for consistency
+  function renderKline(candles, container) {
+    if (!candles || candles.length < 2) {
+      container.innerHTML = '<div style="padding:16px;color:var(--text-dim);font-size:11px;">[ 無資料 ]</div>';
+      return;
+    }
+    const VB_W = 1000, VB_H = 280;
+    const PAD_LEFT = 50, PAD_RIGHT = 60, PAD_TOP = 12, PAD_BOTTOM = 24;
+    const chartLeft = PAD_LEFT, chartRight = VB_W - PAD_RIGHT;
+    const chartTop = PAD_TOP, chartBottom = VB_H - PAD_BOTTOM;
+    const chartWidth = chartRight - chartLeft;
+    const chartHeight = chartBottom - chartTop;
+
+    const highs = candles.map(c => c.h);
+    const lows  = candles.map(c => c.l);
+    const maxP = Math.max(...highs);
+    const minP = Math.min(...lows);
+    const range = (maxP - minP) || 1;
+    const padding = range * 0.05;
+    const yMax = maxP + padding;
+    const yMin = minP - padding;
+    const yRange = yMax - yMin || 1;
+    const yOf = p => chartTop + (1 - (p - yMin) / yRange) * chartHeight;
+
+    const n = candles.length;
+    const slot = chartWidth / n;
+    const cw = Math.max(2, Math.min(12, slot * 0.7));
+    const fmtPx = p => '$' + p.toFixed(2);
+
+    // Y-axis labels + grid lines
+    let yLabels = '';
+    for (let i = 0; i < 5; i++) {
+      const p = yMin + (yRange * i / 4);
+      const y = yOf(p);
+      yLabels += '<line x1="' + chartLeft + '" y1="' + y + '" x2="' + chartRight + '" y2="' + y + '" stroke="rgba(255,140,0,0.06)" stroke-width="0.5"/>';
+      yLabels += '<text x="' + (chartLeft - 6) + '" y="' + (y + 3) + '" text-anchor="end" font-family="monospace" font-size="10" fill="var(--text-dim)">' + fmtPx(p) + '</text>';
+    }
+    // X-axis date labels
+    let xLabels = '';
+    const step = Math.max(1, Math.floor(n / 5));
+    for (let i = 0; i < n; i += step) {
+      const x = chartLeft + (i + 0.5) * slot;
+      const dateStr = candles[i].d ? candles[i].d.slice(5, 10) : '';
+      xLabels += '<text x="' + x + '" y="' + (chartBottom + 14) + '" text-anchor="middle" font-family="monospace" font-size="10" fill="var(--text-dim)">' + dateStr + '</text>';
+    }
+    // Candles
+    let candleSvg = '';
+    for (let i = 0; i < n; i++) {
+      const c = candles[i];
+      const x = chartLeft + (i + 0.5) * slot;
+      const yH = yOf(c.h);
+      const yL = yOf(c.l);
+      const yO = yOf(c.o);
+      const yC = yOf(c.c);
+      const up = c.c >= c.o;
+      const color = up ? 'var(--up)' : 'var(--down)';
+      const bodyTop = Math.min(yO, yC);
+      const bodyH = Math.max(1, Math.abs(yC - yO));
+      candleSvg += '<line x1="' + x + '" y1="' + yH + '" x2="' + x + '" y2="' + yL + '" stroke="' + color + '" stroke-width="1"/>';
+      candleSvg += '<rect x="' + (x - cw/2) + '" y="' + bodyTop + '" width="' + cw + '" height="' + bodyH + '" fill="' + color + '" opacity="' + (up ? 1 : 0.85) + '"/>';
+    }
+    container.innerHTML =
+      '<svg viewBox="0 0 ' + VB_W + ' ' + VB_H + '" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block;">' +
+      yLabels + xLabels + candleSvg +
+      '</svg>';
+  }
+
+  async function renderUsMarket() {
+    // 1. Hero (SPY big card)
+    const q = window.state && window.state.quotes && window.state.quotes['SPY'];
+    if (q && typeof q.px === 'number') {
+      const px = q.px, chg = q.chg || 0;
+      const prev = q.prevClose != null ? q.prevClose : (px / (1 + chg/100));
+      const chgAbs = px - prev;
+      const cls = chg >= 0 ? 'up' : 'down';
+      const sign = chg >= 0 ? '+' : '';
+      document.getElementById('usHeroPx').textContent = '$' + px.toFixed(2);
+      const chgEl = document.getElementById('usHeroChg');
+      chgEl.textContent = sign + chgAbs.toFixed(2) + ' (' + sign + chg.toFixed(2) + '%)';
+      chgEl.className = 'stock-bigchg ' + cls;
+      document.getElementById('usHeroHi').textContent = q.hi != null ? '$' + q.hi.toFixed(2) : '—';
+      document.getElementById('usHeroLo').textContent = q.lo != null ? '$' + q.lo.toFixed(2) : '—';
+      document.getElementById('usHeroPrev').textContent = q.prevClose != null ? '$' + q.prevClose.toFixed(2) : '—';
+      if (q.hi != null && q.lo != null && q.prevClose) {
+        const rng = (q.hi - q.lo) / q.prevClose * 100;
+        document.getElementById('usHeroRange').textContent = rng.toFixed(2) + '%';
+      }
+      document.getElementById('usMarketUpdated').textContent = window.fmtTime(new Date());
+      document.getElementById('usMarketState').textContent = 'LIVE';
+    } else {
+      // Trigger loadQuotes if not yet
+      if (typeof window.loadQuotes === 'function') window.loadQuotes();
+    }
+
+    // 2. Watchlist — clone dashboard's #watchlistGrid into us-market
+    const srcWl = document.getElementById('watchlistGrid');
+    const dstWl = document.getElementById('usWatchlistGrid');
+    const wlMeta = document.getElementById('usWlMeta');
+    if (srcWl && dstWl) {
+      dstWl.innerHTML = srcWl.innerHTML;
+      if (wlMeta) wlMeta.innerHTML = '<span class="src-badge src-live" title="觀察清單同步 dashboard">LIVE · MIRROR</span>';
+    }
+
+    // 3. SPY K 線
+    const klineEl = document.getElementById('usKlineChart');
+    const klineSrc = document.getElementById('usKlineSrc');
+    if (klineEl) {
+      const candles = await fetchSpyCandles();
+      if (candles && candles.length) {
+        renderKline(candles, klineEl);
+        if (klineSrc) klineSrc.innerHTML = '<span class="src-badge src-live" title="Twelve Data /candles · cache 5min">LIVE · TWELVEDATA</span>';
+      } else if (klineSrc) {
+        klineSrc.innerHTML = '<span class="src-badge src-mock">ERROR</span>';
+      }
+    }
+
+    // 4. 主要指數 / ETF — use state.quotes
+    const idxEl = document.getElementById('usIndexGrid');
+    const idxSrc = document.getElementById('usIndexSrc');
+    if (idxEl) {
+      let liveCount = 0;
+      idxEl.innerHTML = US_INDEX_LIST.map(item => {
+        const qq = window.state && window.state.quotes && window.state.quotes[item.sym];
+        if (qq && typeof qq.px === 'number') liveCount++;
+        const px = qq && qq.px ? '$' + qq.px.toFixed(2) : '—';
+        const chg = qq && qq.chg != null ? qq.chg : null;
+        const chgStr = chg != null ? ((chg >= 0 ? '+' : '') + chg.toFixed(2) + '%') : '—';
+        const cls = chg == null ? '' : (chg >= 0 ? 'up' : 'down');
+        return (
+          '<div class="ticker-cell">' +
+            '<div class="t-sym">' + item.sym + '</div>' +
+            '<div class="t-name" style="font-size:9px;color:var(--text-dim);">' + item.name + '</div>' +
+            '<div class="t-px">' + px + '</div>' +
+            '<div class="t-chg ' + cls + '">' + chgStr + '</div>' +
+          '</div>'
+        );
+      }).join('');
+      if (idxSrc) {
+        idxSrc.innerHTML = liveCount > 0
+          ? '<span class="src-badge src-live">LIVE · FINNHUB (' + liveCount + ')</span>'
+          : '<span class="src-badge src-mock">MOCK</span>';
+      }
+    }
+
+    // 5. 板塊強弱 — read root-scope SECTORS (already LIVE via _refreshSectorsLive)
+    const sectorEl = document.getElementById('usSectorRank');
+    if (sectorEl && Array.isArray(window.SECTORS || (typeof SECTORS !== 'undefined' ? SECTORS : null))) {
+      const sectors = window.SECTORS || SECTORS;
+      const withChg = sectors.filter(s => s.chg != null && isFinite(s.chg));
+      if (withChg.length) {
+        const sorted = withChg.slice().sort((a, b) => b.chg - a.chg);
+        sectorEl.innerHTML = sorted.map(s => {
+          const cls = s.chg >= 0 ? 'up' : 'down';
+          const sign = s.chg >= 0 ? '+' : '';
+          const bar = Math.min(Math.abs(s.chg) * 10, 100);
+          return (
+            '<div style="display:flex;align-items:center;gap:8px;padding:3px 6px;">' +
+              '<div style="width:50px;color:var(--amber);font-weight:700;">' + s.sym + '</div>' +
+              '<div style="flex:1;height:4px;background:rgba(255,255,255,.05);position:relative;">' +
+                '<div style="position:absolute;top:0;' + (s.chg >= 0 ? 'left:50%' : 'right:50%') + ';width:' + (bar/2) + '%;height:100%;background:var(--' + cls + ');"></div>' +
+                '<div style="position:absolute;left:50%;top:-2px;width:1px;height:8px;background:var(--text-dim);"></div>' +
+              '</div>' +
+              '<div class="' + cls + '" style="width:60px;text-align:right;font-size:11px;">' + sign + s.chg.toFixed(2) + '%</div>' +
+            '</div>'
+          );
+        }).join('');
+      } else {
+        sectorEl.innerHTML = '<div style="padding:6px;color:var(--text-dim);font-size:11px;">[ 板塊資料載入中,請先訪問儀錶板 ]</div>';
+      }
+    }
+
+    // 6. 漲跌幅排行 — from state.quotes (all 49 watchlist)
+    const chgEl = document.getElementById('usChgRank');
+    if (chgEl && window.state && window.state.quotes) {
+      const qs = window.state.quotes;
+      const arr = Object.keys(qs)
+        .filter(s => qs[s] && typeof qs[s].chg === 'number')
+        .map(s => ({ sym: s, chg: qs[s].chg, px: qs[s].px }));
+      const sorted = arr.slice().sort((a, b) => b.chg - a.chg);
+      const top3 = sorted.slice(0, 3);
+      const bot3 = sorted.slice(-3).reverse();
+      const renderRow = (r, cls) => {
+        const sign = r.chg >= 0 ? '+' : '';
+        return '<div style="display:flex;justify-content:space-between;padding:2px 6px;font-size:11px;">' +
+          '<span style="color:var(--amber);width:60px;">' + r.sym + '</span>' +
+          '<span style="width:60px;text-align:right;">$' + r.px.toFixed(2) + '</span>' +
+          '<span class="' + cls + '" style="width:60px;text-align:right;">' + sign + r.chg.toFixed(2) + '%</span>' +
+        '</div>';
+      };
+      chgEl.innerHTML =
+        '<div style="color:var(--up);font-size:10px;margin:4px 6px;">▲ TOP GAINERS</div>' +
+        top3.map(r => renderRow(r, 'up')).join('') +
+        '<div style="color:var(--down);font-size:10px;margin:8px 6px 4px;">▼ TOP LOSERS</div>' +
+        bot3.map(r => renderRow(r, 'down')).join('');
+    }
+
+    // 7. 成交量排行 — same source
+    const volEl = document.getElementById('usVolRank');
+    if (volEl && window.state && window.state.quotes) {
+      const qs = window.state.quotes;
+      // Volume in state.quotes is a string like "52.3M" — parse it
+      const parseVol = v => {
+        if (typeof v !== 'string') return 0;
+        const m = v.match(/^([\d.]+)([MK])?$/);
+        if (!m) return 0;
+        const n = parseFloat(m[1]);
+        return n * (m[2] === 'M' ? 1e6 : (m[2] === 'K' ? 1e3 : 1));
+      };
+      const arr = Object.keys(qs)
+        .filter(s => qs[s] && qs[s].vol)
+        .map(s => ({ sym: s, vol: parseVol(qs[s].vol), volStr: qs[s].vol, px: qs[s].px, chg: qs[s].chg }))
+        .sort((a, b) => b.vol - a.vol)
+        .slice(0, 5);
+      volEl.innerHTML = arr.map(r => {
+        const sign = (r.chg || 0) >= 0 ? '+' : '';
+        const cls = (r.chg || 0) >= 0 ? 'up' : 'down';
+        return '<div style="display:flex;justify-content:space-between;padding:2px 6px;font-size:11px;">' +
+          '<span style="color:var(--amber);width:60px;">' + r.sym + '</span>' +
+          '<span style="width:60px;text-align:right;">' + r.volStr + '</span>' +
+          '<span class="' + cls + '" style="width:60px;text-align:right;">' + sign + (r.chg||0).toFixed(2) + '%</span>' +
+        '</div>';
+      }).join('');
+    }
+  }
+
+  // Expose globally
+  window.renderUsMarket = renderUsMarket;
+
+  // Auto-poll
+  setInterval(() => {
+    const page = document.querySelector('[data-page="us-market"]');
+    if (page && page.classList.contains('active')) renderUsMarket();
+  }, POLL_MS);
+
+  console.log('[us-market] module ready');
+})();
+
+// =====================================================================
 // v180.25 — CRYPTO MARKET MODULE
 // CoinGecko top coins + global stats + Fear & Greed.
 // Worker endpoints: /crypto-top, /crypto-global, /crypto-fng.
@@ -21945,8 +23563,7 @@ document.addEventListener('keydown', e => {
 
   function setUpdated() {
     const now = new Date();
-    const txt = String(now.getHours()).padStart(2, '0') + ':' +
-                String(now.getMinutes()).padStart(2, '0');
+    const txt = window.fmtHHMM(now);
     setText('cryptoMarketUpdated', txt);
     setText('cryptoMarketState', '即時');
   }
@@ -22255,7 +23872,14 @@ function showFredModal() {
   }).join('');
 
   // Summary
-  const dateStr = (state.fredMeta && Object.values(state.fredMeta)[0]?.date) || '—';
+  // v183.1 — dateStr was showing only the first series' date alphabetically
+  // (e.g. BOERUKM, an energy series with stale last-datapoint timestamps),
+  // which gave misleading dates like "2017-01-01" even when other series
+  // were current. Pick the MOST RECENT date across all loaded series.
+  const _allDates = state.fredMeta
+    ? Object.values(state.fredMeta).map(v => v && v.date).filter(Boolean).sort()
+    : [];
+  const dateStr = _allDates.length ? _allDates[_allDates.length - 1] : '—';
 
   const wrap = document.createElement('div');
   wrap.className = 'si-popup-wrap';
@@ -22637,7 +24261,7 @@ function renderAsciiTape() {
   let asOfStr;
   if (isLive) {
     const asOfDate = new Date(bars[bars.length - 1].openTime + TAPE_BAR_MS);
-    asOfStr = String(asOfDate.getHours()).padStart(2, '0') + ':' + String(asOfDate.getMinutes()).padStart(2, '0');
+    asOfStr = window.fmtHHMM(asOfDate);
   } else {
     asOfStr = bars[bars.length - 1].time || '—';
   }
@@ -26542,7 +28166,7 @@ function _updateKlineModalFooter(hover) {
   let title, open, high, low, close, volume, change;
   if (hover && hover.close != null) {
     title = (typeof hover.time === 'number')
-      ? new Date(hover.time * 1000).toLocaleString(isZh ? 'zh-TW' : 'en-US', { hour12: false })
+      ? window.fmtDateTime(new Date(hover.time * 1000))
       : hover.time;
     open = hover.open; high = hover.high; low = hover.low; close = hover.close;
     volume = hover.volume;
@@ -27895,7 +29519,7 @@ async function renderWorkerStatus() {
         : '/quote 30s · /candles 5min · /fred 5min · /news 5min · /calendar 10min'),
       (isZh ? '上游供應商:' : 'Upstream: ') + 'Finnhub · Twelve Data · FRED (St. Louis Fed)',
       (isZh ? 'API key 保存於:' : 'Keys stored at: ') + (isZh ? 'Cloudflare Worker 環境變數 — 瀏覽器無法存取' : 'Cloudflare Worker env vars — never sent to browser'),
-      (isZh ? '上次檢測:' : 'Last probed: ') + new Date().toLocaleString(isZh ? 'zh-Hant' : 'en-US'),
+      (isZh ? '上次檢測:' : 'Last probed: ') + window.fmtDateTime(new Date()),
     ];
     metaEl.innerHTML = lines.map(l => '<div>' + l + '</div>').join('');
   }
@@ -27924,6 +29548,9 @@ if (picker) {
 /* ========== INIT ========== */
 loadQuotes();
 loadFred();
+// v180.73 — ACLED disabled: gmail account is Open tier which has no API
+// access (403 Access denied). geoEvents falls back to news-proxy scoring.
+// loadAcled();
 loadNews();
 loadCalendar();
 // BLS economic data — pull immediately, then poll. NFP/CPI/PPI release on
@@ -27936,6 +29563,8 @@ initWatchlist();
 // re-pulling every 5 minutes is plenty. The worker also edge-caches for 5min
 // so this is essentially free.
 setInterval(loadFred, 5 * 60 * 1000);
+// v180.73 — ACLED disabled (Open tier has no API access)
+// setInterval(loadAcled, 60 * 60 * 1000);
 // News refreshes every 60 seconds, matching the worker's edge cache. Worker
 // will mostly serve from cache; only one upstream Finnhub call per minute
 // regardless of how many users have the dashboard open.
@@ -32458,12 +34087,556 @@ setRoute((location.hash.replace('#/', '') || 'geo'));
     if (page && page.classList.contains('active')) renderNodes();
   }, 15000);
 
+  // v180.62b — Fast retry: when page is open AND any node shows "資料載入中",
+  // re-render every 1s until all data sources are available, then back off.
+  setInterval(() => {
+    const page = document.querySelector('.page[data-page="node"]');
+    if (!page || !page.classList.contains('active')) return;
+    // Check if any node's data source is still null
+    const anyLoading = NODES.some(n => {
+      if (!n.enabled) return false;
+      const ev = evaluateNode(n);
+      return ev.currentValue == null && ev.reason === '資料載入中…';
+    });
+    if (anyLoading) renderNodes();
+  }, 1000);
+
   // Expose PORTFOLIO read-only ref for evaluation (it's IIFE-scoped otherwise)
   // PORTFOLIO is declared in the inv-portfolio IIFE — we need it readable here.
   // Hook: the IIFE-scoped PORTFOLIO updates window.PORTFOLIO each render via
   // a small bridge that renderPortfolio writes. If PORTFOLIO is undefined,
   // portfolio-source nodes simply show "資料載入中".
   console.log('[nodes] module ready — ' + NODES.length + ' nodes loaded');
+})();
+
+/* ========================================================================
+ * v180.63 — AI CHAT (Groq Llama 3.3 70B via Worker /ai-chat)
+ * Streaming chat with localStorage history persistence.
+ * ====================================================================== */
+(function () {
+  const AI_WORKER_BASE = 'https://ais-proxy.2syzkjy2vq.workers.dev';
+  const AI_STORAGE_KEY = 'aiChatHistory_v1';
+  const MAX_HISTORY = 50;   // keep last 50 messages
+
+  let messages = [];      // [{role: 'user'|'assistant', content: '...', t: timestamp}]
+  let streaming = false;
+  let initialized = false;
+
+  function loadHistory() {
+    try {
+      const raw = localStorage.getItem(AI_STORAGE_KEY);
+      if (!raw) return [];
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr.slice(-MAX_HISTORY) : [];
+    } catch (e) { return []; }
+  }
+  function saveHistory() {
+    try { localStorage.setItem(AI_STORAGE_KEY, JSON.stringify(messages.slice(-MAX_HISTORY))); }
+    catch (e) {}
+  }
+
+  // Minimal markdown renderer (paragraphs, code, bold, italic, lists, headers)
+  function renderMarkdown(text) {
+    if (!text) return '';
+    // Escape HTML first
+    let s = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    // Code blocks ``` ... ```
+    s = s.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) =>
+      '<pre style="background:rgba(0,0,0,.4);padding:8px 12px;border-left:2px solid var(--amber);overflow-x:auto;margin:8px 0;font-size:11px;line-height:1.5;"><code>' + code.trim() + '</code></pre>'
+    );
+    // Inline code `xxx`
+    s = s.replace(/`([^`\n]+)`/g, '<code style="background:rgba(255,140,0,.1);padding:1px 5px;border-radius:2px;color:var(--amber);font-size:12px;">$1</code>');
+    // Bold **text**
+    s = s.replace(/\*\*([^*\n]+)\*\*/g, '<strong style="color:var(--amber);">$1</strong>');
+    // Italic *text*
+    s = s.replace(/(?<![*\w])\*([^*\n]+)\*(?!\w)/g, '<em>$1</em>');
+    // Headers
+    s = s.replace(/^### (.+)$/gm, '<div style="color:var(--amber);font-weight:700;margin-top:10px;font-size:13px;">$1</div>');
+    s = s.replace(/^## (.+)$/gm, '<div style="color:var(--amber);font-weight:700;margin-top:12px;font-size:14px;">$1</div>');
+    s = s.replace(/^# (.+)$/gm,  '<div style="color:var(--amber);font-weight:700;margin-top:14px;font-size:15px;">$1</div>');
+    // Bulleted lists
+    s = s.replace(/^[*-] (.+)$/gm, '<div style="padding-left:16px;position:relative;"><span style="position:absolute;left:4px;color:var(--amber);">▸</span>$1</div>');
+    // Numbered lists
+    s = s.replace(/^(\d+)\. (.+)$/gm, '<div style="padding-left:20px;position:relative;"><span style="position:absolute;left:0;color:var(--amber);">$1.</span>$2</div>');
+    // Line breaks → keep newlines but compact
+    s = s.replace(/\n\n+/g, '</p><p style="margin:8px 0;">').replace(/\n/g, '<br>');
+    s = '<p style="margin:0;">' + s + '</p>';
+    return s;
+  }
+
+  function renderMessages() {
+    const body = document.getElementById('aiChatBody');
+    if (!body) return;
+    if (!messages.length) {
+      body.innerHTML =
+        '<div style="text-align:center;color:var(--text-dim);padding:40px 20px;font-size:12px;line-height:1.8;">' +
+          '<div style="color:var(--amber);font-size:14px;margin-bottom:8px;">▸ GLOBALPULSE AI 投資助理</div>' +
+          '<div>整合 GPT-OSS 120B (Groq) — 強推理、忠實摘要</div>' +
+          '<div style="margin-top:8px;color:var(--ok,#5fd38d);font-size:11px;">✓ 已連線到即時儀表板資料(快訊 / 新聞 / 威脅分數 / 報價)</div>' +
+          '<div style="margin-top:14px;">試試問:</div>' +
+          '<div style="margin-top:6px;color:var(--amber);font-size:11px;">' +
+            '"整理現在的局勢"<br>' +
+            '"摘要最近的快訊重點"<br>' +
+            '"幫我分析 76% 集中在 2330 的投組風險"' +
+          '</div>' +
+        '</div>';
+      return;
+    }
+    body.innerHTML = messages.map(m => {
+      const isUser = m.role === 'user';
+      const align  = isUser ? 'flex-end' : 'flex-start';
+      const bg     = isUser ? 'rgba(255,140,0,.08)' : 'rgba(255,255,255,.03)';
+      const border = isUser ? 'var(--amber-faint)' : 'var(--amber-dim)';
+      const label  = isUser ? '你' : 'AI';
+      const labelColor = isUser ? 'var(--text-dim)' : 'var(--amber)';
+      return (
+        '<div style="display:flex;justify-content:' + align + ';margin-bottom:14px;">' +
+          '<div style="max-width:80%;background:' + bg + ';border:1px solid ' + border + ';padding:10px 14px;">' +
+            '<div style="font-size:10px;color:' + labelColor + ';margin-bottom:6px;letter-spacing:.05em;">' + label + (m.streaming ? ' · streaming…' : '') + '</div>' +
+            '<div class="ai-msg-content">' + renderMarkdown(m.content) + '</div>' +
+          '</div>' +
+        '</div>'
+      );
+    }).join('');
+    body.scrollTop = body.scrollHeight;
+  }
+
+  async function sendMessage() {
+    if (streaming) return;
+    const input = document.getElementById('aiInput');
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    input.style.height = '42px';
+
+    messages.push({ role: 'user', content: text, t: Date.now() });
+    // Add placeholder for streaming response
+    const aiMsg = { role: 'assistant', content: '', t: Date.now(), streaming: true };
+    messages.push(aiMsg);
+    saveHistory();
+    renderMessages();
+    streaming = true;
+
+    try {
+      // v183.9 — fold the live dashboard snapshot into the latest user turn so
+      // the AI can "整理" the actual page data. Built fresh each send and only
+      // added to the request payload — the saved chat history stays clean, and
+      // this works regardless of the worker's own system prompt.
+      const convo = messages.slice(0, -1).map(m => ({ role: m.role, content: m.content }));   // strip streaming placeholder
+      try {
+        const ctx = (typeof window.__buildAiContext === 'function') ? window.__buildAiContext() : '';
+        if (ctx && convo.length && convo[convo.length - 1].role === 'user') {
+          convo[convo.length - 1].content = ctx + '\n\n———\n使用者提問:\n' + convo[convo.length - 1].content;
+        }
+      } catch (_ctxErr) { /* context is best-effort */ }
+      const resp = await fetch(AI_WORKER_BASE + '/ai-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: convo,
+          stream: true,
+          temperature: 0.2,
+          model: 'openai/gpt-oss-120b',
+          max_tokens: 1024,
+        }),
+      });
+      if (!resp.ok) {
+        const err = await resp.text();
+        aiMsg.content = '⚠️ 錯誤 ' + resp.status + ': ' + err.slice(0, 300);
+        aiMsg.streaming = false;
+        renderMessages();
+        streaming = false;
+        return;
+      }
+      // SSE stream
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        // SSE: split on double newline
+        const events = buffer.split('\n\n');
+        buffer = events.pop() || '';   // keep trailing partial
+        for (const evt of events) {
+          for (const line of evt.split('\n')) {
+            if (!line.startsWith('data:')) continue;
+            const payload = line.slice(5).trim();
+            if (payload === '[DONE]') continue;
+            try {
+              const chunk = JSON.parse(payload);
+              const delta = chunk.choices && chunk.choices[0] && chunk.choices[0].delta && chunk.choices[0].delta.content;
+              if (delta) {
+                aiMsg.content += delta;
+                renderMessages();
+              }
+            } catch (e) { /* ignore parse error */ }
+          }
+        }
+      }
+      aiMsg.streaming = false;
+      saveHistory();
+      renderMessages();
+    } catch (e) {
+      aiMsg.content = '⚠️ 連線失敗: ' + String(e);
+      aiMsg.streaming = false;
+      saveHistory();
+      renderMessages();
+    } finally {
+      streaming = false;
+    }
+  }
+
+  function initAiChat() {
+    if (initialized) {
+      renderMessages();
+      return;
+    }
+    initialized = true;
+    messages = loadHistory();
+    renderMessages();
+
+    // Wire input
+    const input = document.getElementById('aiInput');
+    const sendBtn = document.getElementById('aiSendBtn');
+    const clearBtn = document.getElementById('aiClearBtn');
+
+    // Auto-grow textarea
+    if (input) {
+      input.addEventListener('input', () => {
+        input.style.height = '42px';
+        input.style.height = Math.min(input.scrollHeight, 200) + 'px';
+      });
+      input.addEventListener('keydown', (e) => {
+        // Cmd+Enter or Ctrl+Enter to send
+        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+          e.preventDefault();
+          sendMessage();
+        }
+      });
+    }
+    if (sendBtn) sendBtn.addEventListener('click', sendMessage);
+    // v183.9 — [整理] quick action: ask the AI to summarise the live dashboard
+    const briefBtn = document.getElementById('aiBriefBtn');
+    if (briefBtn) briefBtn.addEventListener('click', () => {
+      if (streaming) return;
+      const inp = document.getElementById('aiInput');
+      if (inp) inp.value = '根據下方「即時儀表板快照」整理重點。嚴格規則:(1) 只根據快照內的事實,絕對不要編造或臆測沒寫的因果關係;(2) 新聞標題多為英文,忠實對應原意,人名/公司/機構/專有名詞與數字一律保留原文,不要硬翻成不通順的中文;(3) 看不懂、殘缺或重複的條目直接略過,不要腦補;(4) 純文字輸出——嚴禁任何 HTML 標籤(不要 <ul> <li> <b> 等)、嚴禁 Markdown 表格、嚴禁用「|」直線分隔;(5) 版面:第一行寫整體研判(含威脅分數),之後分「地緣」「總經」「科技」「市場」四段,每段標題自成一行,其下每則以「・」開頭、一行一則、最多 3 則、每則一句話,最後用「風險:」帶出 1–2 點。繁體中文、精簡。';
+      sendMessage();
+    });
+    if (clearBtn) clearBtn.addEventListener('click', () => {
+      if (!confirm('清空所有對話歷史?')) return;
+      messages = [];
+      saveHistory();
+      renderMessages();
+    });
+
+    console.log('[ai-chat] module ready — ' + messages.length + ' messages loaded');
+  }
+
+  window.__initAiChat = initAiChat;
+})();
+
+// =============================================================================
+// v180.74 — Clock module: live time display + timezone selector modal
+// =============================================================================
+
+// Global time-formatting helpers — read currentTz so when the user picks
+// a new timezone in the clock modal, every component that re-renders will
+// pick up the new value. Components that already painted DOM keep their
+// old strings until their next render cycle.
+window.__activeTz = localStorage.getItem('clockTz_v1') || 'auto';
+
+window.fmtDateTime = function(date) {
+  if (!(date instanceof Date)) date = new Date(date);
+  if (isNaN(date.getTime())) return '—';
+  const opts = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+  if (window.__activeTz && window.__activeTz !== 'auto') opts.timeZone = window.__activeTz;
+  try {
+    return new Intl.DateTimeFormat('en-GB', opts).format(date).replace(',', '');
+  } catch { return date.toLocaleString(); }
+};
+
+window.fmtTime = function(date) {
+  if (!(date instanceof Date)) date = new Date(date);
+  if (isNaN(date.getTime())) return '—';
+  const opts = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+  if (window.__activeTz && window.__activeTz !== 'auto') opts.timeZone = window.__activeTz;
+  try {
+    return new Intl.DateTimeFormat('en-GB', opts).format(date);
+  } catch { return date.toTimeString().slice(0, 8); }
+};
+
+window.fmtDate = function(date) {
+  if (!(date instanceof Date)) date = new Date(date);
+  if (isNaN(date.getTime())) return '—';
+  const opts = { year: 'numeric', month: '2-digit', day: '2-digit' };
+  if (window.__activeTz && window.__activeTz !== 'auto') opts.timeZone = window.__activeTz;
+  try {
+    return new Intl.DateTimeFormat('en-GB', opts).format(date);
+  } catch { return date.toDateString(); }
+};
+
+// MM/DD HH:MM:SS — flash item / news ticker format
+window.fmtMMDDtime = function(date) {
+  if (!(date instanceof Date)) date = new Date(date);
+  if (isNaN(date.getTime())) return '—';
+  const opts = { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+  if (window.__activeTz && window.__activeTz !== 'auto') opts.timeZone = window.__activeTz;
+  try {
+    // en-GB returns "DD/MM, HH:MM:SS" — flip to MM/DD HH:MM:SS
+    const parts = new Intl.DateTimeFormat('en-GB', opts).formatToParts(date);
+    const get = t => (parts.find(p => p.type === t) || {}).value || '';
+    return `${get('month')}/${get('day')} ${get('hour')}:${get('minute')}:${get('second')}`;
+  } catch {
+    const MM = String(date.getMonth()+1).padStart(2,'0');
+    const DD = String(date.getDate()).padStart(2,'0');
+    const hh = String(date.getHours()).padStart(2,'0');
+    const mm = String(date.getMinutes()).padStart(2,'0');
+    const ss = String(date.getSeconds()).padStart(2,'0');
+    return `${MM}/${DD} ${hh}:${mm}:${ss}`;
+  }
+};
+
+// MM/DD HH:MM — shorter variant
+window.fmtMMDDhhmm = function(date) {
+  if (!(date instanceof Date)) date = new Date(date);
+  if (isNaN(date.getTime())) return '—';
+  const opts = { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false };
+  if (window.__activeTz && window.__activeTz !== 'auto') opts.timeZone = window.__activeTz;
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', opts).formatToParts(date);
+    const get = t => (parts.find(p => p.type === t) || {}).value || '';
+    return `${get('month')}/${get('day')} ${get('hour')}:${get('minute')}`;
+  } catch {
+    return window.fmtMMDDhhmm(date);
+  }
+};
+
+// HH:MM short variant
+window.fmtHHMM = function(date) {
+  if (!(date instanceof Date)) date = new Date(date);
+  if (isNaN(date.getTime())) return '—';
+  const opts = { hour: '2-digit', minute: '2-digit', hour12: false };
+  if (window.__activeTz && window.__activeTz !== 'auto') opts.timeZone = window.__activeTz;
+  try {
+    return new Intl.DateTimeFormat('en-GB', opts).format(date);
+  } catch { return date.toTimeString().slice(0, 5); }
+};
+
+(function(){
+  const STORAGE_KEY = 'clockTz_v1';
+  const TIMEZONES = [
+    { id: 'auto',                  zh: '系統 / 自動', en: 'System / Auto' },
+    { id: 'Asia/Taipei',           zh: '台北 (UTC+8)',           en: 'Taipei (UTC+8)' },
+    { id: 'Asia/Tokyo',            zh: '東京 (UTC+9)',           en: 'Tokyo (UTC+9)' },
+    { id: 'Asia/Seoul',            zh: '首爾 (UTC+9)',           en: 'Seoul (UTC+9)' },
+    { id: 'Asia/Shanghai',         zh: '上海 (UTC+8)',           en: 'Shanghai (UTC+8)' },
+    { id: 'Asia/Hong_Kong',        zh: '香港 (UTC+8)',           en: 'Hong Kong (UTC+8)' },
+    { id: 'Asia/Singapore',        zh: '新加坡 (UTC+8)',         en: 'Singapore (UTC+8)' },
+    { id: 'Asia/Dubai',            zh: '杜拜 (UTC+4)',           en: 'Dubai (UTC+4)' },
+    { id: 'Asia/Jerusalem',        zh: '耶路撒冷 (UTC+2/3)',     en: 'Jerusalem (UTC+2/3)' },
+    { id: 'Europe/London',         zh: '倫敦 (UTC+0/1)',         en: 'London (UTC+0/1)' },
+    { id: 'Europe/Frankfurt',      zh: '法蘭克福 (UTC+1/2)',     en: 'Frankfurt (UTC+1/2)' },
+    { id: 'Europe/Moscow',         zh: '莫斯科 (UTC+3)',         en: 'Moscow (UTC+3)' },
+    { id: 'America/New_York',      zh: '紐約 (UTC−5/−4)',        en: 'New York (UTC−5/−4)' },
+    { id: 'America/Chicago',       zh: '芝加哥 (UTC−6/−5)',      en: 'Chicago (UTC−6/−5)' },
+    { id: 'America/Denver',        zh: '丹佛 (UTC−7/−6)',        en: 'Denver (UTC−7/−6)' },
+    { id: 'America/Los_Angeles',   zh: '洛杉磯 (UTC−8/−7)',      en: 'Los Angeles (UTC−8/−7)' },
+    { id: 'America/Sao_Paulo',     zh: '聖保羅 (UTC−3)',         en: 'São Paulo (UTC−3)' },
+    { id: 'UTC',                   zh: 'UTC',                    en: 'UTC' },
+  ];
+
+  let currentTz = window.__activeTz || localStorage.getItem(STORAGE_KEY) || 'auto';
+
+  function isZh() {
+    return !document.body.classList.contains('lang-en');
+  }
+
+  function formatTime() {
+    const now = new Date();
+    const opts = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+    if (currentTz !== 'auto') opts.timeZone = currentTz;
+    try {
+      return new Intl.DateTimeFormat('en-GB', opts).format(now);
+    } catch (e) {
+      return now.toTimeString().slice(0, 8);
+    }
+  }
+
+  function tzLabel() {
+    if (currentTz === 'auto') {
+      try {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+      } catch { return ''; }
+    }
+    return currentTz;
+  }
+
+  function tickClock() {
+    const el = document.getElementById('clockTime');
+    if (el) el.textContent = formatTime();
+  }
+
+  function openTzModal() {
+    let backdrop = document.getElementById('tzModalBackdrop');
+    if (backdrop) { backdrop.remove(); }
+    backdrop = document.createElement('div');
+    backdrop.id = 'tzModalBackdrop';
+    backdrop.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px);';
+    const zh = isZh();
+    backdrop.innerHTML = `
+      <div id="tzModal" style="background:#0a0a0a;border:1px solid #ff8c00;width:min(420px,92vw);max-height:80vh;display:flex;flex-direction:column;font-family:var(--font-cn);">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid rgba(255,140,0,.3);">
+          <div style="color:#ff8c00;font-weight:700;font-size:13px;letter-spacing:.05em;">${zh ? '時區設定 / TIMEZONE' : 'TIMEZONE'}</div>
+          <span id="tzClose" style="color:#888;cursor:pointer;font-size:18px;line-height:1;padding:0 4px;">×</span>
+        </div>
+        <div style="padding:10px 16px;border-bottom:1px solid rgba(255,140,0,.15);font-size:11px;color:#888;font-family:var(--font-mono);">
+          ${zh ? '目前' : 'Current'}: <span style="color:#fff;">${tzLabel()}</span>
+        </div>
+        <div id="tzList" style="overflow-y:auto;flex:1;"></div>
+      </div>
+    `;
+    document.body.appendChild(backdrop);
+
+    const list = document.getElementById('tzList');
+    TIMEZONES.forEach(tz => {
+      const row = document.createElement('div');
+      const isCur = tz.id === currentTz;
+      row.style.cssText = 'padding:10px 16px;font-size:12px;cursor:pointer;border-bottom:1px solid rgba(255,140,0,.08);display:flex;align-items:center;justify-content:space-between;transition:background .12s;' + (isCur ? 'background:rgba(255,140,0,.15);color:#ff8c00;font-weight:700;' : 'color:#ccc;');
+      row.innerHTML = `<span>${zh ? tz.zh : tz.en}</span>${isCur ? '<span style="color:#ff8c00;">✓</span>' : ''}`;
+      row.addEventListener('mouseenter', () => { if (!isCur) row.style.background = 'rgba(255,140,0,.08)'; });
+      row.addEventListener('mouseleave', () => { if (!isCur) row.style.background = ''; });
+      row.addEventListener('click', () => {
+        currentTz = tz.id;
+        window.__activeTz = currentTz;
+        localStorage.setItem(STORAGE_KEY, currentTz);
+        tickClock();
+        backdrop.remove();
+        // 觸發全頁 re-render(已 paint 的舊時間文字不會自動換,
+        // 需各 render 函式被呼叫一次)
+        try {
+          window.dispatchEvent(new CustomEvent('tzchange', { detail: { tz: currentTz } }));
+          // 強制最常見的幾個 render 函式立即重畫
+          if (typeof window.renderFlashes === 'function') window.renderFlashes();
+          if (typeof window.renderNews === 'function') window.renderNews();
+          if (typeof window.renderCalendar === 'function') window.renderCalendar();
+          if (typeof window.renderFred === 'function') window.renderFred();
+        } catch (e) {
+          console.warn('[clock] rerender error', e);
+        }
+      });
+      list.appendChild(row);
+    });
+
+    document.getElementById('tzClose').addEventListener('click', () => backdrop.remove());
+    backdrop.addEventListener('click', e => { if (e.target === backdrop) backdrop.remove(); });
+  }
+
+  function init() {
+    const btn = document.getElementById('clockBtn');
+    if (!btn) return;
+    btn.addEventListener('click', openTzModal);
+    tickClock();
+    setInterval(tickClock, 1000);
+    console.log('[clock] module ready · tz=' + currentTz);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+<script>
+/* ========== v183.9 — AI 即時資料橋接 (AI live-data bridge) ==========
+   Captures every message rendered into the dashboard feeds into a rolling
+   buffer, and exposes window.__buildAiContext() which the AI chat folds into
+   each request so "整理" works on the live page data. No worker change needed. */
+(function(){
+  var FEED_IDS = ['flashList','newsFlashImportantList','newsFlashAllList','newsCenterFeed','signalLog'];
+  var LABEL = { flashList:'快訊', newsFlashImportantList:'重要快訊', newsFlashAllList:'快訊', newsCenterFeed:'新聞', signalLog:'號誌' };
+  var MAX_ITEMS = 400;
+  var buf = (window.__aiFeed = window.__aiFeed || []);
+  var seen = new Set();
+
+  function norm(s){ return (s||'').replace(/\s+/g,' ').trim(); }
+  function push(src, raw){
+    var text = norm(raw);
+    if (text.length < 8 || text.length > 1200) return;
+    var key = src + '|' + text;
+    if (seen.has(key)) return;
+    seen.add(key);
+    buf.push({ t: Date.now(), src: src, text: text });
+    while (buf.length > MAX_ITEMS){ var old = buf.shift(); seen.delete(old.src + '|' + old.text); }
+  }
+  function scan(el, src){
+    el.querySelectorAll(':scope > *').forEach(function(n){ if (n.nodeType === 1) push(src, n.textContent); });
+  }
+  function observe(el, src){
+    scan(el, src);
+    new MutationObserver(function(muts){
+      for (var i=0;i<muts.length;i++){
+        var an = muts[i].addedNodes;
+        if (!an) continue;
+        an.forEach(function(n){ if (n.nodeType === 1) push(src, n.textContent); });
+      }
+    }).observe(el, { childList: true });
+  }
+  function setup(){
+    FEED_IDS.forEach(function(id){
+      var el = document.getElementById(id);
+      if (el && !el.__aiObserved){ el.__aiObserved = true; observe(el, LABEL[id] || id); }
+    });
+  }
+  setup();
+  var tries = 0;
+  var iv = setInterval(function(){ setup(); if (++tries > 20) clearInterval(iv); }, 1500);
+
+  function clip(s, n){ s = norm(s); return s.length > n ? s.slice(0, n) + '…' : s; }
+  function readMetrics(){
+    var out = [];
+    var th = document.getElementById('fp-threat');
+    if (th) out.push('威脅分數: ' + clip(th.textContent, 400));
+    var tg = document.getElementById('tickerGrid');
+    if (tg){
+      var tiles = [];
+      tg.querySelectorAll(':scope > *').forEach(function(t){ var s = norm(t.textContent); if (s) tiles.push(s); });
+      if (tiles.length) out.push('即時報價: ' + clip(tiles.join(' | '), 800));
+    }
+    return out;
+  }
+
+  var CHAR_BUDGET = 4000;
+  window.__buildAiContext = function(){
+    var lines = [];
+    var ts = new Date().toLocaleString('zh-TW', { hour12:false });
+    lines.push('[GLOBALPULSE 即時儀表板快照 · ' + ts + ']');
+    readMetrics().forEach(function(m){ lines.push(m); });
+    lines.push('');
+    lines.push('近期訊息(原始標題,多為英文,新→舊):');
+    var items = buf.slice().sort(function(a,b){ return b.t - a.t; });
+    var used = lines.join('\n').length;
+    var n = 0;
+    for (var i=0;i<items.length;i++){
+      var it = items[i];
+      var d = new Date(it.t);
+      var hhmm = ('0'+d.getHours()).slice(-2) + ':' + ('0'+d.getMinutes()).slice(-2);
+      var line = '• [' + hhmm + '][' + it.src + '] ' + it.text;
+      if (used + line.length + 1 > CHAR_BUDGET) break;
+      lines.push(line); used += line.length + 1; n++;
+    }
+    if (!n) lines.push('(緩衝區目前沒有訊息;可能剛開頁面、資料還沒進來,或在其他分頁。)');
+    lines.push('');
+    lines.push('以上是使用者網站目前的即時資料(新聞為英文原始標題)。摘要時必須忠實對應原意,專有名詞保留原文,不得編造、不得臆測未寫明的因果;看不懂或殘缺的條目請略過。回覆一律用純文字,不要使用任何 HTML 標籤(例如 <ul>、<li>、<b>),也不要用 Markdown 表格或「|」直線。');
+    return lines.join('\n');
+  };
+
+  console.log('[ai-bridge] v183.9 ready — observing:', FEED_IDS.join(','));
 })();
 </script>
 
