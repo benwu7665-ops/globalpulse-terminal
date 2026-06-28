@@ -3160,7 +3160,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.21</b></div>
+        <div>BUILD <b>v183.22</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -20052,29 +20052,52 @@ const FRED_COMPONENTS = [
 // Score aggregator — runs every component, sums active contributions
 // =====================================================================
 function computeFredScore() {
+  // v183.22 — Weighted-average risk model. The OLD model was `50 + Σ contributions`,
+  // which was structurally biased high (positive caps summed to +161 but negative
+  // only -26) and saturated at 100 almost constantly. Now each signal is normalized
+  // to a 0..1 risk (its healthiest realistic reading = 0, riskiest = 1) using its own
+  // weightMin/weightMax, then combined as a WEIGHTED AVERAGE × 100. This uses the full
+  // 0-100 range, falls when conditions are calm, and only approaches 100 when most
+  // signals are genuinely elevated. Hard macro/market signals (yield curve, Sahm, VIX)
+  // carry more weight than noisy soft signals (news, geopolitics).
+  const WEIGHTS = {
+    yieldCurve: 1.5, sahmRule: 1.5, vix: 1.5,
+    realRate: 1.2, cpiYoY: 1.2,
+    termPremium: 0.9, oilShock: 0.9,
+    maritimeAnomaly: 0.7, newsRisk: 0.6, geoEvents: 0.6,
+  };
   const components = FRED_COMPONENTS.map(c => {
     let result;
     try { result = c.compute(); }
     catch (e) {
       result = { contribution: null, status: 'na', inputs: { reason: 'compute() threw: ' + e.message } };
     }
-    return { ...c, ...result };
+    const weight = WEIGHTS[c.id] != null ? WEIGHTS[c.id] : 1;
+    let risk = null;
+    if (result.status === 'ok' && typeof result.contribution === 'number' && isFinite(result.contribution)) {
+      const lo = c.weightMin, hi = c.weightMax;
+      risk = (hi > lo) ? clampNum((result.contribution - lo) / (hi - lo), 0, 1) : 0;
+    }
+    return { ...c, ...result, weight, risk };
   });
-  const active   = components.filter(c => c.status === 'ok' && typeof c.contribution === 'number' && isFinite(c.contribution));
-  const inactive = components.filter(c => !(c.status === 'ok' && typeof c.contribution === 'number' && isFinite(c.contribution)));
-  const sumContrib = active.reduce((sum, c) => sum + c.contribution, 0);
-  const score = Math.round(clampNum(50 + sumContrib, 0, 100));
+  const active   = components.filter(c => c.risk != null);
+  const inactive = components.filter(c => c.risk == null);
+  const sumW  = active.reduce((s, c) => s + c.weight, 0);
+  const sumWR = active.reduce((s, c) => s + c.weight * c.risk, 0);
+  const score = sumW > 0 ? Math.round(clampNum((sumWR / sumW) * 100, 0, 100)) : 0;
+  // Raw additive sum kept for reference only (no longer drives the score).
+  const sumContrib = active.reduce((s, c) => s + (c.contribution || 0), 0);
   return {
     score,
     components,
     activeCount: active.length,
     totalCount: components.length,
-    sumContrib,
-    note: score >= 70 ? '宏觀與情報訊號出現高度共振,建議降低風險敞口並收緊止損。'
-        : score >= 55 ? '宏觀與情報訊號尚未形成全面共振,維持觀察並等待二次確認。'
+    sumContrib, sumW, sumWR,
+    note: score >= 65 ? '宏觀與情報訊號出現高度共振,建議降低風險敞口並收緊止損。'
+        : score >= 45 ? '訊號互有強弱、風險中性偏高,維持觀察並等待二次確認。'
         : '宏觀環境穩定,可逢回布局核心資產。',
-    note_en: score >= 70 ? 'Macro and intel signals showing strong resonance. Consider reducing risk exposure and tightening stops.'
-           : score >= 55 ? 'Macro and intel signals have not yet fully aligned. Maintain observation pending secondary confirmation.'
+    note_en: score >= 65 ? 'Macro and intel signals showing strong resonance. Consider reducing risk exposure and tightening stops.'
+           : score >= 45 ? 'Signals are mixed with moderately elevated risk. Maintain observation pending secondary confirmation.'
            : 'Macro environment stable. Core asset accumulation on pullbacks viable.',
   };
 }
@@ -23839,15 +23862,13 @@ function showFredModal() {
         </div>`;
     }
 
-    // OK card with contribution + bar visualization
+    // OK card — v183.22: show this signal's NORMALIZED risk (0-100%) and its
+    // weight, since the score is now a weighted average of these. Raw
+    // contribution is still shown underneath for reference.
     const cval = c.contribution;
-    const cls  = cval > 0.5 ? 'up' : cval < -0.5 ? 'dn' : 'flat';
-    const sign = cval > 0 ? '+' : '';
-    // Bar fill: signed, % of max abs weight, scaled around the zero marker
-    const range = Math.max(Math.abs(c.weightMin), Math.abs(c.weightMax));
-    const fillPct = Math.min(100, Math.abs(cval) / range * 100);
-    const fillLeft = cval >= 0 ? 50 : (50 - fillPct / 2);
-    const fillWidth = fillPct / 2;
+    const riskPct = Math.round((c.risk != null ? c.risk : 0) * 100);
+    const cls  = riskPct >= 66 ? 'up' : riskPct >= 33 ? 'flat' : 'dn';   // high risk = alert, low = calm
+    const fillWidth = riskPct;
 
     // Inputs row — render every key:value in the inputs map
     const inputsHtml = Object.entries(c.inputs).map(([k, v]) =>
@@ -23858,12 +23879,12 @@ function showFredModal() {
       <div class="fm-component ok">
         <div class="fm-comp-head">
           <span><span class="fm-comp-label">${label}</span><span class="fm-comp-id">${c.id}</span></span>
-          <span class="fm-comp-contrib ${cls}">${sign}${cval.toFixed(2)}</span>
+          <span class="fm-comp-contrib ${cls}">${riskPct}%</span>
         </div>
         <div class="fm-comp-bar-wrap">
-          <div class="fm-comp-bar-zero" style="left:50%;"></div>
-          <div class="fm-comp-bar-fill ${cls}" style="left:${fillLeft}%;width:${fillWidth}%;"></div>
+          <div class="fm-comp-bar-fill ${cls}" style="left:0;width:${fillWidth}%;"></div>
         </div>
+        <div class="fm-comp-row"><span class="fm-rk">${isEn ? 'risk · weight · raw' : '風險 · 權重 · 原始'}</span><span class="fm-rv">${riskPct}% · ×${c.weight} · ${cval >= 0 ? '+' : ''}${cval.toFixed(2)}</span></div>
         <div class="fm-comp-row"><span class="fm-rk">${isEn ? 'source' : '來源'}</span><span class="fm-rv">${c.source}</span></div>
         <div class="fm-comp-row"><span class="fm-rk">${isEn ? 'formula' : '公式'}</span><span class="fm-rv">${formula}</span></div>
         ${inputsHtml}
@@ -23899,8 +23920,8 @@ function showFredModal() {
           <div class="fm-score-label">${isEn ? 'WATCH_RISK / 100' : '觀察風險 / 100'}</div>
         </div>
         <div class="fm-summary-meta">
-          <div><span class="fm-mk">${isEn ? 'baseline' : '中性基線'}</span><span class="fm-mv">50</span></div>
-          <div><span class="fm-mk">${isEn ? 'sum contrib.' : '訊號加總'}</span><span class="fm-mv">${result.sumContrib >= 0 ? '+' : ''}${result.sumContrib.toFixed(2)}</span></div>
+          <div><span class="fm-mk">${isEn ? 'method' : '計分方式'}</span><span class="fm-mv">${isEn ? 'weighted avg' : '加權平均'}</span></div>
+          <div><span class="fm-mk">${isEn ? 'weighted risk' : '加權風險'}</span><span class="fm-mv">${result.score}%</span></div>
           <div><span class="fm-mk">${isEn ? 'signal coverage' : '訊號完整度'}</span><span class="fm-mv">${result.activeCount} / ${result.totalCount}</span></div>
           <div><span class="fm-mk">${isEn ? 'data as of' : '資料截至'}</span><span class="fm-mv">${dateStr}</span></div>
         </div>
@@ -23911,7 +23932,7 @@ function showFredModal() {
       ${compsHtml}
 
       <div class="fm-footer">
-        <span>${isEn ? 'SCORE = clamp(0, 100, 50 + Σ contributions)' : 'SCORE = clamp(0, 100, 50 + Σ 訊號貢獻)'}</span>
+        <span>${isEn ? 'SCORE = 100 × Σ(weight × risk) / Σ(weight)' : 'SCORE = Σ(權重 × 風險) ÷ Σ權重 × 100'}</span>
         <span>FRED via Cloudflare Worker</span>
       </div>
     </div>`;
