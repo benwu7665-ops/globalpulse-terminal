@@ -3165,7 +3165,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.26</b></div>
+        <div>BUILD <b>v183.27</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -5829,9 +5829,10 @@ function _flashBarHeight(f) {
 // tooltip listing all flashes for that city) is trivial to wire up.
 function renderFlashBars() {
   if (!globeGroup || !THREE) return;
-  // v183.25: 3D globe risk heatmap (flash-bar pillars) disabled — user wants a clean
-  // terrain + gold-lines globe. Set GLOBE_FLASH_BARS = true to bring the pillars back.
-  const GLOBE_FLASH_BARS = false;
+  // v183.27: news flash-bar pillars RE-ENABLED per user request. One pillar rises
+  // from each city with a live flash, colored by risk (red/orange/yellow/green),
+  // and now glows through the bloom pass. Driven by the live state.flashes feed.
+  const GLOBE_FLASH_BARS = true;
   if (!GLOBE_FLASH_BARS) return;
   if (!flashBarsGroup) {
     flashBarsGroup = new THREE.Group();
