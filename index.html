@@ -3165,7 +3165,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.29</b></div>
+        <div>BUILD <b>v183.30</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -5530,7 +5530,7 @@ function switchTab(id) {
   // ('fin-home') — this dictionary keeps the two namespaces decoupled
   // so the tab labels don't have to match the page IDs verbatim.
   const TAB_TO_PAGE = {
-    'dashboard':  'fin-home',
+    'dashboard':  'geo',        // v183.30: 儀錶板預設落在地緣動態主頁(地球),非市場儀表板
     'monitor':    'monitor',
     'news':       'news',
     'us-market':  'us-market',
