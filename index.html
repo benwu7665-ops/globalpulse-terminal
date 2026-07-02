@@ -3165,7 +3165,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.27</b></div>
+        <div>BUILD <b>v183.28</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -5602,7 +5602,7 @@ let isDragging = false, prevX = 0, prevY = 0;
 let autoRotate = true;
 let targetRotY = 0, targetRotX = 0.3;
 let currentRotY = 0, currentRotX = 0.3;
-let zoom = 1;
+let zoom = 1, targetZoom = 1;
 
 function latLonToVec3(lat, lon, r) {
   const phi = (90 - lat) * Math.PI / 180;
@@ -6004,8 +6004,10 @@ function setupGlobeInteraction(canvas) {
   });
   canvas.addEventListener('wheel', e => {
     e.preventDefault();
-    zoom *= e.deltaY > 0 ? 1.08 : 0.92;
-    zoom = Math.max(0.5, Math.min(3, zoom));
+    // v183.28: deltaY-proportional zoom into a *target* value, smoothly lerped
+    // in animate() → continuous free zoom (no fixed steps). Wider range too.
+    targetZoom *= Math.pow(1.0011, e.deltaY);
+    targetZoom = Math.max(0.4, Math.min(3.5, targetZoom));
   }, { passive: false });
   // Hover detection on flash bars — change cursor to pointer so the user
   // knows the bar is clickable. Throttled to one raycast per ~50ms; we
@@ -6102,6 +6104,7 @@ function animate() {
   currentRotX += (targetRotX - currentRotX) * 0.08;
   globeGroup.rotation.y = currentRotY;
   globeGroup.rotation.x = currentRotX;
+  zoom += (targetZoom - zoom) * 0.15;   // v183.28: smooth continuous zoom
   camera.position.z = 300 * zoom;
 
   const t = performance.now() / 1000;
