@@ -446,8 +446,13 @@ input,textarea,select,
 #map2d-svg{width:100%;height:100%;display:block;user-select:none;position:absolute;top:0;left:0;right:0;bottom:0;touch-action:none}
 #map2d-svg .grat{stroke:#003040;stroke-width:.5;fill:none;opacity:.5;vector-effect:non-scaling-stroke}
 #map2d-svg .equator{stroke:#0a3a4a;stroke-width:.8;fill:none;vector-effect:non-scaling-stroke}
-#map2d-svg .country{fill:rgba(255,140,0,.05);stroke:#ff8c00;stroke-width:.6;stroke-linejoin:round;transition:fill .15s;vector-effect:non-scaling-stroke;cursor:inherit}
-#map2d-svg .country:hover{fill:rgba(255,140,0,.18);stroke:#ffa500}
+#map2d-svg .country{fill:rgba(255,140,0,.03);stroke:none;transition:fill .15s;cursor:inherit}
+#map2d-svg .country:hover{fill:rgba(255,190,70,.13)}
+/* v183.23: 8K terrain backdrop + glowing gold country borders (non-scaling = zoom-independent glow) */
+#map2d-svg .terrain-bg{opacity:1}
+#map2d-svg .borders-glow-layer{pointer-events:none}
+#map2d-svg .borders-glow-layer .bhalo{fill:none;stroke:#ffb347;stroke-width:2.4;stroke-opacity:.4;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+#map2d-svg .borders-glow-layer .bcore{fill:none;stroke:#ffcf8a;stroke-width:.6;stroke-opacity:.9;stroke-linejoin:round;vector-effect:non-scaling-stroke}
 #map2d-svg .hotspot{fill:#ffa500;stroke:none}
 #map2d-svg .hotspot.conflict{fill:#ff3b5c}
 #map2d-svg .hotspot-pulse{fill:none;stroke:#ff3b5c;stroke-width:1;opacity:.6;vector-effect:non-scaling-stroke}
@@ -3160,7 +3165,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.22</b></div>
+        <div>BUILD <b>v183.26</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -5320,7 +5325,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
 </div>
 
 <script type="importmap">
-{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
 </script>
 
 <!-- ==================================================================
@@ -5357,6 +5362,10 @@ console.log('[AIS] toggleAisPopover registered, type:', typeof window.toggleAisP
 
 <script type="module">
 import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 /* ========== STATE ========== */
 const state = {
@@ -5588,7 +5597,7 @@ function toggleLayerPopup() {
 window.toggleLayerPopup = toggleLayerPopup;
 
 /* ========== GLOBE (Three.js) ========== */
-let scene, camera, renderer, globeGroup, arcsGroup, markersGroup;
+let scene, camera, renderer, globeGroup, arcsGroup, markersGroup, composer, bloom;
 let isDragging = false, prevX = 0, prevY = 0;
 let autoRotate = true;
 let targetRotY = 0, targetRotX = 0.3;
@@ -5625,7 +5634,7 @@ const HOTSPOTS = [
 ];
 
 async function loadCoastlines() {
-  const url = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson';
+  const url = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_0_countries.geojson';
   try {
     const r = await fetch(url);
     if (r.ok) {
@@ -5637,21 +5646,31 @@ async function loadCoastlines() {
 }
 
 function drawGeoJSON(data) {
-  const mat = new THREE.LineBasicMaterial({ color: 0xff8c00, transparent: true, opacity: 0.75 });
+  // v183.26: warm-gold borders, all rings merged into ONE LineSegments (single
+  // draw call) so 10m high-detail geometry stays performant. Radius 100.22 sits
+  // just above the terrain (r=100) so the gold line hugs the coastline.
+  const mat = new THREE.LineBasicMaterial({ color: 0xffd278, transparent: true, opacity: 0.86 });
+  const pos = [];
   data.features.forEach(f => {
     if (!f.geometry) return;
     const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
     polys.forEach(poly => {
       poly.forEach(ring => {
-        const pts = ring.map(c => latLonToVec3(c[1], c[0], 100.5));
-        globeGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat));
+        for (let i = 0; i < ring.length - 1; i++) {
+          const a = latLonToVec3(ring[i][1], ring[i][0], 100.22);
+          const b = latLonToVec3(ring[i + 1][1], ring[i + 1][0], 100.22);
+          pos.push(a.x, a.y, a.z, b.x, b.y, b.z);
+        }
       });
     });
   });
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  globeGroup.add(new THREE.LineSegments(geo, mat));
 }
 
 function drawFallbackCoastlines() {
-  const mat = new THREE.LineBasicMaterial({ color: 0xff8c00, transparent: true, opacity: 0.7 });
+  const mat = new THREE.LineBasicMaterial({ color: 0xffcf8a, transparent: true, opacity: 0.8 });
   const continents = [
     {lat:45,lon:-100,r:25},{lat:-15,lon:-60,r:18},
     {lat:50,lon:10,r:18},{lat:15,lon:25,r:25},
@@ -5810,6 +5829,10 @@ function _flashBarHeight(f) {
 // tooltip listing all flashes for that city) is trivial to wire up.
 function renderFlashBars() {
   if (!globeGroup || !THREE) return;
+  // v183.25: 3D globe risk heatmap (flash-bar pillars) disabled — user wants a clean
+  // terrain + gold-lines globe. Set GLOBE_FLASH_BARS = true to bring the pillars back.
+  const GLOBE_FLASH_BARS = false;
+  if (!GLOBE_FLASH_BARS) return;
   if (!flashBarsGroup) {
     flashBarsGroup = new THREE.Group();
     globeGroup.add(flashBarsGroup);
@@ -5909,18 +5932,26 @@ function initGlobe() {
   renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(W, H);
-  renderer.setClearColor(0x000000, 0);
+  renderer.setClearColor(0x000000, 1);  // v183.26: opaque black (clean bloom, matches preview)
 
   globeGroup = new THREE.Group();
   scene.add(globeGroup);
 
-  const inner = new THREE.Mesh(
-    new THREE.SphereGeometry(99, 64, 64),
-    new THREE.MeshBasicMaterial({ color: 0x000510, transparent: true, opacity: 0.9 })
-  );
+  // v183.25: dark 8K terrain relief as the globe surface. A standard equirectangular
+  // map aligns natively with latLonToVec3 (u=(lon+180)/360, v=(90-lat)/180), so no
+  // rotation/flip is needed. MeshBasicMaterial is unlit → the baked hillshade reads as
+  // a flat premium relief (matching the reference), not a lit day/night globe. Opaque
+  // so the far side of the globe is hidden and only front-facing borders show.
+  const terrainTex = new THREE.TextureLoader().load('world-relief-8k.jpg');
+  terrainTex.colorSpace = THREE.SRGBColorSpace;
+  terrainTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  const _terrMat = new THREE.MeshBasicMaterial({ map: terrainTex });
+  _terrMat.color.setScalar(0.74);   // v183.26: terrain brightness (user-tuned)
+  _terrMat.polygonOffset = true; _terrMat.polygonOffsetFactor = 1; _terrMat.polygonOffsetUnits = 1;
+  const inner = new THREE.Mesh(new THREE.SphereGeometry(100, 128, 128), _terrMat);
   globeGroup.add(inner);
 
-  const gratMat = new THREE.LineBasicMaterial({ color: 0x003040, transparent: true, opacity: 0.5 });
+  const gratMat = new THREE.LineBasicMaterial({ color: 0x6b5636, transparent: true, opacity: 0.14 });  // v183.26: faint warm grid
   for (let lat = -80; lat <= 80; lat += 20) {
     const pts = [];
     for (let lon = 0; lon <= 360; lon += 5) pts.push(latLonToVec3(lat, lon, 100.2));
@@ -5942,6 +5973,17 @@ function initGlobe() {
   // longer add anything to the scene at init.
   renderFlashBars();
   setupGlobeInteraction(canvas);
+  // v183.26: bloom post-processing (glowing gold lines). Multisampled float RT +
+  // full devicePixelRatio + OutputPass → sharp & anti-aliased. Threshold 0.34 so
+  // only the bright gold borders glow, not the dark terrain.
+  const _rt = new THREE.WebGLRenderTarget(1, 1, { samples: 4, type: THREE.HalfFloatType });
+  composer = new EffectComposer(renderer, _rt);
+  composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  composer.setSize(W, H);
+  composer.addPass(new RenderPass(scene, camera));
+  bloom = new UnrealBloomPass(new THREE.Vector2(W, H), 0.42, 0.5, 0.34);
+  composer.addPass(bloom);
+  composer.addPass(new OutputPass());
   window.addEventListener('resize', onResize);
   animate();
 }
@@ -6047,6 +6089,8 @@ function onResize() {
   if (!W || !H) return;
   camera.aspect = W / H;
   renderer.setSize(W, H);
+  if (composer) { composer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); composer.setSize(W, H); }
+  if (bloom) bloom.setSize(W, H);
   applyViewOffset();
 }
 
@@ -6091,7 +6135,7 @@ function animate() {
     }
   });
 
-  renderer.render(scene, camera);
+  if (composer) composer.render(); else renderer.render(scene, camera);
 }
 
 initGlobe();
@@ -8090,6 +8134,10 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
   }
 
   // --- LAYERS ---
+  // v183.23: 8K terrain relief backdrop (bottom-most; lives in gZoom so it scales
+  // with pan/zoom) + a glowing gold border layer that sits above the risk overlay.
+  const gTerrain = el('image', { x: 0, y: 0, width: W, height: H, href: 'world-relief-8k.jpg', class: 'terrain-bg', preserveAspectRatio: 'none', 'pointer-events': 'none' });
+  const gBorders = el('g', { class: 'borders-glow-layer' });
   const gGrat = el('g', { class: 'grat-layer' });
   const gCountries = el('g', { class: 'countries-layer' });
   const gRiskHeat = el('g', { class: 'risk-heat-layer' });   // v171: geopolitical risk overlay
@@ -8100,9 +8148,11 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
   const gMarkers = el('g', { class: 'markers-layer' });
   const gLabels = el('g', { class: 'labels-layer' });
   const gZoom = el('g', { class: 'zoom-layer' });
+  gZoom.appendChild(gTerrain);
   gZoom.appendChild(gGrat);
   gZoom.appendChild(gCountries);
   gZoom.appendChild(gRiskHeat);
+  gZoom.appendChild(gBorders);
   gZoom.appendChild(gArcs);
   gZoom.appendChild(gStraits);
   gZoom.appendChild(gCities);
@@ -8154,6 +8204,7 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
       drawCountries(data);
       loading.style.display = 'none';
       // v171: paint geo-risk overlay now that country geometry is available
+      if (typeof renderBorders === 'function') renderBorders();
       if (typeof renderRiskHeat === 'function') renderRiskHeat();
     }
 
@@ -9860,11 +9911,31 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
   // 5-tier global risk color ramp. EXTREME = deep red (active war).
   // PEACEFUL returns null = no overlay (keep map clean for stable countries).
   function _riskColorFor(tier) {
-    if (tier === 'EXTREME') return { fill: '#ff2020', opacity: 0.55 };
-    if (tier === 'HIGH')    return { fill: '#ff5a1f', opacity: 0.40 };
-    if (tier === 'MEDIUM')  return { fill: '#ffe066', opacity: 0.30 };   // pale yellow
-    if (tier === 'LOW')     return { fill: '#3ddc84', opacity: 0.22 };   // soft green
+    // v183.24: muted / darker military palette (desaturated) so colors read as
+    // premium over the terrain instead of neon. Tune these 4 fill/opacity pairs.
+    if (tier === 'EXTREME') return { fill: '#a83232', opacity: 0.50 };   // dark blood red
+    if (tier === 'HIGH')    return { fill: '#a85a30', opacity: 0.38 };   // burnt orange
+    if (tier === 'MEDIUM')  return { fill: '#9c8f48', opacity: 0.26 };   // muted khaki
+    if (tier === 'LOW')     return { fill: '#3e7a5a', opacity: 0.20 };   // muted forest green
     return null;
+  }
+
+  // v183.23: draw glowing gold country outlines (wide halo + bright core) into
+  // gBorders, layered above the risk overlay. Borders never change, so this runs
+  // once after countries load. Strokes are non-scaling → the glow stays a constant
+  // screen width at every zoom level (no blur filter, so it can't blow up on zoom).
+  function renderBorders() {
+    if (!gBorders || !gCountries || gCountries.childElementCount === 0) return;
+    const SVGNS = 'http://www.w3.org/2000/svg';
+    const frag = document.createDocumentFragment();
+    gCountries.querySelectorAll('path.country').forEach(p => {
+      const d = p.getAttribute('d');
+      if (!d) return;
+      const core = document.createElementNS(SVGNS, 'path');
+      core.setAttribute('d', d); core.setAttribute('class', 'bcore');
+      frag.appendChild(core);
+    });
+    gBorders.replaceChildren(frag);
   }
 
   // Re-render the heatmap. Reads state.flashes the same way renderGeoPanels
