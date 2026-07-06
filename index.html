@@ -2592,6 +2592,8 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
    Override Leaflet's bright default UI to match the terminal aesthetic
    (dark background, amber accents, monospace fonts).
 ============================================================== */
+/* v183.60: 地圖容器暗底 — 滑動途中若有圖磚空隙不會露出刺眼藍 */
+#monMap, #monMap.leaflet-container{background:#060b12;}
 #monMap .leaflet-control-zoom a{
   background:rgba(15,15,18,.92);
   color:var(--amber);
@@ -2609,6 +2611,25 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
   font-size:9px;
 }
 #monMap .leaflet-control-attribution a{color:#aaa;}
+/* v183.34: 自然圖層 divIcon — 去掉 Leaflet 預設白底方框 */
+.gp-quake,.gp-event{background:transparent!important;border:none!important;}
+/* v183.45: 颱風預報點時間標籤（暗底琥珀藥丸,無箭頭） */
+.leaflet-tooltip.gp-tc-label{background:rgba(12,14,18,0.82)!important;border:1px solid rgba(255,209,102,0.55)!important;border-radius:4px!important;color:#ffd88a!important;font-family:var(--font-mono,ui-monospace,monospace)!important;font-size:9.5px!important;line-height:1.15!important;font-weight:600!important;letter-spacing:.3px;padding:2px 5px!important;box-shadow:none!important;text-align:center;white-space:nowrap;}
+.leaflet-tooltip.gp-tc-label::before{display:none!important;border:none!important;}
+/* v183.53: 日期標籤只在放大(地圖容器有 .gp-tc-zoomed)時顯示,縮小時隱藏保持乾淨 */
+.leaflet-container:not(.gp-tc-zoomed) .leaflet-tooltip.gp-tc-label{display:none!important;}
+/* v183.52: 颱風 popup — 黑底橘框橘字,配終端機風格 */
+.leaflet-popup.gp-tc-popup .leaflet-popup-content-wrapper{background:#050607!important;border:1px solid var(--amber,#ff8c00)!important;border-radius:2px!important;box-shadow:0 0 0 1px rgba(255,140,0,0.15),0 6px 24px rgba(0,0,0,0.6)!important;color:var(--amber-bright,#ffa500)!important;}
+.leaflet-popup.gp-tc-popup .leaflet-popup-content{margin:9px 12px!important;font-family:var(--font-mono,ui-monospace,monospace)!important;font-size:11px!important;line-height:1.5!important;color:var(--amber-bright,#ffa500)!important;}
+.leaflet-popup.gp-tc-popup .leaflet-popup-tip{background:#050607!important;border:1px solid var(--amber,#ff8c00)!important;box-shadow:none!important;}
+.leaflet-popup.gp-tc-popup a.leaflet-popup-close-button{color:var(--amber,#ff8c00)!important;top:4px!important;right:4px!important;}
+.leaflet-popup.gp-tc-popup .leaflet-popup-close-button:hover{color:var(--amber-bright,#ffa500)!important;}
+/* v183.54: 「風暴預測」兩欄式資訊框 — 橘標題/橘標籤/白值 */
+.leaflet-popup.gp-tc-popup .gp-tc-title{color:var(--amber-bright,#ffa500);font-weight:700;font-size:12px;letter-spacing:2px;margin:0 0 6px;}
+.leaflet-popup.gp-tc-popup table.gp-tc-tbl{border-collapse:collapse;font-size:11px;}
+.leaflet-popup.gp-tc-popup table.gp-tc-tbl td{padding:1px 0;vertical-align:top;line-height:1.5;}
+.leaflet-popup.gp-tc-popup table.gp-tc-tbl td.k{color:var(--amber,#ff8c00);padding-right:16px;white-space:nowrap;}
+.leaflet-popup.gp-tc-popup table.gp-tc-tbl td.v{color:#e8e2d6;white-space:nowrap;}
 #monMap .aircraft-marker{background:transparent;border:none;}
 #monMap .ship-marker{background:transparent;border:none;}
 #monMap .ship-tooltip{
@@ -3165,7 +3186,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.30</b></div>
+        <div>BUILD <b>v183.71</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -4989,7 +5010,31 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
           <button data-view="2d" title="切換到 2D 地圖">[2D]</button>
           <button data-view="sat" class="active" title="衛星監控中心">[<span class="t-zh">衛星</span><span class="t-en">SAT</span>]</button>
         </div>
+
         <span style="color:var(--text-dim);">|</span>
+        <span style="color:var(--text-dim);"><span class="t-zh">更新</span><span class="t-en">UPD</span> <span id="monLastUpd" style="color:#ccc;">--:--:--</span></span>
+        <span style="color:var(--text-dim);"><span class="t-zh">狀態</span><span class="t-en">STATUS</span> <span id="monStatus" style="color:#888;">IDLE</span></span>
+        <div style="flex:1;"></div>
+        <span style="color:#666;font-size:10px;">
+          <span class="t-zh">底圖: Esri 衛星 · 飛機: OpenSky ADS-B · 船舶: AISStream</span>
+          <span class="t-en">Basemap: Esri Sat · Aircraft: OpenSky ADS-B · Ships: AISStream</span>
+        </span>
+      </div>
+      <!-- The actual map canvas — fills remaining vertical space -->
+      <div id="monMap" style="flex:1;position:relative;background:#0d1620;min-height:0;"></div>
+      <!-- v183.42: 左下角圖層控制 FAB + 分類面板(取代頂部長排開關) -->
+      <style>
+        #monLayerPanel label { display:flex!important; align-items:center; gap:8px; width:100%; padding:4px 2px; margin:0; color:#cfcfcf!important; cursor:pointer; border-radius:4px; }
+        #monLayerPanel label:hover { background:rgba(255,255,255,.05); }
+        #monLayerPanel label > span:last-child { margin-left:auto!important; }
+        #monLayerPanel .mlp-sec { color:var(--amber); font-size:10px; letter-spacing:.08em; font-weight:700; margin:11px 0 3px; padding-bottom:3px; border-bottom:1px solid rgba(255,140,0,.2); }
+        #monLayerPanel .mlp-sec:first-of-type { margin-top:5px; }
+        #monLayerFab:hover { background:rgba(255,140,0,.18); border-color:rgba(255,140,0,.7); }
+      </style>
+      <button id="monLayerFab" onclick="toggleMonLayers()" style="position:absolute;left:12px;bottom:12px;z-index:600;background:rgba(15,15,18,.92);color:var(--amber);border:1px solid rgba(255,140,0,.4);border-radius:6px;padding:7px 13px;font-family:var(--font-mono);font-size:12px;font-weight:700;letter-spacing:.05em;cursor:pointer;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:0 2px 10px rgba(0,0,0,.5);">≡ <span class="t-zh">圖層</span><span class="t-en">LAYERS</span></button>
+      <div id="monLayerPanel" style="position:absolute;left:12px;bottom:54px;z-index:600;display:none;width:212px;max-height:calc(100% - 84px);overflow-y:auto;background:rgba(15,15,18,.95);border:1px solid rgba(255,140,0,.35);border-radius:8px;padding:10px 12px;font-family:var(--font-mono);font-size:11.5px;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 6px 24px rgba(0,0,0,.6);">
+        <div style="color:var(--amber);font-weight:700;letter-spacing:.08em;font-size:11px;margin-bottom:2px;">◧ <span class="t-zh">圖層控制</span><span class="t-en">LAYERS</span></div>
+        <div class="mlp-sec"><span class="t-zh">監控</span><span class="t-en">SURVEILLANCE</span></div>
         <label style="color:#ccc;cursor:pointer;display:flex;align-items:center;gap:6px;">
           <input type="checkbox" id="monShowMil" checked style="cursor:pointer;">
           <span class="t-zh">顯示軍機</span><span class="t-en">Show military</span>
@@ -5015,17 +5060,44 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
           <span class="t-zh">軍事基地</span><span class="t-en">Mil bases</span>
           <span id="monBasesCount" style="color:#3498ff;font-weight:700;margin-left:4px;">0</span>
         </label>
-        <span style="color:var(--text-dim);">|</span>
-        <span style="color:var(--text-dim);"><span class="t-zh">更新</span><span class="t-en">UPD</span> <span id="monLastUpd" style="color:#ccc;">--:--:--</span></span>
-        <span style="color:var(--text-dim);"><span class="t-zh">狀態</span><span class="t-en">STATUS</span> <span id="monStatus" style="color:#888;">IDLE</span></span>
-        <div style="flex:1;"></div>
-        <span style="color:#666;font-size:10px;">
-          <span class="t-zh">底圖: Esri 衛星 · 飛機: OpenSky ADS-B · 船舶: AISStream</span>
-          <span class="t-en">Basemap: Esri Sat · Aircraft: OpenSky ADS-B · Ships: AISStream</span>
-        </span>
+        <div class="mlp-sec"><span class="t-zh">自然 · 氣候</span><span class="t-en">NATURE · CLIMATE</span></div>
+        <label style="color:#ccc;cursor:pointer;display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="monShowQuakes" checked style="cursor:pointer;">
+          <span class="t-zh">地震</span><span class="t-en">Quakes</span>
+          <span id="monQuakeCount" style="color:#ffb300;font-weight:700;margin-left:4px;">0</span>
+        </label>
+        <label style="color:#ccc;cursor:pointer;display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="monShowEvents" checked style="cursor:pointer;">
+          <span class="t-zh">自然事件</span><span class="t-en">Events</span>
+          <span id="monEventsCount" style="color:#ff6a00;font-weight:700;margin-left:4px;">0</span>
+        </label>
+        <label style="color:#ccc;cursor:pointer;display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="monShowAurora" style="cursor:pointer;">
+          <span class="t-zh">極光</span><span class="t-en">Aurora</span>
+          <span id="monKpVal" style="color:#66ff99;font-weight:700;margin-left:4px;">Kp --</span>
+        </label>
+        <label style="color:#ccc;cursor:pointer;display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="monShowCyclone" checked style="cursor:pointer;">
+          <span class="t-zh">颱風</span><span class="t-en">Cyclone</span>
+          <span id="monCycloneCount" style="color:#ff3b5c;font-weight:700;margin-left:4px;">0</span>
+        </label>
+        <label style="color:#ccc;cursor:pointer;display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="monShowFlood" checked style="cursor:pointer;">
+          <span class="t-zh">洪水</span><span class="t-en">Flood</span>
+          <span id="monFloodCount" style="color:#4aa3ff;font-weight:700;margin-left:4px;">0</span>
+        </label>
+        <label style="color:#ccc;cursor:pointer;display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="monShowAlerts" checked style="cursor:pointer;">
+          <span class="t-zh">天氣警報</span><span class="t-en">US Alerts</span>
+          <span id="monAlertCount" style="color:#ffd21e;font-weight:700;margin-left:4px;">0</span>
+        </label>
+        <label style="color:#ccc;cursor:pointer;display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="monShowTsunami" checked style="cursor:pointer;">
+          <span class="t-zh">海嘯</span><span class="t-en">Tsunami</span>
+          <span id="monTsunamiCount" style="color:#ff3b5c;font-weight:700;margin-left:4px;">0</span>
+        </label>
       </div>
-      <!-- The actual map canvas — fills remaining vertical space -->
-      <div id="monMap" style="flex:1;position:relative;background:#0a0a0a;min-height:0;"></div>
+      <script>window.toggleMonLayers=function(){var p=document.getElementById('monLayerPanel');if(p)p.style.display=(p.style.display==='none'||!p.style.display)?'block':'none';};</script>
       <!-- Detail card (positioned inside the map). Hidden by default. -->
       <div id="monDetailCard" style="position:absolute;top:60px;right:14px;width:240px;background:rgba(15,15,18,.94);border:1px solid var(--amber);box-shadow:0 4px 20px rgba(0,0,0,.6);padding:10px 12px;font-family:var(--font-mono);font-size:10.5px;color:#ddd;z-index:500;display:none;backdrop-filter:blur(6px);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px solid rgba(255,140,0,.25);padding-bottom:6px;">
@@ -7426,6 +7498,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       zoomDelta: 1,
       // Allow longitude to wrap around — so on wide screens the map paints
       // edge to edge instead of leaving deep-blue gutters past ±180°.
+      // v183.60: worldCopyJump 關閉 — 開啟時滑過換日線會瞬間跳轉→閃藍。靠圖磚無限重複順滑即可。
       worldCopyJump: false,
       zoomControl: true,
       attributionControl: true,
@@ -7437,20 +7510,18 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       markerZoomAnimation: true,
       inertia: true,
       inertiaDeceleration: 3000,
-      // Hard bounds at one world copy. Viscosity 1.0 = can't drag past
-      // the edge at all. Latitude clamped to Web Mercator valid range.
-      maxBounds: [[-85, -180], [85, 180]],
+      // v183.59: 只夾緯度(上下),經度放無限 → 可像地球一樣無限左右滑動
+      maxBounds: [[-85, -Infinity], [85, Infinity]],
       maxBoundsViscosity: 1.0,
     });
     L.tileLayer(
       'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
       {
         attribution: 'Tiles © Esri',
-        maxZoom: 18,
-        // noWrap:true — tiles stop at ±180° instead of repeating.
-        noWrap: true,
-        bounds: [[-85, -180], [85, 180]],
-        keepBuffer: 4,
+        maxZoom: 19,
+        maxNativeZoom: 19,
+        // v183.59: 拿掉 noWrap 與 bounds → 圖磚無限重複,左右可一直滑(像地球)
+        keepBuffer: 3,
         updateWhenIdle: false,
         updateWhenZooming: false,
         crossOrigin: true,
@@ -8011,6 +8082,480 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       const isActive = document.querySelector('.page[data-page="monitor"]')?.classList.contains('active');
       if (isActive) renderShips();
     }, 5000);
+
+    // === v183.31: 地震圖層 (USGS GeoJSON, 免 key, CORS 直連) =====================
+    // 資料:過去 24 小時 M2.5+ 全球地震。圓點大小=規模、顏色=規模(黃→橘→紅)、
+    // 越新越亮。點按顯示規模/地點/深度/時間 + USGS 連結。每 5 分鐘更新一次。
+    const quakeLayer = L.layerGroup();
+    window.__quakeLayer = quakeLayer;
+    if (document.getElementById('monShowQuakes')?.checked !== false) quakeLayer.addTo(map);
+    const _quakeColor = m => m >= 5 ? '#ff3b5c' : m >= 3.5 ? '#ff8c00' : '#ffd21e';
+    // v183.35: 共用抓取 + 一次重試 — 外部即時來源偶爾丟包(尤其 file://),重試即可救回。
+    async function _fetchJSON(url, tries) {
+      tries = tries || 2;
+      for (let i = 0; i < tries; i++) {
+        try { const r = await fetch(url, { cache: 'no-store' }); if (r.ok) return await r.json(); }
+        catch (e) { /* retry */ }
+        if (i < tries - 1) await new Promise(res => setTimeout(res, 1800));
+      }
+      return null;
+    }
+    // v183.69: 共用方框(黑底橘框兩欄式,所有圖層 popup 統一)
+    const _gpBox = (title, rows) => { let h = '<div class="gp-tc-title">' + title + '</div><table class="gp-tc-tbl">'; rows.forEach(r => { if (r[1] != null && r[1] !== '') h += '<tr><td class="k">' + r[0] + '</td><td class="v">' + r[1] + '</td></tr>'; }); return h + '</table>'; };
+    async function refreshQuakes() {
+      try {
+        const data = await _fetchJSON('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson');
+        if (!data) throw new Error('no data');
+        quakeLayer.clearLayers();
+        const now = Date.now();
+        (data.features || []).forEach(f => {
+          const c = f.geometry && f.geometry.coordinates; if (!c) return;
+          const lon = c[0], lat = c[1], depth = c[2];
+          const pr = f.properties || {}, mag = pr.mag || 0;
+          const ageH = (now - (pr.time || now)) / 3600000;
+          const op = ageH < 3 ? 1 : ageH < 12 ? 0.82 : 0.55;
+          const col = _quakeColor(mag);
+          const _qsz = Math.round(Math.max(16, 8 + mag * 4));   // 環大小 ∝ 規模
+          const mk = L.marker([lat, lon], { icon: L.divIcon({
+            className: 'gp-quake',
+            html: '<div style="width:' + _qsz + 'px;height:' + _qsz + 'px;border:2px solid ' + col
+              + ';border-radius:50%;background:' + col + '26'
+              + ';opacity:' + op + ';display:flex;align-items:center;justify-content:center;">'
+              + '<span style="font-size:9px;line-height:1;color:#fff;font-weight:700;text-shadow:0 0 2px #000,0 0 1px #000">' + mag.toFixed(1) + '</span>' 
+              + '</div>',
+            iconSize: [_qsz, _qsz], iconAnchor: [_qsz / 2, _qsz / 2],
+          }) });
+          const tm = pr.time ? new Date(pr.time).toLocaleString() : '\u2014';
+          mk.bindPopup(_gpBox('\u5730\u9707', [
+            ['\u898f\u6a21', '<span style="color:' + col + ';font-weight:700">M ' + mag.toFixed(1) + '</span>'],
+            ['\u5730\u9ede', pr.place || ''],
+            ['\u6df1\u5ea6', (depth != null ? depth.toFixed(0) + ' km' : '')],
+            ['\u6642\u9593', tm],
+            ['\u4f86\u6e90', pr.url ? '<a href="' + pr.url + '" target="_blank" style="color:var(--amber,#ff8c00)">USGS \u2197</a>' : '']
+          ]), { className: 'gp-tc-popup' });
+          mk.addTo(quakeLayer);
+        });
+        const cnt = document.getElementById('monQuakeCount'); if (cnt) cnt.textContent = (data.features || []).length;
+      } catch (e) { console.warn('[quakes] refresh failed', e); }
+    }
+    const _qkToggle = document.getElementById('monShowQuakes');
+    if (_qkToggle) _qkToggle.addEventListener('change', () => {
+      if (_qkToggle.checked) map.addLayer(quakeLayer); else map.removeLayer(quakeLayer);
+    });
+    refreshQuakes();
+    setInterval(() => {
+      const isActive = document.querySelector('.page[data-page="monitor"]')?.classList.contains('active');
+      if (isActive) refreshQuakes();
+    }, 5 * 60 * 1000);
+    // ==========================================================================
+
+    // === v183.65: 洪水 GDACS FL (跟颱風同源清單,CORS 直連) —— 整段包 try/catch,錯了也不拖垮 App
+    try {
+      const floodLayer = L.layerGroup();
+      window.__floodLayer = floodLayer;
+      const _flChk = document.getElementById('monShowFlood');
+      if (_flChk && _flChk.checked) floodLayer.addTo(map);
+      const _svgFlood = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 16c1.5 0 1.5-1.2 3-1.2s1.5 1.2 3 1.2 1.5-1.2 3-1.2 1.5 1.2 3 1.2 1.5-1.2 3-1.2 1.5 1.2 3 1.2"/><path d="M2 20c1.5 0 1.5-1.2 3-1.2s1.5 1.2 3 1.2 1.5-1.2 3-1.2 1.5 1.2 3 1.2 1.5-1.2 3-1.2 1.5 1.2 3 1.2"/><path d="M12 3l3 4a3 3 0 1 1-6 0z" fill="currentColor" stroke="none"/></svg>';
+      const refreshFloods = async () => {
+        try {
+          const data = await _fetchJSON('https://www.gdacs.org/gdacsapi/api/events/geteventlist/EVENTS4APP');
+          if (!data || !data.features) return;
+          floodLayer.clearLayers();
+          let n = 0;
+          data.features.filter(f => f.properties && f.properties.eventtype === 'FL').forEach(f => {
+            const c = f.geometry && f.geometry.coordinates; if (!c) return;
+            const pr = f.properties || {};
+            const col = pr.alertlevel === 'Red' ? '#ff3b5c' : pr.alertlevel === 'Orange' ? '#ff8c00' : '#4aa3ff';
+            const fromD = pr.fromdate ? new Date(pr.fromdate).toLocaleDateString('zh-TW') : '';
+            const toD = pr.todate ? new Date(pr.todate).toLocaleDateString('zh-TW') : '';
+            const mk = L.marker([c[1], c[0]], { icon: L.divIcon({ className: 'gp-event', html: '<div style="color:' + col + ';line-height:0;">' + _svgFlood + '</div>', iconSize: [22, 22], iconAnchor: [11, 11] }) });
+            mk.bindPopup(_gpBox('\u6d2a\u6c34', [
+              ['\u5730\u5340', pr.country || pr.name || ''],
+              ['\u671f\u9593', (fromD ? fromD + ' ~ ' + toD : '')],
+              ['\u8b66\u6212', '<span style="color:' + col + ';font-weight:700">' + (pr.alertlevel || '-') + '</span>']
+            ]), { className: 'gp-tc-popup' });
+            mk.addTo(floodLayer); n++;
+          });
+          const cnt = document.getElementById('monFloodCount'); if (cnt) cnt.textContent = n;
+        } catch (e) { console.warn('[flood] refresh failed', e); }
+      };
+      if (_flChk) _flChk.addEventListener('change', () => { if (_flChk.checked) map.addLayer(floodLayer); else map.removeLayer(floodLayer); });
+      refreshFloods();
+      setInterval(() => { const a = document.querySelector('.page[data-page="monitor"]'); if (a && a.classList.contains('active')) refreshFloods(); }, 10 * 60 * 1000);
+    } catch (e) { console.warn('[flood] init failed', e); }
+    // ==========================================================================
+
+    // === v183.68: 美國天氣警報 NWS (api.weather.gov, CORS 直連) —— 整段 try/catch,錯了也不拖垮 App
+    // 只畫有內嵌幾何的警報(龍捲風/暴洪/颶風等);部分警報用區碼無幾何,略過。
+    try {
+      const alertLayer = L.layerGroup();
+      window.__alertLayer = alertLayer;
+      const _alChk = document.getElementById('monShowAlerts');
+      if (_alChk && _alChk.checked) alertLayer.addTo(map);
+      const _zoneCache = {};   // v183.71: zone URL -> \u5e7e\u4f55(\u6216 null),\u8de8\u5237\u65b0\u5feb\u53d6
+      const _mkAlert = (geom, pr) => {
+        const sev = pr.severity || '';
+        const col = sev === 'Extreme' ? '#ff3b5c' : sev === 'Severe' ? '#ff8c00' : sev === 'Moderate' ? '#ffd21e' : '#8ab4ff';
+        const ev = pr.event || 'Alert';
+        const gj = L.geoJSON(geom, { style: { color: col, weight: 1, opacity: 0.7, fillColor: col, fillOpacity: 0.10 } });
+        gj.bindPopup(_gpBox(ev, [
+          ['\u56b4\u91cd\u5ea6', '<span style="color:' + col + ';font-weight:700">' + (sev || '-') + '</span>'],
+          ['\u5730\u5340', (pr.areaDesc || '').slice(0, 70)],
+          ['\u8aaa\u660e', pr.headline ? pr.headline.slice(0, 90) : '']
+        ]), { className: 'gp-tc-popup' });
+        gj.addTo(alertLayer);
+      };
+      const refreshAlerts = async () => {
+        try {
+          const data = await _fetchJSON('https://api.weather.gov/alerts/active?status=actual&message_type=alert&limit=500');
+          if (!data || !data.features) return;
+          alertLayer.clearLayers();
+          const feats = data.features;
+          // \u6c92\u5e7e\u4f55\u7684\u8b66\u5831\u2192\u88dc\u6293\u5b83\u7684 affectedZones \u5340\u57df\u591a\u908a\u5f62(\u5feb\u53d6+\u4e0a\u9650 120,\u907f\u514d\u8acb\u6c42\u7206\u91cf)
+          const need = new Set();
+          feats.forEach(f => { if (f.geometry) return; ((f.properties && f.properties.affectedZones) || []).forEach(z => { if (!(z in _zoneCache)) need.add(z); }); });
+          const toFetch = Array.from(need).slice(0, 120);
+          await Promise.all(toFetch.map(z => _fetchJSON(z).then(zd => { _zoneCache[z] = (zd && zd.geometry) ? zd.geometry : null; }).catch(() => { _zoneCache[z] = null; })));
+          let n = 0;
+          feats.forEach(f => {
+            const pr = f.properties || {};
+            if (f.geometry) { _mkAlert(f.geometry, pr); n++; return; }
+            const geoms = ((pr.affectedZones) || []).map(z => _zoneCache[z]).filter(Boolean);
+            if (geoms.length) { _mkAlert({ type: 'GeometryCollection', geometries: geoms }, pr); n++; }
+          });
+          const cnt = document.getElementById('monAlertCount'); if (cnt) cnt.textContent = n;
+        } catch (e) { console.warn('[alerts] refresh failed', e); }
+      };
+      if (_alChk) _alChk.addEventListener('change', () => { if (_alChk.checked) map.addLayer(alertLayer); else map.removeLayer(alertLayer); });
+      refreshAlerts();
+      setInterval(() => { const a = document.querySelector('.page[data-page="monitor"]'); if (a && a.classList.contains('active')) refreshAlerts(); }, 5 * 60 * 1000);
+    } catch (e) { console.warn('[alerts] init failed', e); }
+    // ==========================================================================
+
+    // === v183.70: 海嘯威脅 (USGS significant + tsunami 旗標,CORS 直連) —— 整段 try/catch
+    // 平常空的(沒地震海嘯=正常);有大地震觸發海嘯警報時才亮。
+    try {
+      const tsuLayer = L.layerGroup();
+      window.__tsuLayer = tsuLayer;
+      const _tsChk = document.getElementById('monShowTsunami');
+      if (_tsChk && _tsChk.checked) tsuLayer.addTo(map);
+      const _svgTsu = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 15c2 0 2.2-2.5 4.5-2.5S8.8 15 11 15s2.2-2.5 4.5-2.5S17.8 15 20 15"/><path d="M2 19.5c2 0 2.2-2.5 4.5-2.5S8.8 19.5 11 19.5s2.2-2.5 4.5-2.5 2.3 2.5 4.5 2.5"/><path d="M15 11c1.5-1 3-3 2.5-5.5C21 6 22 9 20.5 11"/></svg>';
+      const refreshTsunami = async () => {
+        try {
+          const data = await _fetchJSON('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_month.geojson');
+          if (!data || !data.features) return;
+          tsuLayer.clearLayers();
+          let n = 0;
+          data.features.filter(f => f.properties && f.properties.tsunami === 1).forEach(f => {
+            const c = f.geometry && f.geometry.coordinates; if (!c) return;
+            const pr = f.properties || {};
+            const tm = pr.time ? new Date(pr.time).toLocaleString() : '';
+            const mk = L.marker([c[1], c[0]], { icon: L.divIcon({ className: 'gp-event', html: '<div style="color:#ff3b5c;line-height:0;">' + _svgTsu + '</div>', iconSize: [24, 24], iconAnchor: [12, 12] }) });
+            mk.bindPopup(_gpBox('\u6d77\u562f\u5a01\u8105', [
+              ['\u89f8\u767c\u5730\u9707', (pr.mag != null ? ('M ' + pr.mag) : '')],
+              ['\u5730\u9ede', pr.place || ''],
+              ['\u6642\u9593', tm],
+              ['\u4f86\u6e90', pr.url ? '<a href="' + pr.url + '" target="_blank" style="color:var(--amber,#ff8c00)">USGS \u2197</a>' : '']
+            ]), { className: 'gp-tc-popup' });
+            mk.addTo(tsuLayer); n++;
+          });
+          const cnt = document.getElementById('monTsunamiCount'); if (cnt) cnt.textContent = n;
+        } catch (e) { console.warn('[tsunami] refresh failed', e); }
+      };
+      if (_tsChk) _tsChk.addEventListener('change', () => { if (_tsChk.checked) map.addLayer(tsuLayer); else map.removeLayer(tsuLayer); });
+      refreshTsunami();
+      setInterval(() => { const a = document.querySelector('.page[data-page="monitor"]'); if (a && a.classList.contains('active')) refreshTsunami(); }, 10 * 60 * 1000);
+    } catch (e) { console.warn('[tsunami] init failed', e); }
+    // ==========================================================================
+
+    // === v183.32: NASA EONET 自然事件圖層 (免 key, CORS 直連) ====================
+    // 一個 API 涵蓋 野火/火山/風暴/洪水/海冰;風暴(颱風)另畫歷史軌跡線。
+    // status=open 只取進行中事件,每 10 分鐘更新。
+    const eventLayer = L.layerGroup();
+    window.__eventLayer = eventLayer;
+    if (document.getElementById('monShowEvents')?.checked !== false) eventLayer.addTo(map);
+    // v183.36: 單色向量圖示(currentColor,跟隨類別色)取代卡通 emoji,專業戰術風。
+    const _svgFire  = '<svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M12 2c.6 3 2.6 4.2 2.6 7.6 0 1.3-.7 2.3-1.8 2.8.3-1.7-.6-2.9-1.4-3.4-.1 2.5-2.5 3.1-2.5 5.9A4.9 4.9 0 0 0 17.5 17c0-4.2-3.2-5.3-5.5-15z"/></svg>';
+    const _svgVolc  = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M4 20L8.5 8h3L20 20z"/><circle cx="10" cy="7" r="1.2" fill="currentColor"/></svg>';
+    const _svgStorm = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M13 6a6 6 0 0 1 5 3M11 18a6 6 0 0 1-5-3"/><circle cx="12" cy="12" r="2.4" fill="currentColor" stroke="none"/></svg>';
+    const _svgFlood = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M3 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/></svg>';
+    const _svgIce   = '<svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 2v20M3.3 7l17.4 10M20.7 7L3.3 17"/></svg>';
+    const _svgDot   = '<svg viewBox="0 0 24 24" width="11" height="11"><path fill="currentColor" d="M12 3l8 9-8 9-8-9z"/></svg>';
+    const _EONET_SVG = { wildfires: _svgFire, severeStorms: _svgStorm, volcanoes: _svgVolc, floods: _svgFlood, seaLakeIce: _svgIce };
+    const _EONET_SVG_DEFAULT = _svgDot;
+    const _EONET_STYLE = {
+      wildfires:    { c: '#ff6a00', e: '\ud83d\udd25', n: '野火' },
+      severeStorms: { c: '#22d3ee', e: '\ud83c\udf00', n: '風暴' },
+      volcanoes:    { c: '#ff3b30', e: '\ud83c\udf0b', n: '火山' },
+      floods:       { c: '#3b82f6', e: '\ud83c\udf0a', n: '洪水' },
+      seaLakeIce:   { c: '#a5f3fc', e: '\ud83e\uddca', n: '海冰' },
+      dustHaze:     { c: '#d6b370', e: '\ud83c\udf2b\ufe0f', n: '沙塵' },
+      landslides:   { c: '#a3703c', e: '\u26f0\ufe0f', n: '山崩' },
+    };
+    const _eonetDefault = { c: '#9ca3af', e: '\u2757', n: '事件' };
+    const _asPoint = g => {
+      if (!g || !g.coordinates) return null;
+      if (g.type === 'Point') return [g.coordinates[1], g.coordinates[0]];
+      if (g.type === 'Polygon') { const r = g.coordinates[0]; if (r && r[0]) return [r[0][1], r[0][0]]; }
+      return null;
+    };
+    async function refreshEvents() {
+      try {
+        const data = await _fetchJSON('https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=250');
+        if (!data) throw new Error('no data');
+        eventLayer.clearLayers();
+        let n = 0;
+        (data.events || []).forEach(ev => {
+          const cat = (ev.categories && ev.categories[0] && ev.categories[0].id) || '';
+          const st = _EONET_STYLE[cat] || _eonetDefault;
+          const geoms = (ev.geometry || []).filter(g => g && (g.type === 'Point' || g.type === 'Polygon'));
+          if (!geoms.length) return;
+          const latest = _asPoint(geoms[geoms.length - 1]);
+          if (!latest) return;
+          if (cat === 'severeStorms' && geoms.length > 1) {
+            const pts = geoms.map(_asPoint).filter(Boolean);
+            if (pts.length > 1) L.polyline(pts, { color: st.c, weight: 1.4, opacity: 0.5, dashArray: '4 4' }).addTo(eventLayer);
+          }
+          const _glyph = _EONET_SVG[cat] || _EONET_SVG_DEFAULT;
+          const mk = L.marker(latest, { icon: L.divIcon({
+            className: 'gp-event',
+            html: '<div style="color:' + st.c + ';line-height:0;">' + _glyph + '</div>',
+            iconSize: [20, 20], iconAnchor: [10, 10],
+          }) });
+          const g0 = geoms[geoms.length - 1];
+          const dt = g0.date ? new Date(g0.date).toLocaleString() : '';
+          const magTxt = (g0.magnitudeValue != null) ? (' \u00b7 ' + g0.magnitudeValue + ' ' + (g0.magnitudeUnit || '')) : '';
+          const srcUrl = (ev.sources && ev.sources[0] && ev.sources[0].url) || ev.link;
+          mk.bindPopup(_gpBox(st.n, [
+            ['\u540d\u7a31', ev.title || ''],
+            ['\u6642\u9593', dt],
+            ['\u5f37\u5ea6', (g0.magnitudeValue != null ? (g0.magnitudeValue + ' ' + (g0.magnitudeUnit || '')) : '')],
+            ['\u4f86\u6e90', srcUrl ? '<a href="' + srcUrl + '" target="_blank" style="color:var(--amber,#ff8c00)">\u4f86\u6e90 \u2197</a>' : '']
+          ]), { className: 'gp-tc-popup' });
+          mk.addTo(eventLayer);
+          n++;
+        });
+        const cnt = document.getElementById('monEventsCount'); if (cnt) cnt.textContent = n;
+      } catch (e) { console.warn('[events] refresh failed', e); }
+    }
+    const _evToggle = document.getElementById('monShowEvents');
+    if (_evToggle) _evToggle.addEventListener('change', () => {
+      if (_evToggle.checked) map.addLayer(eventLayer); else map.removeLayer(eventLayer);
+    });
+    refreshEvents();
+    setInterval(() => {
+      const isActive = document.querySelector('.page[data-page="monitor"]')?.classList.contains('active');
+      if (isActive) refreshEvents();
+    }, 10 * 60 * 1000);
+    // ==========================================================================
+
+    // === v183.33: 太空天氣 — 極光帶 (OVATION) + Kp 指數 (NOAA SWPC, 免 key) ========
+    // 極光:只畫高緯 (|lat|>=40) 且亮度>=10 的網格點,綠→黃→紅依強度。預設關,
+    // 開啟時才抓 901K 網格檔。Kp 指數常駐顯示在控制列。
+    const auroraLayer = L.layerGroup();
+    window.__auroraLayer = auroraLayer;
+    const _auroraColor = v => v >= 50 ? '#ff4d4d' : v >= 25 ? '#ffd21e' : '#39ff88';
+    let _auroraLastFetch = 0;
+    async function refreshAurora() {
+      try {
+        _auroraLastFetch = Date.now();
+        const data = await _fetchJSON('https://services.swpc.noaa.gov/json/ovation_aurora_latest.json');
+        if (!data) throw new Error('no data');
+        auroraLayer.clearLayers();
+        (data.coordinates || []).forEach(pt => {
+          const aur = pt[2]; if (aur < 10) return;
+          let lon = pt[0]; if (lon > 180) lon -= 360;
+          const lat = pt[1]; if (Math.abs(lat) < 40) return;
+          const col = _auroraColor(aur);
+          L.circleMarker([lat, lon], {
+            radius: 2.5, stroke: false,
+            fillColor: col, fillOpacity: Math.min(0.6, 0.12 + aur / 100 * 0.5),
+          }).addTo(auroraLayer);
+        });
+      } catch (e) { console.warn('[aurora] refresh failed', e); }
+    }
+    async function refreshKp() {
+      try {
+        const rows = await _fetchJSON('https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json');
+        if (!rows) throw new Error('no data');
+        const last = rows && rows.length ? rows[rows.length - 1] : null;
+        const kp = last ? parseFloat(last[1]) : NaN;
+        const el = document.getElementById('monKpVal');
+        if (el && !isNaN(kp)) {
+          el.textContent = 'Kp ' + kp.toFixed(0);
+          el.style.color = kp >= 6 ? '#ff4d4d' : kp >= 4 ? '#ffd21e' : '#66ff99';
+        }
+      } catch (e) { console.warn('[kp] refresh failed', e); }
+    }
+    const _auToggle = document.getElementById('monShowAurora');
+    if (_auToggle) _auToggle.addEventListener('change', () => {
+      if (_auToggle.checked) { map.addLayer(auroraLayer); if (Date.now() - _auroraLastFetch > 60000) refreshAurora(); }
+      else map.removeLayer(auroraLayer);
+    });
+    refreshKp();
+    setInterval(() => {
+      const isActive = document.querySelector('.page[data-page="monitor"]')?.classList.contains('active');
+      if (isActive) refreshKp();
+    }, 5 * 60 * 1000);
+    setInterval(() => {
+      const isActive = document.querySelector('.page[data-page="monitor"]')?.classList.contains('active');
+      if (isActive && _auToggle && _auToggle.checked) refreshAurora();
+    }, 15 * 60 * 1000);
+    // ==========================================================================
+
+    // === v183.38: GDACS 颱風/熱帶氣旋圖層 (全球, 含西太 JTWC, 免 key) ==============
+    // 先畫「風暴中心」:每個活躍熱帶氣旋一個氣旋符號 + 詳情彈窗。預測軌跡/風圈錐
+    // 為下一階段(需經 Worker 取 GDACS 幾何,並避開 CORS)。
+    const cycloneLayer = L.layerGroup();
+    window.__cycloneLayer = cycloneLayer;
+    if (document.getElementById('monShowCyclone')?.checked !== false) cycloneLayer.addTo(map);
+    const _alertColor = a => a === 'Red' ? '#ff3b5c' : a === 'Orange' ? '#ff8c00' : '#3cf09a';
+    const _svgCyclone = '<svg viewBox="0 0 32 32" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M16 6a10 10 0 0 1 9 6M16 26a10 10 0 0 1-9-6"/><path d="M16 11a5 5 0 0 1 4 3M16 21a5 5 0 0 1-4-3"/><circle cx="16" cy="16" r="2" fill="currentColor" stroke="none"/></svg>';
+    // v183.40: Chaikin 角切平滑 — GDACS 風圈多邊形頂點少、看起來鋸齒,磨成圓弧。
+    function _smoothRing(ring, iters) {
+      let pts = ring.slice();
+      if (pts.length > 3 && pts[0][0] === pts[pts.length - 1][0] && pts[0][1] === pts[pts.length - 1][1]) pts = pts.slice(0, -1);
+      for (let it = 0; it < (iters || 2); it++) {
+        const out = [], n = pts.length;
+        for (let i = 0; i < n; i++) {
+          const a = pts[i], b = pts[(i + 1) % n];
+          out.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25]);
+          out.push([a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]);
+        }
+        pts = out;
+      }
+      return pts;
+    }
+    async function refreshCyclones() {
+      try {
+        const data = await _fetchJSON('https://www.gdacs.org/gdacsapi/api/Events/geteventlist/EVENTS4APP');
+        if (!data) throw new Error('no data');
+        cycloneLayer.clearLayers();
+        const tcs = (data.features || []).filter(f => f.properties && f.properties.eventtype === 'TC');
+        // ── 共用小工具 ──
+        const _fmtT = d => { try { return d.toLocaleString('zh-TW', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }); } catch (e) { return d.toLocaleString(); } };
+        const _basin = (lat, lon) => { let L = lon; while (L > 180) L -= 360; while (L < -180) L += 360; if (lat >= 0) { if (L >= 100 && L < 180) return 'WP'; if (L < -100) return 'EP'; if (L >= -100 && L < -30) return 'NA'; if (L >= 30 && L < 100) return 'NI'; } else { if (L >= 30 && L < 135) return 'SI'; if (L >= 135 || L < -70) return 'SP'; } return '-'; };
+        const _tcBox = o => { const rows = [['\u98a8\u66b4', o.name], ['\u6642\u9593', o.time], ['\u9810\u4f30', o.lead], ['\u6d77\u76c6', o.basin], ['\u5206\u985e', o.cat], ['\u98a8\u901f', o.wind], ['\u4f4d\u7f6e', o.pos], ['GDACS \u66f4\u65b0', o.gdacs], ['\u672c\u6a5f\u5237\u65b0', o.upd]]; let h = '<div class="gp-tc-title">\u98a8\u66b4\u9810\u6e2c</div><table class="gp-tc-tbl">'; rows.forEach(r => { if (r[1]) h += '<tr><td class="k">' + r[0] + '</td><td class="v">' + r[1] + '</td></tr>'; }); return h + '</table>'; };
+        const _mkDate = v => { if (v == null) return null; const d = new Date(v); if (!isNaN(d.getTime()) && d.getFullYear() >= 2015 && d.getFullYear() <= 2100) return d; return null; };
+        const _pickDate = p => { for (const k of ['trackdate', 'polygondate', 'forecastdate', 'datetime', 'date', 'validtime', 'dtg', 'todate', 'fromdate']) { const d = _mkDate(p[k]); if (d) return d; } for (const k of ['polygonlabel', 'description', 'name', 'Class']) { if (typeof p[k] === 'string') { const d = _mkDate(p[k]); if (d) return d; } } return null; };
+        const _hav = (a, b) => { const toR = Math.PI / 180, x = (b.lon - a.lon) * toR * Math.cos((a.lat + b.lat) / 2 * toR), y = (b.lat - a.lat) * toR; return Math.sqrt(x * x + y * y) * 6371; };
+        const _meta = tcs.map(f => { const pr = f.properties || {}, sev = pr.severitydata || {}; let cat = sev.severitytext || ''; if (cat) cat = cat.split('(')[0].split('>')[0].trim(); const wind = (sev.severity != null && !isNaN(parseFloat(sev.severity))) ? (Math.round(parseFloat(sev.severity)) + ' ' + (sev.severityunit || 'km/h')) : ''; return { pr: pr, col: _alertColor(pr.alertlevel), nm: pr.name || pr.eventname || 'Cyclone', cat: cat, wind: wind, dm: pr.datemodified, c: f.geometry && f.geometry.coordinates }; });
+        // ── 階段1:立即畫中心點(不等幾何,秒出) ──
+        let n = 0;
+        _meta.forEach(m => {
+          if (!m.c) return;
+          const lon = m.c[0], lat = m.c[1];
+          const mk = L.marker([lat, lon], { icon: L.divIcon({ className: 'gp-event', html: '<div style="color:' + m.col + ';line-height:0;">' + _svgCyclone + '</div>', iconSize: [26, 26], iconAnchor: [13, 13] }) });
+          const _now = new Date();
+          mk.bindPopup(_tcBox({ name: m.nm, time: _fmtT(m.pr.todate ? new Date(m.pr.todate) : _now), lead: '\u73fe\u5728', basin: _basin(lat, lon), cat: m.cat, wind: m.wind, pos: lat.toFixed(1) + ', ' + lon.toFixed(1), gdacs: (m.dm ? _fmtT(new Date(m.dm)) : ''), upd: _fmtT(_now) }), { className: 'gp-tc-popup' });
+          mk.addTo(cycloneLayer);
+          n++;
+        });
+        const cnt = document.getElementById('monCycloneCount'); if (cnt) cnt.textContent = n;
+        // ── 階段2:並行抓幾何,逐一補上預報錐(日期分組,消除重複標籤) ──
+        const _geos = await Promise.all(tcs.map(f => { const g = f.properties && f.properties.url && f.properties.url.geometry; return g ? _fetchJSON(g).then(r => ({ ok: true, geo: r })).catch(e => ({ ok: false })) : Promise.resolve({ ok: true, geo: null }); }));
+        _meta.forEach((m, ti) => {
+          const gr = _geos[ti]; const geo = (gr && gr.ok) ? gr.geo : null;
+          if (!geo || !geo.features) return;
+          const c = m.c, nm = m.nm, cat = m.cat, wind = m.wind;
+          const _pts = [], _polys = []; let _trackGeo = null, _trackCoords = null;
+          geo.features.forEach(gf => {
+            const gt = gf.geometry && gf.geometry.type; if (!gt) return;
+            if (gt === 'Point') { const pc = gf.geometry.coordinates; if (pc) _pts.push({ lat: pc[1], lon: pc[0], p: gf.properties || {} }); }
+            else if (gt === 'LineString') { if (!_trackGeo) { _trackGeo = gf; _trackCoords = gf.geometry.coordinates; } }
+            else if (gt === 'MultiLineString') { if (!_trackGeo) { _trackGeo = gf; _trackCoords = gf.geometry.coordinates.reduce((a, b) => a.length >= b.length ? a : b, []); } }
+            else if (gt === 'Polygon') { _polys.push({ rings: gf.geometry.coordinates, p: gf.properties || {} }); }
+            else if (gt === 'MultiPolygon') { gf.geometry.coordinates.forEach(pp => _polys.push({ rings: pp, p: gf.properties || {} })); }
+          });
+          const _raw = [];
+          _polys.forEach(pl => {
+            const ring = pl.rings && pl.rings[0]; if (!ring || ring.length < 4) return;
+            let sx = 0, sy = 0; ring.forEach(c2 => { sx += c2[0]; sy += c2[1]; }); const cx = sx / ring.length, cy = sy / ring.length;
+            let rs = 0; ring.forEach(c2 => { rs += _hav({ lat: cy, lon: cx }, { lat: c2[1], lon: c2[0] }); }); const r = rs / ring.length;
+            if (!(r > 0) || r > 900) return;
+            _raw.push({ lat: cy, lon: cx, r: r, date: _pickDate(pl.p), p: pl.p });
+          });
+          // 依「日期」分組:同一預報時刻只留一顆(圓心取平均、半徑取最大)→ 消除重複標籤
+          let _circles = [];
+          if (_raw.filter(o => o.date).length >= 2) {
+            // 同一預報時刻只留「最外圈那顆」(半徑最大):它的圓心才是該時刻的預報位置;象限小圈質心偏位,捨棄
+            const g = {};
+            _raw.forEach(o => { if (!o.date) return; const key = 'd' + Math.round(o.date.getTime() / 3600000); if (!g[key] || o.r > g[key].r) g[key] = { lat: o.lat, lon: o.lon, r: o.r, date: o.date, p: o.p }; });
+            _circles = Object.keys(g).map(k => g[k]).sort((a, b) => a.date - b.date);
+          } else {
+            _raw.forEach(o => { let mg = false; for (const cc of _circles) { if (_hav(cc, o) < 55) { if (o.r > cc.r) { cc.r = o.r; cc.p = o.p; } mg = true; break; } } if (!mg) _circles.push(o); });
+          }
+          _pts.forEach(o => { o.date = _pickDate(o.p); });
+          let _centers = [];
+          if (_pts.length >= 3) { if (_pts.every(o => o.date)) _pts.sort((a, b) => a.date - b.date); _centers = _pts.map(o => ({ lat: o.lat, lon: o.lon, date: o.date, r: null, p: o.p })); }
+          else if (_circles.length >= 2) { if (_circles.every(o => o.date)) _circles.sort((a, b) => a.date - b.date); else if (c) _circles.sort((a, b) => _hav({ lat: c[1], lon: c[0] }, a) - _hav({ lat: c[1], lon: c[0] }, b)); if (_circles.length > 14) { const st = _circles.length / 14, s2 = []; for (let k = 0; k < 14; k++) s2.push(_circles[Math.floor(k * st)]); _circles = s2; } _centers = _circles; }
+          else if (_trackCoords && _trackCoords.length >= 2) { _centers = _trackCoords.map(pc => ({ lat: pc[1], lon: pc[0], date: null, r: null })); }
+          else if (_circles.length === 1) { _centers = _circles; }
+          if (!_centers.length) return;
+          const _anyDate = _centers.some(o => o.date), _nowMs = Date.now();
+          let _fi; if (!_anyDate) { _fi = 0; } else { _fi = _centers.findIndex(o => o.date && o.date.getTime() >= _nowMs); if (_fi < 0) _fi = _centers.length; }
+          // 歷史軌跡(已知路徑):實線、較暗、不畫不確定圓
+          if (_fi > 1) L.polyline(_centers.slice(0, _fi).map(o => [o.lat, o.lon]), { color: '#c7ced6', weight: 1.4, opacity: 0.55, interactive: false }).addTo(cycloneLayer);
+          // 預報軌跡:白虛線(接上最後一個歷史點)
+          const _fSeg = _centers.slice(Math.max(0, _fi - 1));
+          if (_fSeg.length > 1) L.polyline(_fSeg.map(o => [o.lat, o.lon]), { color: '#ffffff', weight: 1.7, opacity: 0.9, dashArray: '6 4', interactive: false }).addTo(cycloneLayer);
+          const _cum = [0]; for (let k = 1; k < _centers.length; k++) _cum.push(_cum[k - 1] + _hav(_centers[k - 1], _centers[k]));
+          const _total = _cum[_cum.length - 1] || 1;
+          const _rEnd = Math.max(200, Math.min(560, _total * 0.42)), _rStart = Math.min(75, _rEnd * 0.28);
+          _centers.forEach((o, i) => {
+            const isFut = _anyDate ? (o.date && o.date.getTime() >= _nowMs) : true;
+            // 半徑一律用「沿軌跡由小到大的合成成長」:古→今→未來必為小到大,永不反向;每顆颱風都有完整錐
+            const rKm = _rStart + (_rEnd - _rStart) * (_cum[i] / _total);
+            if (rKm > 0) L.circle([o.lat, o.lon], { radius: rKm * 1000, color: '#ffd76b', weight: 1, opacity: 0.5, fillColor: '#f2c14e', fillOpacity: 0.10, interactive: false }).addTo(cycloneLayer);
+            const _dot = L.circleMarker([o.lat, o.lon], { radius: isFut ? 3.4 : 2.8, color: isFut ? '#ff9f1c' : '#9fb0c0', weight: 1.3, fillColor: isFut ? '#ffcf6b' : '#c7ced6', fillOpacity: 1, interactive: true, bubblingMouseEvents: false });
+            if (o.date) { const _hh = String(o.date.getHours()).padStart(2, '0'), _mm = String(o.date.getMinutes()).padStart(2, '0'); _dot.bindTooltip((o.date.getMonth() + 1) + '\u6708' + o.date.getDate() + '\u65e5<br>' + _hh + ':' + _mm, { permanent: true, direction: 'top', className: 'gp-tc-label', offset: [0, -4], opacity: 1 }); }
+            const _lead = o.date ? Math.round((o.date.getTime() - Date.now()) / 3600000) : null;
+            _dot.bindPopup(_tcBox({ name: nm, time: o.date ? _fmtT(o.date) : '', lead: (_lead != null ? ((_lead >= 0 ? '+' : '') + _lead + 'h') : ''), basin: _basin(o.lat, o.lon), cat: cat, wind: wind, pos: o.lat.toFixed(1) + ', ' + o.lon.toFixed(1), gdacs: (m.dm ? _fmtT(new Date(m.dm)) : ''), upd: _fmtT(new Date()) }), { className: 'gp-tc-popup' });
+            _dot.addTo(cycloneLayer);
+          });
+        });
+      } catch (e) { console.warn('[cyclones] refresh failed', e); }
+    }
+    const _tcToggle = document.getElementById('monShowCyclone');
+    if (_tcToggle) _tcToggle.addEventListener('change', () => {
+      if (_tcToggle.checked) map.addLayer(cycloneLayer); else map.removeLayer(cycloneLayer);
+    });
+    // v183.53: 縮放門檻 — 放大到 zoom≥5 才顯示預報點日期標籤
+    const _tcZoomGate = () => { try { map.getContainer().classList.toggle('gp-tc-zoomed', map.getZoom() >= 5); } catch (e) {} };
+    map.on('zoomend', _tcZoomGate); _tcZoomGate();
+    // v183.61: 無限世界複製 — 不用 worldCopyJump(會閃),改成把所有標記/軌跡即時搬到目前所在的那圈世界。
+    // 逐層依目前地圖中心經度,把每個圖徵移到最近的 360° 複製;自我校正,可無限左右滑動而資料一直在。
+    const _wrapWorld = () => {
+      try {
+        const cen = map.getCenter().lng;
+        map.eachLayer(l => {
+          if (l.getLatLng && l.setLatLng) {
+            const p = l.getLatLng(); const t = p.lng - Math.round((p.lng - cen) / 360) * 360;
+            if (Math.abs(t - p.lng) > 1e-6) l.setLatLng([p.lat, t]);
+          } else if (l.getLatLngs && l.setLatLngs) {
+            const lls = l.getLatLngs(); const flat = []; const collect = a => a.forEach(x => Array.isArray(x) ? collect(x) : (x && x.lng !== undefined && flat.push(x))); collect(lls);
+            if (!flat.length) return;
+            const d = -Math.round((flat[0].lng - cen) / 360) * 360;
+            if (Math.abs(d) > 1e-6) { const sh = a => a.map(x => Array.isArray(x) ? sh(x) : [x.lat, x.lng + d]); l.setLatLngs(sh(lls)); }
+          }
+        });
+      } catch (e) {}
+    };
+    map.on('moveend', _wrapWorld);
+    setInterval(_wrapWorld, 2000);
+    refreshCyclones();
+    setInterval(() => {
+      const isActive = document.querySelector('.page[data-page="monitor"]')?.classList.contains('active');
+      if (isActive) refreshCyclones();
+    }, 5 * 60 * 1000);
+    // v183.66: 切回分頁/視窗時立刻重抓一次,確保位置/時間/新預報第一時間更新
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        const a = document.querySelector('.page[data-page="monitor"]');
+        if (a && a.classList.contains('active')) { try { refreshCyclones(); } catch (e) {} }
+      }
+    });
+    // ==========================================================================
   };
 })();
 
