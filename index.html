@@ -3186,7 +3186,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.72</b></div>
+        <div>BUILD <b>v183.73</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -8209,7 +8209,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       };
       const refreshAlerts = async () => {
         try {
-          const data = await _fetchJSON(_nws('https://api.weather.gov/alerts/active?status=actual&message_type=alert&limit=500'));
+          const data = await _fetchJSON(_nws('https://api.weather.gov/alerts/active?status=actual&message_type=alert'));
           if (!data || !data.features) return;
           alertLayer.clearLayers();
           const feats = data.features;
