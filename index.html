@@ -2629,7 +2629,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
 .leaflet-popup.gp-tc-popup table.gp-tc-tbl{border-collapse:collapse;font-size:11px;}
 .leaflet-popup.gp-tc-popup table.gp-tc-tbl td{padding:1px 0;vertical-align:top;line-height:1.5;}
 .leaflet-popup.gp-tc-popup table.gp-tc-tbl td.k{color:var(--amber,#ff8c00);padding-right:16px;white-space:nowrap;}
-.leaflet-popup.gp-tc-popup table.gp-tc-tbl td.v{color:#e8e2d6;white-space:nowrap;}
+.leaflet-popup.gp-tc-popup table.gp-tc-tbl td.v{color:#e8e2d6;white-space:normal;word-break:break-word;}
 #monMap .aircraft-marker{background:transparent;border:none;}
 #monMap .ship-marker{background:transparent;border:none;}
 #monMap .ship-tooltip{
@@ -3186,7 +3186,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.73</b></div>
+        <div>BUILD <b>v183.74</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -8201,9 +8201,11 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         const ev = pr.event || 'Alert';
         const gj = L.geoJSON(geom, { style: { color: col, weight: 1, opacity: 0.7, fillColor: col, fillOpacity: 0.10 } });
         gj.bindPopup(_gpBox(ev, [
-          ['\u56b4\u91cd\u5ea6', '<span style="color:' + col + ';font-weight:700">' + (sev || '-') + '</span>'],
-          ['\u5730\u5340', (pr.areaDesc || '').slice(0, 70)],
-          ['\u8aaa\u660e', pr.headline ? pr.headline.slice(0, 90) : '']
+          ['\u56b4\u91cd\u5ea6', (sev && sev !== 'Unknown') ? '<span style="color:' + col + ';font-weight:700">' + sev + '</span>' : ''],
+          ['\u5730\u5340', (pr.areaDesc || '').slice(0, 120)],
+          ['\u5230\u671f', pr.expires ? new Date(pr.expires).toLocaleString('zh-TW') : ''],
+          ['\u8aaa\u660e', (pr.headline || '').slice(0, 140)],
+          ['\u4f86\u6e90', pr.senderName || '']
         ]), { className: 'gp-tc-popup' });
         gj.addTo(alertLayer);
       };
