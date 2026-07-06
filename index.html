@@ -2620,7 +2620,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
 .leaflet-container:not(.gp-tc-zoomed) .leaflet-tooltip.gp-tc-label{display:none!important;}
 /* v183.52: 颱風 popup — 黑底橘框橘字,配終端機風格 */
 .leaflet-popup.gp-tc-popup .leaflet-popup-content-wrapper{background:#050607!important;border:1px solid var(--amber,#ff8c00)!important;border-radius:2px!important;box-shadow:0 0 0 1px rgba(255,140,0,0.15),0 6px 24px rgba(0,0,0,0.6)!important;color:var(--amber-bright,#ffa500)!important;}
-.leaflet-popup.gp-tc-popup .leaflet-popup-content{margin:9px 12px!important;font-family:var(--font-mono,ui-monospace,monospace)!important;font-size:11px!important;line-height:1.5!important;color:var(--amber-bright,#ffa500)!important;}
+.leaflet-popup.gp-tc-popup .leaflet-popup-content{margin:9px 12px!important;font-family:var(--font-mono,ui-monospace,monospace)!important;font-size:11px!important;line-height:1.5!important;color:var(--amber-bright,#ffa500)!important;min-width:172px;max-width:300px;}
 .leaflet-popup.gp-tc-popup .leaflet-popup-tip{background:#050607!important;border:1px solid var(--amber,#ff8c00)!important;box-shadow:none!important;}
 .leaflet-popup.gp-tc-popup a.leaflet-popup-close-button{color:var(--amber,#ff8c00)!important;top:4px!important;right:4px!important;}
 .leaflet-popup.gp-tc-popup .leaflet-popup-close-button:hover{color:var(--amber-bright,#ffa500)!important;}
@@ -2628,8 +2628,9 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
 .leaflet-popup.gp-tc-popup .gp-tc-title{color:var(--amber-bright,#ffa500);font-weight:700;font-size:12px;letter-spacing:2px;margin:0 0 6px;}
 .leaflet-popup.gp-tc-popup table.gp-tc-tbl{border-collapse:collapse;font-size:11px;}
 .leaflet-popup.gp-tc-popup table.gp-tc-tbl td{padding:1px 0;vertical-align:top;line-height:1.5;}
-.leaflet-popup.gp-tc-popup table.gp-tc-tbl td.k{color:var(--amber,#ff8c00);padding-right:16px;white-space:nowrap;}
-.leaflet-popup.gp-tc-popup table.gp-tc-tbl td.v{color:#e8e2d6;white-space:normal;word-break:break-word;}
+.leaflet-popup.gp-tc-popup table.gp-tc-tbl{width:100%;}
+.leaflet-popup.gp-tc-popup table.gp-tc-tbl td.k{color:var(--amber,#ff8c00);padding-right:16px;white-space:nowrap;vertical-align:top;width:1%;}
+.leaflet-popup.gp-tc-popup table.gp-tc-tbl td.v{color:#e8e2d6;white-space:normal;word-break:normal;overflow-wrap:anywhere;}
 #monMap .aircraft-marker{background:transparent;border:none;}
 #monMap .ship-marker{background:transparent;border:none;}
 #monMap .ship-tooltip{
@@ -3186,7 +3187,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.74</b></div>
+        <div>BUILD <b>v183.75</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
