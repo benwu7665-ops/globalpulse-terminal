@@ -3186,7 +3186,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.71</b></div>
+        <div>BUILD <b>v183.72</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -8190,6 +8190,8 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
     try {
       const alertLayer = L.layerGroup();
       window.__alertLayer = alertLayer;
+      // v183.72: NWS 走 Worker 代理(api.weather.gov 不接受瀏覽器直連)
+      const _nws = u => 'https://ais-proxy.2syzkjy2vq.workers.dev/nws?u=' + encodeURIComponent(u);
       const _alChk = document.getElementById('monShowAlerts');
       if (_alChk && _alChk.checked) alertLayer.addTo(map);
       const _zoneCache = {};   // v183.71: zone URL -> \u5e7e\u4f55(\u6216 null),\u8de8\u5237\u65b0\u5feb\u53d6
@@ -8207,7 +8209,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       };
       const refreshAlerts = async () => {
         try {
-          const data = await _fetchJSON('https://api.weather.gov/alerts/active?status=actual&message_type=alert&limit=500');
+          const data = await _fetchJSON(_nws('https://api.weather.gov/alerts/active?status=actual&message_type=alert&limit=500'));
           if (!data || !data.features) return;
           alertLayer.clearLayers();
           const feats = data.features;
@@ -8215,7 +8217,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
           const need = new Set();
           feats.forEach(f => { if (f.geometry) return; ((f.properties && f.properties.affectedZones) || []).forEach(z => { if (!(z in _zoneCache)) need.add(z); }); });
           const toFetch = Array.from(need).slice(0, 120);
-          await Promise.all(toFetch.map(z => _fetchJSON(z).then(zd => { _zoneCache[z] = (zd && zd.geometry) ? zd.geometry : null; }).catch(() => { _zoneCache[z] = null; })));
+          await Promise.all(toFetch.map(z => _fetchJSON(_nws(z)).then(zd => { _zoneCache[z] = (zd && zd.geometry) ? zd.geometry : null; }).catch(() => { _zoneCache[z] = null; })));
           let n = 0;
           feats.forEach(f => {
             const pr = f.properties || {};
