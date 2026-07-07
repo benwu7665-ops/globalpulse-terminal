@@ -3187,7 +3187,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.75</b></div>
+        <div>BUILD <b>v183.76</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -8103,6 +8103,9 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
     }
     // v183.69: 共用方框(黑底橘框兩欄式,所有圖層 popup 統一)
     const _gpBox = (title, rows) => { let h = '<div class="gp-tc-title">' + title + '</div><table class="gp-tc-tbl">'; rows.forEach(r => { if (r[1] != null && r[1] !== '') h += '<tr><td class="k">' + r[0] + '</td><td class="v">' + r[1] + '</td></tr>'; }); return h + '</table>'; };
+    // v183.76: 可枚舉英文詞→中文字典(自由文字如地名/說明不在此,維持來源英文)
+    const _TW = {'Extreme':'極端','Severe':'嚴重','Moderate':'中等','Minor':'輕微','Tropical Cyclone':'熱帶氣旋','Tropical Storm':'熱帶風暴','Tropical Depression':'熱帶低壓','Severe Tropical Storm':'強烈熱帶風暴','Typhoon':'颱風','Super Typhoon':'超級颱風','Very Strong Typhoon':'非常強颱','Hurricane':'颶風','Hurricane/Typhoon':'颶風/颱風','Post-Tropical Cyclone':'溫帶氣旋','Air Quality Alert':'空氣品質警報','Heat Advisory':'高溫警示','Heat Warning':'高溫警報','Excessive Heat Warning':'極端高溫警報','Excessive Heat Watch':'極端高溫守視','Flood Watch':'洪水守視','Flood Warning':'洪水警報','Flood Advisory':'洪水警示','Flood Statement':'洪水聲明','Flash Flood Warning':'暴洪警報','Flash Flood Watch':'暴洪守視','Coastal Flood Warning':'沿海洪水警報','Coastal Flood Advisory':'沿海洪水警示','Coastal Flood Watch':'沿海洪水守視','Lakeshore Flood Advisory':'湖岸洪水警示','Hydrologic Outlook':'水文展望','Severe Thunderstorm Warning':'強雷暴警報','Severe Thunderstorm Watch':'強雷暴守視','Tornado Warning':'龍捲風警報','Tornado Watch':'龍捲風守視','Special Weather Statement':'特別天氣聲明','Special Marine Warning':'特別海上警報','Marine Weather Statement':'海上天氣聲明','Small Craft Advisory':'小型船隻警示','Gale Warning':'大風警報','Storm Warning':'風暴警報','High Wind Warning':'強風警報','High Wind Watch':'強風守視','Wind Advisory':'風力警示','Winter Storm Warning':'冬季風暴警報','Winter Storm Watch':'冬季風暴守視','Winter Weather Advisory':'冬季天氣警示','Ice Storm Warning':'冰暴警報','Blizzard Warning':'暴風雪警報','Freeze Warning':'冰凍警報','Freeze Watch':'冰凍守視','Frost Advisory':'霜凍警示','Wind Chill Advisory':'風寒警示','Wind Chill Warning':'風寒警報','Extreme Cold Warning':'極端低溫警報','Avalanche Warning':'雪崩警報','Avalanche Watch':'雪崩守視','Red Flag Warning':'火災天氣警報','Fire Weather Watch':'火災天氣守視','Dense Fog Advisory':'濃霧警示','Dense Smoke Advisory':'濃煙警示','Air Stagnation Advisory':'空氣停滯警示','Dust Storm Warning':'塵暴警報','Blowing Dust Advisory':'揚塵警示','Rip Current Statement':'離岸流聲明','High Surf Advisory':'高浪警示','High Surf Warning':'高浪警報','Beach Hazards Statement':'海灘危險聲明','Hurricane Warning':'颶風警報','Hurricane Watch':'颶風守視','Tropical Storm Warning':'熱帶風暴警報','Tropical Storm Watch':'熱帶風暴守視','Storm Surge Warning':'風暴潮警報','Storm Surge Watch':'風暴潮守視'};
+    const _tw = v => (v && _TW[v]) || v || '';
     async function refreshQuakes() {
       try {
         const data = await _fetchJSON('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson');
@@ -8201,8 +8204,8 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         const col = sev === 'Extreme' ? '#ff3b5c' : sev === 'Severe' ? '#ff8c00' : sev === 'Moderate' ? '#ffd21e' : '#8ab4ff';
         const ev = pr.event || 'Alert';
         const gj = L.geoJSON(geom, { style: { color: col, weight: 1, opacity: 0.7, fillColor: col, fillOpacity: 0.10 } });
-        gj.bindPopup(_gpBox(ev, [
-          ['\u56b4\u91cd\u5ea6', (sev && sev !== 'Unknown') ? '<span style="color:' + col + ';font-weight:700">' + sev + '</span>' : ''],
+        gj.bindPopup(_gpBox(_tw(ev), [
+          ['\u56b4\u91cd\u5ea6', (sev && sev !== 'Unknown') ? '<span style="color:' + col + ';font-weight:700">' + _tw(sev) + '</span>' : ''],
           ['\u5730\u5340', (pr.areaDesc || '').slice(0, 120)],
           ['\u5230\u671f', pr.expires ? new Date(pr.expires).toLocaleString('zh-TW') : ''],
           ['\u8aaa\u660e', (pr.headline || '').slice(0, 140)],
@@ -8444,7 +8447,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         const _mkDate = v => { if (v == null) return null; const d = new Date(v); if (!isNaN(d.getTime()) && d.getFullYear() >= 2015 && d.getFullYear() <= 2100) return d; return null; };
         const _pickDate = p => { for (const k of ['trackdate', 'polygondate', 'forecastdate', 'datetime', 'date', 'validtime', 'dtg', 'todate', 'fromdate']) { const d = _mkDate(p[k]); if (d) return d; } for (const k of ['polygonlabel', 'description', 'name', 'Class']) { if (typeof p[k] === 'string') { const d = _mkDate(p[k]); if (d) return d; } } return null; };
         const _hav = (a, b) => { const toR = Math.PI / 180, x = (b.lon - a.lon) * toR * Math.cos((a.lat + b.lat) / 2 * toR), y = (b.lat - a.lat) * toR; return Math.sqrt(x * x + y * y) * 6371; };
-        const _meta = tcs.map(f => { const pr = f.properties || {}, sev = pr.severitydata || {}; let cat = sev.severitytext || ''; if (cat) cat = cat.split('(')[0].split('>')[0].trim(); const wind = (sev.severity != null && !isNaN(parseFloat(sev.severity))) ? (Math.round(parseFloat(sev.severity)) + ' ' + (sev.severityunit || 'km/h')) : ''; return { pr: pr, col: _alertColor(pr.alertlevel), nm: pr.name || pr.eventname || 'Cyclone', cat: cat, wind: wind, dm: pr.datemodified, c: f.geometry && f.geometry.coordinates }; });
+        const _meta = tcs.map(f => { const pr = f.properties || {}, sev = pr.severitydata || {}; let cat = sev.severitytext || ''; if (cat) cat = _tw(cat.split('(')[0].split('>')[0].trim()); const wind = (sev.severity != null && !isNaN(parseFloat(sev.severity))) ? (Math.round(parseFloat(sev.severity)) + ' ' + (sev.severityunit || 'km/h')) : ''; return { pr: pr, col: _alertColor(pr.alertlevel), nm: (pr.name || pr.eventname || 'Cyclone').replace('Tropical Cyclone', '熱帶氣旋'), cat: cat, wind: wind, dm: pr.datemodified, c: f.geometry && f.geometry.coordinates }; });
         // ── 階段1:立即畫中心點(不等幾何,秒出) ──
         let n = 0;
         _meta.forEach(m => {
