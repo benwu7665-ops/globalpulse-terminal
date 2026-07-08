@@ -3187,7 +3187,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.76</b></div>
+        <div>BUILD <b>v183.77</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -5096,6 +5096,16 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
           <input type="checkbox" id="monShowTsunami" checked style="cursor:pointer;">
           <span class="t-zh">海嘯</span><span class="t-en">Tsunami</span>
           <span id="monTsunamiCount" style="color:#ff3b5c;font-weight:700;margin-left:4px;">0</span>
+        </label>
+        <label style="color:#ccc;cursor:pointer;display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="monShowStraits" checked style="cursor:pointer;">
+          <span class="t-zh">咽喉點</span><span class="t-en">Chokepoints</span>
+          <span id="monStraitsCount" style="color:#c792ea;font-weight:700;margin-left:4px;">0</span>
+        </label>
+        <label style="color:#ccc;cursor:pointer;display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="monShowLaunch" checked style="cursor:pointer;">
+          <span class="t-zh">火箭發射</span><span class="t-en">Launches</span>
+          <span id="monLaunchCount" style="color:#82e0ff;font-weight:700;margin-left:4px;">0</span>
         </label>
       </div>
       <script>window.toggleMonLayers=function(){var p=document.getElementById('monLayerPanel');if(p)p.style.display=(p.style.display==='none'||!p.style.display)?'block':'none';};</script>
@@ -8274,6 +8284,70 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       refreshTsunami();
       setInterval(() => { const a = document.querySelector('.page[data-page="monitor"]'); if (a && a.classList.contains('active')) refreshTsunami(); }, 10 * 60 * 1000);
     } catch (e) { console.warn('[tsunami] init failed', e); }
+    // ==========================================================================
+
+    // === v183.77: 海峽咽喉點(靜態,重用地球頁座標) —— 整段 try/catch
+    try {
+      const straitLayer = L.layerGroup();
+      window.__straitLayer = straitLayer;
+      const _stChk = document.getElementById('monShowStraits');
+      if (_stChk && _stChk.checked) straitLayer.addTo(map);
+      const _svgStrait = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/></svg>';
+      const _STRAITS = [
+        { n:'HORMUZ', z:'霍爾木茲海峽', lat:26.42, lon:56.35 },{ n:'BAB EL-MANDEB', z:'曼德海峽', lat:12.52, lon:43.38 },
+        { n:'MALACCA', z:'馬六甲海峽', lat:2.88, lon:100.60 },{ n:'SUEZ', z:'蘇伊士運河', lat:30.30, lon:32.55 },
+        { n:'PANAMA', z:'巴拿馬運河', lat:9.15, lon:-79.55 },{ n:'GIBRALTAR', z:'直布羅陀海峽', lat:35.95, lon:-5.50 },
+        { n:'BOSPORUS', z:'博斯普魯斯海峽', lat:41.10, lon:29.07 },{ n:'TAIWAN STRAIT', z:'台灣海峽', lat:24.55, lon:120.15 },
+        { n:'DOVER', z:'多佛海峽', lat:50.95, lon:1.60 },{ n:'BERING', z:'白令海峽', lat:65.50, lon:-168.70 },
+        { n:'BASHI', z:'巴士海峽', lat:21.50, lon:121.42 },{ n:'MIYAKO', z:'宮古海峽', lat:24.65, lon:125.38 },
+        { n:'TSUSHIMA', z:'對馬海峽', lat:34.30, lon:129.50 },{ n:'SUNDA', z:'巽他海峽', lat:-6.15, lon:105.88 },
+        { n:'LOMBOK', z:'龍目海峽', lat:-8.50, lon:115.75 },{ n:'DARDANELLES', z:'達達尼爾海峽', lat:40.10, lon:26.40 },
+        { n:'CAPE OF GOOD HOPE', z:'好望角', lat:-34.40, lon:18.45 },{ n:'MOZAMBIQUE', z:'莫三比克海峽', lat:-20.00, lon:42.50 },
+        { n:'MAGELLAN', z:'麥哲倫海峽', lat:-53.00, lon:-70.75 }
+      ];
+      _STRAITS.forEach(o => {
+        const mk = L.marker([o.lat, o.lon], { icon: L.divIcon({ className: 'gp-event', html: '<div style="color:#c792ea;line-height:0;">' + _svgStrait + '</div>', iconSize: [15, 15], iconAnchor: [7, 7] }) });
+        mk.bindPopup(_gpBox('咽喉點', [ ['名稱', o.z], ['英文', o.n], ['位置', o.lat.toFixed(1) + ', ' + o.lon.toFixed(1)] ]), { className: 'gp-tc-popup' });
+        mk.addTo(straitLayer);
+      });
+      const _stc = document.getElementById('monStraitsCount'); if (_stc) _stc.textContent = _STRAITS.length;
+      if (_stChk) _stChk.addEventListener('change', () => { if (_stChk.checked) map.addLayer(straitLayer); else map.removeLayer(straitLayer); });
+    } catch (e) { console.warn('[straits] init failed', e); }
+    // ==========================================================================
+
+    // === v183.77: 火箭發射 Launch Library 2 (CORS 直連) —— 整段 try/catch
+    try {
+      const launchLayer = L.layerGroup();
+      window.__launchLayer = launchLayer;
+      const _lnChk = document.getElementById('monShowLaunch');
+      if (_lnChk && _lnChk.checked) launchLayer.addTo(map);
+      const _svgLaunch = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>';
+      const refreshLaunch = async () => {
+        try {
+          const data = await _fetchJSON('https://ll.thespacedevs.com/2.2.0/launch/upcoming/?limit=30&hide_recent_previous=true');
+          if (!data || !data.results) return;
+          launchLayer.clearLayers();
+          let n = 0;
+          data.results.forEach(lr => {
+            const pad = lr.pad || {}; const lat = parseFloat(pad.latitude), lon = parseFloat(pad.longitude);
+            if (isNaN(lat) || isNaN(lon)) return;
+            const net = lr.net ? new Date(lr.net).toLocaleString('zh-TW') : '';
+            const mk = L.marker([lat, lon], { icon: L.divIcon({ className: 'gp-event', html: '<div style="color:#82e0ff;line-height:0;">' + _svgLaunch + '</div>', iconSize: [18, 18], iconAnchor: [9, 9] }) });
+            mk.bindPopup(_gpBox('火箭發射', [
+              ['任務', lr.name || ''],
+              ['提供', (lr.launch_service_provider && lr.launch_service_provider.name) || ''],
+              ['發射場', (pad.name || '') + ((pad.location && pad.location.name) ? (' · ' + pad.location.name) : '')],
+              ['時間', net]
+            ]), { className: 'gp-tc-popup' });
+            mk.addTo(launchLayer); n++;
+          });
+          const _lnc = document.getElementById('monLaunchCount'); if (_lnc) _lnc.textContent = n;
+        } catch (e) { console.warn('[launch] refresh failed', e); }
+      };
+      if (_lnChk) _lnChk.addEventListener('change', () => { if (_lnChk.checked) map.addLayer(launchLayer); else map.removeLayer(launchLayer); });
+      refreshLaunch();
+      setInterval(() => { const a = document.querySelector('.page[data-page="monitor"]'); if (a && a.classList.contains('active')) refreshLaunch(); }, 30 * 60 * 1000);
+    } catch (e) { console.warn('[launch] init failed', e); }
     // ==========================================================================
 
     // === v183.32: NASA EONET 自然事件圖層 (免 key, CORS 直連) ====================
