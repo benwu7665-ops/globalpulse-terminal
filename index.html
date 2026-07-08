@@ -3187,7 +3187,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.77</b></div>
+        <div>BUILD <b>v183.79</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -8112,7 +8112,20 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       return null;
     }
     // v183.69: 共用方框(黑底橘框兩欄式,所有圖層 popup 統一)
-    const _gpBox = (title, rows) => { let h = '<div class="gp-tc-title">' + title + '</div><table class="gp-tc-tbl">'; rows.forEach(r => { if (r[1] != null && r[1] !== '') h += '<tr><td class="k">' + r[0] + '</td><td class="v">' + r[1] + '</td></tr>'; }); return h + '</table>'; };
+    const _gpBox = (title, rows) => { let h = '<div class="gp-tc-title">' + title + '</div><table class="gp-tc-tbl">'; rows.forEach(r => { let v = r[1]; if (v != null && v !== '') { if (typeof v === 'string' && v.indexOf('<') === -1 && /[A-Za-z]{2,}/.test(v)) v = '<span class="gp-tr">' + v.replace(/&/g, '&amp;') + '</span>'; h += '<tr><td class="k">' + r[0] + '</td><td class="v">' + v + '</td></tr>'; } }); return h + '</table>'; };
+    // v183.78: popup 英文自由文字→中文(點開才翻,有快取,走 Worker /translate)
+    const _zhCache = {};
+    async function _zh(text) {
+      const t = (text == null ? '' : String(text)).trim();
+      if (!t || !/[A-Za-z]/.test(t)) return text;
+      if (_zhCache[t]) return _zhCache[t];
+      try {
+        const r = await fetch('https://ais-proxy.2syzkjy2vq.workers.dev/translate?q=' + encodeURIComponent(t), { cache: 'force-cache' });
+        const j = await r.json();
+        const zh = (j && j.zh) ? j.zh : t;
+        _zhCache[t] = zh; return zh;
+      } catch (e) { return text; }
+    }
     // v183.76: 可枚舉英文詞→中文字典(自由文字如地名/說明不在此,維持來源英文)
     const _TW = {'Extreme':'極端','Severe':'嚴重','Moderate':'中等','Minor':'輕微','Tropical Cyclone':'熱帶氣旋','Tropical Storm':'熱帶風暴','Tropical Depression':'熱帶低壓','Severe Tropical Storm':'強烈熱帶風暴','Typhoon':'颱風','Super Typhoon':'超級颱風','Very Strong Typhoon':'非常強颱','Hurricane':'颶風','Hurricane/Typhoon':'颶風/颱風','Post-Tropical Cyclone':'溫帶氣旋','Air Quality Alert':'空氣品質警報','Heat Advisory':'高溫警示','Heat Warning':'高溫警報','Excessive Heat Warning':'極端高溫警報','Excessive Heat Watch':'極端高溫守視','Flood Watch':'洪水守視','Flood Warning':'洪水警報','Flood Advisory':'洪水警示','Flood Statement':'洪水聲明','Flash Flood Warning':'暴洪警報','Flash Flood Watch':'暴洪守視','Coastal Flood Warning':'沿海洪水警報','Coastal Flood Advisory':'沿海洪水警示','Coastal Flood Watch':'沿海洪水守視','Lakeshore Flood Advisory':'湖岸洪水警示','Hydrologic Outlook':'水文展望','Severe Thunderstorm Warning':'強雷暴警報','Severe Thunderstorm Watch':'強雷暴守視','Tornado Warning':'龍捲風警報','Tornado Watch':'龍捲風守視','Special Weather Statement':'特別天氣聲明','Special Marine Warning':'特別海上警報','Marine Weather Statement':'海上天氣聲明','Small Craft Advisory':'小型船隻警示','Gale Warning':'大風警報','Storm Warning':'風暴警報','High Wind Warning':'強風警報','High Wind Watch':'強風守視','Wind Advisory':'風力警示','Winter Storm Warning':'冬季風暴警報','Winter Storm Watch':'冬季風暴守視','Winter Weather Advisory':'冬季天氣警示','Ice Storm Warning':'冰暴警報','Blizzard Warning':'暴風雪警報','Freeze Warning':'冰凍警報','Freeze Watch':'冰凍守視','Frost Advisory':'霜凍警示','Wind Chill Advisory':'風寒警示','Wind Chill Warning':'風寒警報','Extreme Cold Warning':'極端低溫警報','Avalanche Warning':'雪崩警報','Avalanche Watch':'雪崩守視','Red Flag Warning':'火災天氣警報','Fire Weather Watch':'火災天氣守視','Dense Fog Advisory':'濃霧警示','Dense Smoke Advisory':'濃煙警示','Air Stagnation Advisory':'空氣停滯警示','Dust Storm Warning':'塵暴警報','Blowing Dust Advisory':'揚塵警示','Rip Current Statement':'離岸流聲明','High Surf Advisory':'高浪警示','High Surf Warning':'高浪警報','Beach Hazards Statement':'海灘危險聲明','Hurricane Warning':'颶風警報','Hurricane Watch':'颶風守視','Tropical Storm Warning':'熱帶風暴警報','Tropical Storm Watch':'熱帶風暴守視','Storm Surge Warning':'風暴潮警報','Storm Surge Watch':'風暴潮守視'};
     const _tw = v => (v && _TW[v]) || v || '';
@@ -8186,7 +8199,8 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
             mk.bindPopup(_gpBox('\u6d2a\u6c34', [
               ['\u5730\u5340', pr.country || pr.name || ''],
               ['\u671f\u9593', (fromD ? fromD + ' ~ ' + toD : '')],
-              ['\u8b66\u6212', '<span style="color:' + col + ';font-weight:700">' + (pr.alertlevel || '-') + '</span>']
+              ['\u8b66\u6212', '<span style="color:' + col + ';font-weight:700">' + (pr.alertlevel || '-') + '</span>'],
+              ['\u4f86\u6e90', (pr.url && pr.url.report) ? '<a href="' + pr.url.report + '" target="_blank" style="color:var(--amber,#ff8c00)">GDACS \u2197</a>' : '']
             ]), { className: 'gp-tc-popup' });
             mk.addTo(floodLayer); n++;
           });
@@ -8219,7 +8233,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
           ['\u5730\u5340', (pr.areaDesc || '').slice(0, 120)],
           ['\u5230\u671f', pr.expires ? new Date(pr.expires).toLocaleString('zh-TW') : ''],
           ['\u8aaa\u660e', (pr.headline || '').slice(0, 140)],
-          ['\u4f86\u6e90', pr.senderName || '']
+          ['\u4f86\u6e90', pr['@id'] ? '<a href="' + pr['@id'] + '" target="_blank" style="color:var(--amber,#ff8c00)">' + (pr.senderName || 'NWS') + ' \u2197</a>' : (pr.senderName || '')]
         ]), { className: 'gp-tc-popup' });
         gj.addTo(alertLayer);
       };
@@ -8337,7 +8351,8 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
               ['任務', lr.name || ''],
               ['提供', (lr.launch_service_provider && lr.launch_service_provider.name) || ''],
               ['發射場', (pad.name || '') + ((pad.location && pad.location.name) ? (' · ' + pad.location.name) : '')],
-              ['時間', net]
+              ['時間', net],
+              ['來源', lr.url ? '<a href="' + lr.url + '" target="_blank" style="color:var(--amber,#ff8c00)">Launch Library \u2197</a>' : '']
             ]), { className: 'gp-tc-popup' });
             mk.addTo(launchLayer); n++;
           });
@@ -8625,6 +8640,19 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
     };
     map.on('moveend', _wrapWorld);
     setInterval(_wrapWorld, 2000);
+    // v183.78: popup 開啟時把英文自由文字即時翻成中文
+    map.on('popupopen', async (e) => {
+      try {
+        const el = e.popup && e.popup.getElement && e.popup.getElement(); if (!el || !el.querySelectorAll) return;
+        const spans = el.querySelectorAll('.gp-tr');
+        for (let i = 0; i < spans.length; i++) {
+          const sp = spans[i]; if (sp.getAttribute('data-tr') === '1') continue;
+          sp.setAttribute('data-tr', '1');
+          const en = sp.textContent; const zh = await _zh(en);
+          if (zh && zh !== en) sp.textContent = zh;
+        }
+      } catch (err) {}
+    });
     refreshCyclones();
     setInterval(() => {
       const isActive = document.querySelector('.page[data-page="monitor"]')?.classList.contains('active');
