@@ -3187,7 +3187,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.79</b></div>
+        <div>BUILD <b>v183.80</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -5060,6 +5060,11 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
           <input type="checkbox" id="monShowBases" style="cursor:pointer;">
           <span class="t-zh">軍事基地</span><span class="t-en">Mil bases</span>
           <span id="monBasesCount" style="color:#3498ff;font-weight:700;margin-left:4px;">0</span>
+        </label>
+        <label style="color:#ccc;cursor:pointer;display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="monShowAcled" style="cursor:pointer;">
+          <span class="t-zh">武裝衝突</span><span class="t-en">Conflict</span>
+          <span id="monAcledCount" style="color:#ff3b3b;font-weight:700;margin-left:4px;">0</span>
         </label>
         <div class="mlp-sec"><span class="t-zh">自然 · 氣候</span><span class="t-en">NATURE · CLIMATE</span></div>
         <label style="color:#ccc;cursor:pointer;display:flex;align-items:center;gap:6px;">
@@ -8444,6 +8449,62 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       const isActive = document.querySelector('.page[data-page="monitor"]')?.classList.contains('active');
       if (isActive) refreshEvents();
     }, 10 * 60 * 1000);
+    // ==========================================================================
+
+    // === v183.80: ACLED 武裝衝突事件圖層 (經 Worker /acled, OAuth + 24h 快取) =======
+    // 預設關 (最多 600 點較重),開啟才抓。依 event_type 上色,圓點大小依死亡數。
+    const acledLayer = L.layerGroup();
+    window.__acledLayer = acledLayer;
+    const _ACLED_STYLE = {
+      'Battles':                     { c: '#ff3b3b', n: '\u6230\u9b25' },
+      'Explosions/Remote violence':  { c: '#ff7a1a', n: '\u7206\u70b8/\u9060\u7a0b\u66b4\u529b' },
+      'Violence against civilians':  { c: '#e0115f', n: '\u91dd\u5c0d\u5e73\u6c11\u66b4\u529b' },
+      'Riots':                       { c: '#ffb300', n: '\u66b4\u52d5' },
+      'Protests':                    { c: '#ffe14d', n: '\u6297\u8b70' },
+      'Strategic developments':      { c: '#7f8ea3', n: '\u6230\u7565\u52d5\u614b' },
+    };
+    const _acledDefault = { c: '#ff5c5c', n: '\u885d\u7a81\u4e8b\u4ef6' };
+    const _acledClean = s => (s == null ? '' : String(s).replace(/[<>]/g, ' '));
+    let _acledLastFetch = 0;
+    async function refreshAcled() {
+      try {
+        _acledLastFetch = Date.now();
+        const data = await _fetchJSON('https://ais-proxy.2syzkjy2vq.workers.dev/acled?days=7');
+        if (!data || !Array.isArray(data.events)) throw new Error('no data');
+        acledLayer.clearLayers();
+        let n = 0;
+        data.events.forEach(o => {
+          const lat = +o.lat, lon = +o.lon;
+          if (!isFinite(lat) || !isFinite(lon)) return;
+          const st = _ACLED_STYLE[o.type] || _acledDefault;
+          const _r = 3 + Math.min(6, Math.sqrt(Math.max(0, +o.fat || 0)));
+          const mk = L.circleMarker([lat, lon], {
+            radius: _r, stroke: true, color: st.c, weight: 1,
+            fillColor: st.c, fillOpacity: 0.55, interactive: true, bubblingMouseEvents: false,
+          });
+          mk.bindPopup(_gpBox(st.n, [
+            ['\u985e\u578b', st.n + (o.sub ? ' \u00b7 ' + _acledClean(o.sub) : '')],
+            ['\u6b7b\u4ea1', (o.fat != null && o.fat !== '' ? (o.fat + ' \u4eba') : '')],
+            ['\u570b\u5bb6', _acledClean(o.country)],
+            ['\u65e5\u671f', _acledClean(o.date)],
+            ['\u884c\u70ba\u8005', _acledClean(o.actor)],
+            ['\u8aac\u660e', _acledClean(o.notes)],
+            ['\u4f86\u6e90', '<span style="color:var(--amber,#ff8c00)">ACLED</span>'],
+          ]), { className: 'gp-tc-popup' });
+          mk.addTo(acledLayer); n++;
+        });
+        const cnt = document.getElementById('monAcledCount'); if (cnt) cnt.textContent = n;
+      } catch (e) { console.warn('[acled] refresh failed', e); }
+    }
+    const _acToggle = document.getElementById('monShowAcled');
+    if (_acToggle) _acToggle.addEventListener('change', () => {
+      if (_acToggle.checked) { map.addLayer(acledLayer); if (Date.now() - _acledLastFetch > 60000) refreshAcled(); }
+      else map.removeLayer(acledLayer);
+    });
+    setInterval(() => {
+      const isActive = document.querySelector('.page[data-page="monitor"]')?.classList.contains('active');
+      if (isActive && _acToggle && _acToggle.checked) refreshAcled();
+    }, 30 * 60 * 1000);
     // ==========================================================================
 
     // === v183.33: 太空天氣 — 極光帶 (OVATION) + Kp 指數 (NOAA SWPC, 免 key) ========
