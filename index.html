@@ -3187,7 +3187,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.80</b></div>
+        <div>BUILD <b>v183.81</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -8649,6 +8649,17 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
           else if (_circles.length >= 2) { if (_circles.every(o => o.date)) _circles.sort((a, b) => a.date - b.date); else if (c) _circles.sort((a, b) => _hav({ lat: c[1], lon: c[0] }, a) - _hav({ lat: c[1], lon: c[0] }, b)); if (_circles.length > 14) { const st = _circles.length / 14, s2 = []; for (let k = 0; k < 14; k++) s2.push(_circles[Math.floor(k * st)]); _circles = s2; } _centers = _circles; }
           else if (_trackCoords && _trackCoords.length >= 2) { _centers = _trackCoords.map(pc => ({ lat: pc[1], lon: pc[0], date: null, r: null })); }
           else if (_circles.length === 1) { _centers = _circles; }
+          // v183.81: 一律照時間排序 — 只要有日期就排,避免缺日期時整段不排、今天的點被插到未來點中間
+          if (_centers.some(o => o.date)) {
+            const _dated = _centers.filter(o => o.date).sort((a, b) => a.date - b.date);
+            const _undated = _centers.filter(o => !o.date);
+            if (!_undated.length) { _centers = _dated; }
+            else {
+              const _res = _dated.slice();
+              _undated.forEach(u => { let bi = 0, bd = Infinity; for (let k = 0; k < _res.length; k++) { const d = _hav(_res[k], u); if (d < bd) { bd = d; bi = k; } } _res.splice(bi + 1, 0, u); });
+              _centers = _res;
+            }
+          }
           if (!_centers.length) return;
           const _anyDate = _centers.some(o => o.date), _nowMs = Date.now();
           let _fi; if (!_anyDate) { _fi = 0; } else { _fi = _centers.findIndex(o => o.date && o.date.getTime() >= _nowMs); if (_fi < 0) _fi = _centers.length; }
