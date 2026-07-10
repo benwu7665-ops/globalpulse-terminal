@@ -3187,7 +3187,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.81</b></div>
+        <div>BUILD <b>v183.82</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -8661,6 +8661,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
             }
           }
           if (!_centers.length) return;
+          try { console.log('GP-CYCLONE ' + nm + ' | pts=' + _pts.length + ' circles=' + _circles.length + '\n' + _centers.map((o, i) => '  #' + i + ' ' + (o.date ? o.date.toISOString() : 'NO-DATE') + '  ' + (+o.lat).toFixed(2) + ',' + (+o.lon).toFixed(2)).join('\n')); } catch (e) {}
           const _anyDate = _centers.some(o => o.date), _nowMs = Date.now();
           let _fi; if (!_anyDate) { _fi = 0; } else { _fi = _centers.findIndex(o => o.date && o.date.getTime() >= _nowMs); if (_fi < 0) _fi = _centers.length; }
           // 歷史軌跡(已知路徑):實線、較暗、不畫不確定圓
