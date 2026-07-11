@@ -2618,10 +2618,9 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
 .leaflet-tooltip.gp-tc-label::before{display:none!important;border:none!important;}
 /* v183.53: 日期標籤只在放大(地圖容器有 .gp-tc-zoomed)時顯示,縮小時隱藏保持乾淨 */
 .leaflet-container:not(.gp-tc-zoomed) .leaflet-tooltip.gp-tc-label{display:none!important;}
-/* v183.86: CWA 颱風標籤 — 白底黑字圓角框(比照氣象署/颱風論壇圖) */
-.leaflet-tooltip.gp-cwa-label{background:rgba(10,12,16,0.88)!important;border:1px solid rgba(255,209,102,0.6)!important;border-radius:3px!important;color:#ffd88a!important;font-family:var(--font-mono,ui-monospace,monospace)!important;font-size:10px!important;line-height:1.15!important;font-weight:600!important;letter-spacing:.3px;padding:2px 6px!important;box-shadow:0 0 8px rgba(0,0,0,0.5)!important;text-align:center;white-space:nowrap;}
-.leaflet-tooltip.gp-cwa-label::before{display:none!important;border:none!important;}
-.leaflet-container:not(.gp-tc-zoomed) .leaflet-tooltip.gp-cwa-label{display:none!important;}
+/* v183.89: CWA 標籤沿用網站既有的 gp-tc-label(黑底琥珀框),不另造樣式。
+   白底方案已移除 — 與終端機風格衝突。若殘留舊 CSS 快取,這條保底把它壓回深色。 */
+.leaflet-tooltip.gp-cwa-label{background:rgba(12,14,18,0.85)!important;border:1px solid rgba(255,209,102,0.55)!important;color:#ffd88a!important;border-radius:4px!important;box-shadow:none!important;}
 /* v183.52: 颱風 popup — 黑底橘框橘字,配終端機風格 */
 .leaflet-popup.gp-tc-popup .leaflet-popup-content-wrapper{background:#050607!important;border:1px solid var(--amber,#ff8c00)!important;border-radius:2px!important;box-shadow:0 0 0 1px rgba(255,140,0,0.15),0 6px 24px rgba(0,0,0,0.6)!important;color:var(--amber-bright,#ffa500)!important;}
 .leaflet-popup.gp-tc-popup .leaflet-popup-content{margin:9px 12px!important;font-family:var(--font-mono,ui-monospace,monospace)!important;font-size:11px!important;line-height:1.5!important;color:var(--amber-bright,#ffa500)!important;min-width:172px;max-width:300px;}
@@ -3191,7 +3190,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.88</b></div>
+        <div>BUILD <b>v183.89</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -8643,7 +8642,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
           fcst.forEach(o => {
             const dt = o.t ? new Date(o.t) : null;
             const mk = L.marker([o.lat, o.lon], { icon: L.divIcon({ className: 'gp-event', html: '<div style="color:#e8442f;line-height:0;">' + _svgCyclone + '</div>', iconSize: [22, 22], iconAnchor: [11, 11] }) });
-            if (dt && !isNaN(dt.getTime())) mk.bindTooltip(_cwaLbl(dt), { permanent: true, direction: 'top', offset: [0, -11], className: 'gp-cwa-label', opacity: 1 });
+            if (dt && !isNaN(dt.getTime())) mk.bindTooltip(_cwaLbl(dt), { permanent: true, direction: 'top', offset: [0, -11], className: 'gp-tc-label', opacity: 1 });
             mk.bindPopup(_gpBox(_nm + ' \u9810\u5831', [
               ['\u6642\u9593', dt && !isNaN(dt.getTime()) ? dt.toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : ''],
               ['\u9810\u5831\u6642\u6548', (o.hour != null ? '+' + o.hour + ' \u5c0f\u6642' : '')],
