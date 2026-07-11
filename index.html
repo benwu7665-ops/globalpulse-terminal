@@ -2618,6 +2618,10 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
 .leaflet-tooltip.gp-tc-label::before{display:none!important;border:none!important;}
 /* v183.53: 日期標籤只在放大(地圖容器有 .gp-tc-zoomed)時顯示,縮小時隱藏保持乾淨 */
 .leaflet-container:not(.gp-tc-zoomed) .leaflet-tooltip.gp-tc-label{display:none!important;}
+/* v183.86: CWA 颱風標籤 — 白底黑字圓角框(比照氣象署/颱風論壇圖) */
+.leaflet-tooltip.gp-cwa-label{background:#fff!important;border:1px solid rgba(0,0,0,0.18)!important;border-radius:11px!important;color:#111!important;font-family:"PingFang TC","Heiti TC","Microsoft JhengHei",system-ui,sans-serif!important;font-size:11px!important;line-height:1.2!important;font-weight:700!important;letter-spacing:.2px;padding:3px 9px!important;box-shadow:0 2px 7px rgba(0,0,0,0.45)!important;text-align:center;white-space:nowrap;}
+.leaflet-tooltip.gp-cwa-label::before{display:none!important;border:none!important;}
+.leaflet-container:not(.gp-tc-zoomed) .leaflet-tooltip.gp-cwa-label{display:none!important;}
 /* v183.52: 颱風 popup — 黑底橘框橘字,配終端機風格 */
 .leaflet-popup.gp-tc-popup .leaflet-popup-content-wrapper{background:#050607!important;border:1px solid var(--amber,#ff8c00)!important;border-radius:2px!important;box-shadow:0 0 0 1px rgba(255,140,0,0.15),0 6px 24px rgba(0,0,0,0.6)!important;color:var(--amber-bright,#ffa500)!important;}
 .leaflet-popup.gp-tc-popup .leaflet-popup-content{margin:9px 12px!important;font-family:var(--font-mono,ui-monospace,monospace)!important;font-size:11px!important;line-height:1.5!important;color:var(--amber-bright,#ffa500)!important;min-width:172px;max-width:300px;}
@@ -3187,7 +3191,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.85</b></div>
+        <div>BUILD <b>v183.86</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -8610,12 +8614,20 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
           const cur = past.length ? past[past.length - 1] : null;
           const _nm = tc.name + (tc.tyNo ? ' (\u7b2c' + tc.tyNo + '\u865f)' : '');
 
-          // ① 潛勢預報範圍(甜筒圖):先畫,墊在最底層
+          // ① 潛勢預報範圍(黃色大圈,70% 誤差)— 墊最底
           fcst.forEach(o => {
             if (!(o.r70 > 0)) return;
             L.circle([o.lat, o.lon], {
-              radius: o.r70 * 1000, color: '#e8e04a', weight: 1.2, opacity: 0.85,
-              fillColor: '#e8e04a', fillOpacity: 0.13, interactive: false,
+              radius: o.r70 * 1000, color: '#e3dc4b', weight: 1.2, opacity: 0.9,
+              fillColor: '#dfe04a', fillOpacity: 0.16, interactive: false,
+            }).addTo(cycloneLayer);
+          });
+          // ② 暴風圈(紅褐色,七級風半徑)— 疊在黃圈之上
+          fcst.forEach(o => {
+            if (!(o.r15 > 0)) return;
+            L.circle([o.lat, o.lon], {
+              radius: o.r15 * 1000, color: '#d1483a', weight: 1.4, opacity: 0.9,
+              fillColor: '#c8422f', fillOpacity: 0.3, interactive: false,
             }).addTo(cycloneLayer);
           });
 
@@ -8634,7 +8646,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
             const dt = o.t ? new Date(o.t) : null;
             const mk = L.marker([o.lat, o.lon], { icon: L.divIcon({ className: 'gp-event', html: '<div style="color:#e8442f;line-height:0;">' + _svgCyclone + '</div>', iconSize: [22, 22], iconAnchor: [11, 11] }) });
             if (dt && !isNaN(dt.getTime())) {
-              mk.bindTooltip(_cwaLbl(dt), { permanent: true, direction: 'top', offset: [0, -10], className: 'gp-tc-label', opacity: 1 });
+              mk.bindTooltip(_cwaLbl(dt), { permanent: true, direction: 'top', offset: [0, -11], className: 'gp-cwa-label', opacity: 1 });
             }
             mk.bindPopup(_gpBox(_nm + ' \u9810\u5831', [
               ['\u6642\u9593', dt && !isNaN(dt.getTime()) ? dt.toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : ''],
@@ -8642,6 +8654,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
               ['\u4e2d\u5fc3\u98a8\u901f', (o.wind != null ? o.wind + ' m/s' : '')],
               ['\u77ac\u9593\u9663\u98a8', (o.gust != null ? o.gust + ' m/s' : '')],
               ['\u4e2d\u5fc3\u6c23\u58d3', (o.pres != null ? o.pres + ' hPa' : '')],
+              ['\u4e03\u7d1a\u98a8\u66b4\u98a8\u534a\u5f91', (o.r15 != null ? o.r15 + ' km' : '')],
               ['\u6f5b\u52e2\u534a\u5f91', (o.r70 != null ? o.r70 + ' km (70% \u8aa4\u5dee)' : '')],
               ['\u4f4d\u7f6e', o.lat.toFixed(1) + ', ' + o.lon.toFixed(1)],
               ['\u4f86\u6e90', '<span style="color:var(--amber,#ff8c00)">\u4e2d\u592e\u6c23\u8c61\u7f72 CWA</span>'],
@@ -8649,8 +8662,20 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
             mk.addTo(cycloneLayer);
           });
 
-          // ⑤ 目前位置:較大的颱風符號
+          // ⑤ 目前位置:暴風圈 + 較大的颱風符號
           if (cur) {
+            if (cur.r15 > 0) {
+              L.circle([cur.lat, cur.lon], {
+                radius: cur.r15 * 1000, color: '#d1483a', weight: 1.6, opacity: 0.95,
+                fillColor: '#c8422f', fillOpacity: 0.28, interactive: false,
+              }).addTo(cycloneLayer);
+            }
+            if (cur.r25 > 0) {
+              L.circle([cur.lat, cur.lon], {
+                radius: cur.r25 * 1000, color: '#8e1d12', weight: 1.4, opacity: 0.95,
+                fillColor: '#8e1d12', fillOpacity: 0.3, interactive: false,
+              }).addTo(cycloneLayer);
+            }
             const ct = cur.t ? new Date(cur.t) : null;
             const icon = L.marker([cur.lat, cur.lon], { icon: L.divIcon({ className: 'gp-event', html: '<div style="color:#ff2d1f;line-height:0;filter:drop-shadow(0 0 5px rgba(255,45,31,.9));">' + _svgCyclone + '</div>', iconSize: [30, 30], iconAnchor: [15, 15] }) });
             icon.bindPopup(_gpBox(_nm, [
@@ -8659,6 +8684,8 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
               ['\u4e2d\u5fc3\u98a8\u901f', (cur.wind != null ? cur.wind + ' m/s' : '')],
               ['\u77ac\u9593\u9663\u98a8', (cur.gust != null ? cur.gust + ' m/s' : '')],
               ['\u4e2d\u5fc3\u6c23\u58d3', (cur.pres != null ? cur.pres + ' hPa' : '')],
+              ['\u4e03\u7d1a\u98a8\u66b4\u98a8\u534a\u5f91', (cur.r15 != null ? cur.r15 + ' km' : '')],
+              ['\u5341\u7d1a\u98a8\u66b4\u98a8\u534a\u5f91', (cur.r25 != null ? cur.r25 + ' km' : '')],
               ['\u79fb\u52d5', (cur.dir ? cur.dir + ' ' : '') + (cur.spd != null ? cur.spd + ' km/h' : '')],
               ['\u4f4d\u7f6e', cur.lat.toFixed(1) + ', ' + cur.lon.toFixed(1)],
               ['\u4f86\u6e90', '<span style="color:var(--amber,#ff8c00)">\u4e2d\u592e\u6c23\u8c61\u7f72 CWA</span>'],
