@@ -2619,7 +2619,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
 /* v183.53: 日期標籤只在放大(地圖容器有 .gp-tc-zoomed)時顯示,縮小時隱藏保持乾淨 */
 .leaflet-container:not(.gp-tc-zoomed) .leaflet-tooltip.gp-tc-label{display:none!important;}
 /* v183.86: CWA 颱風標籤 — 白底黑字圓角框(比照氣象署/颱風論壇圖) */
-.leaflet-tooltip.gp-cwa-label{background:#fff!important;border:1px solid rgba(0,0,0,0.18)!important;border-radius:11px!important;color:#111!important;font-family:"PingFang TC","Heiti TC","Microsoft JhengHei",system-ui,sans-serif!important;font-size:11px!important;line-height:1.2!important;font-weight:700!important;letter-spacing:.2px;padding:3px 9px!important;box-shadow:0 2px 7px rgba(0,0,0,0.45)!important;text-align:center;white-space:nowrap;}
+.leaflet-tooltip.gp-cwa-label{background:rgba(10,12,16,0.88)!important;border:1px solid rgba(255,209,102,0.6)!important;border-radius:3px!important;color:#ffd88a!important;font-family:var(--font-mono,ui-monospace,monospace)!important;font-size:10px!important;line-height:1.15!important;font-weight:600!important;letter-spacing:.3px;padding:2px 6px!important;box-shadow:0 0 8px rgba(0,0,0,0.5)!important;text-align:center;white-space:nowrap;}
 .leaflet-tooltip.gp-cwa-label::before{display:none!important;border:none!important;}
 .leaflet-container:not(.gp-tc-zoomed) .leaflet-tooltip.gp-cwa-label{display:none!important;}
 /* v183.52: 颱風 popup — 黑底橘框橘字,配終端機風格 */
@@ -3191,7 +3191,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.87</b></div>
+        <div>BUILD <b>v183.88</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -7500,6 +7500,10 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       return;
     }
     map = L.map(container, {
+      // v183.88: 全域向量 renderer,邊距 0.1→0.6。Leaflet 預設只把向量(圓/線/多邊形)
+      // 畫在「視窗+10%」的畫布上,一拖動就被裁掉 → 地震圈/颱風圈/軌跡在拖曳時會「消失」,
+      // 放開才補回來。加大邊距後,拖曳過程中不再空白。
+      renderer: L.svg({ padding: 0.6 }),
       center: [25, 0],
       // zoom 3.5 — slightly zoomed out so the user can see more of the
       // world on first load. Has small blue gutters on the sides at
@@ -8591,6 +8595,9 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
     // === v183.84: CWA 台灣中央氣象署 颱風路徑潛勢預報 (西北太平洋 + 南海) ==========
     // 官方路徑 + 官方「潛勢預報範圍」(第70百分位誤差圓,俗稱甜筒圖)。
     // 其他海域(大西洋/印度洋/東太平洋/南半球)CWA 不提供 → 由 GDACS 補位。
+    // v183.88: Leaflet 向量預設只畫「視窗+10%邊距」,一拖動就被裁掉 → 圈/線看起來「消失」。
+    // 加大邊距到 60%,拖曳時不再空白。
+    const _gpVec = L.svg({ padding: 0.6 });
     const _WD = ['\u65e5', '\u4e00', '\u4e8c', '\u4e09', '\u56db', '\u4e94', '\u516d'];
     // 標籤:比照氣象署/颱風論壇 →「週六(11)上午」「週六(11)晚上」
     const _cwaLbl = d => {
@@ -8617,20 +8624,20 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
           // \u2460 \u6f5b\u52e2\u9810\u5831\u7bc4\u570d(\u9ec3\u5708,70% \u8aa4\u5dee)
           fcst.forEach(o => {
             if (!(o.r70 > 0)) return;
-            _add(L.circle([o.lat, o.lon], { radius: o.r70 * 1000, color: '#e3dc4b', weight: 1.2, opacity: 0.9, fillColor: '#dfe04a', fillOpacity: 0.16, interactive: false }));
+            _add(L.circle([o.lat, o.lon], { radius: o.r70 * 1000, color: '#e3dc4b', weight: 1.2, opacity: 0.9, fillColor: '#dfe04a', fillOpacity: 0.16, interactive: false, renderer: _gpVec }));
           });
           // \u2461 \u66b4\u98a8\u5708(\u7d05\u8910,\u4e03\u7d1a\u98a8\u534a\u5f91)
           fcst.forEach(o => {
             if (!(o.r15 > 0)) return;
-            _add(L.circle([o.lat, o.lon], { radius: o.r15 * 1000, color: '#d1483a', weight: 1.4, opacity: 0.9, fillColor: '#c8422f', fillOpacity: 0.3, interactive: false }));
+            _add(L.circle([o.lat, o.lon], { radius: o.r15 * 1000, color: '#d1483a', weight: 1.4, opacity: 0.9, fillColor: '#c8422f', fillOpacity: 0.3, interactive: false, renderer: _gpVec }));
           });
           // \u2462 \u904e\u53bb\u8ecc\u8de1:\u53ea\u756b\u7dda(\u4e0d\u518d\u756b\u5e7e\u5341\u9846\u9ede,\u6e1b\u8f15\u91cd\u7e6a\u8ca0\u64d4)
           if (past.length >= 2) {
-            _add(L.polyline(past.map(o => [o.lat, o.lon]), { color: '#b9c4cf', weight: 2, opacity: 0.7, interactive: false }));
+            _add(L.polyline(past.map(o => [o.lat, o.lon]), { color: '#b9c4cf', weight: 2, opacity: 0.7, interactive: false, renderer: _gpVec }));
           }
           // \u2463 \u9810\u5831\u8ecc\u8de1:\u9ec3\u8272\u865b\u7dda
           const fl = (cur ? [[cur.lat, cur.lon]] : []).concat(fcst.map(o => [o.lat, o.lon]));
-          if (fl.length >= 2) _add(L.polyline(fl, { color: '#f4e04d', weight: 2.2, opacity: 0.95, dashArray: '7,6', interactive: false }));
+          if (fl.length >= 2) _add(L.polyline(fl, { color: '#f4e04d', weight: 2.2, opacity: 0.95, dashArray: '7,6', interactive: false, renderer: _gpVec }));
 
           // \u2464 \u9810\u5831\u9ede:\u7d05\u8272\u98b1\u98a8\u7b26\u865f + \u6642\u9593\u6a19\u7c64
           fcst.forEach(o => {
@@ -8653,8 +8660,8 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
 
           // \u2465 \u76ee\u524d\u4f4d\u7f6e:\u66b4\u98a8\u5708 + \u98b1\u98a8\u7b26\u865f
           if (cur) {
-            if (cur.r15 > 0) _add(L.circle([cur.lat, cur.lon], { radius: cur.r15 * 1000, color: '#d1483a', weight: 1.6, opacity: 0.95, fillColor: '#c8422f', fillOpacity: 0.28, interactive: false }));
-            if (cur.r25 > 0) _add(L.circle([cur.lat, cur.lon], { radius: cur.r25 * 1000, color: '#8e1d12', weight: 1.4, opacity: 0.95, fillColor: '#8e1d12', fillOpacity: 0.3, interactive: false }));
+            if (cur.r15 > 0) _add(L.circle([cur.lat, cur.lon], { radius: cur.r15 * 1000, color: '#d1483a', weight: 1.6, opacity: 0.95, fillColor: '#c8422f', fillOpacity: 0.28, interactive: false, renderer: _gpVec }));
+            if (cur.r25 > 0) _add(L.circle([cur.lat, cur.lon], { radius: cur.r25 * 1000, color: '#8e1d12', weight: 1.4, opacity: 0.95, fillColor: '#8e1d12', fillOpacity: 0.3, interactive: false, renderer: _gpVec }));
             const ct = cur.t ? new Date(cur.t) : null;
             const icon = L.marker([cur.lat, cur.lon], { icon: L.divIcon({ className: 'gp-event', html: '<div style="color:#ff2d1f;line-height:0;filter:drop-shadow(0 0 5px rgba(255,45,31,.9));">' + _svgCyclone + '</div>', iconSize: [30, 30], iconAnchor: [15, 15] }) });
             icon.bindPopup(_gpBox(_nm, [
@@ -8752,7 +8759,8 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       } catch (e) {}
     };
     map.on('moveend', _wrapWorld);
-    setInterval(_wrapWorld, 2000);
+    // v183.88: 移除 setInterval(_wrapWorld, 2000)。每 2 秒掃過全部圖層(數百~數千個飛機/船舶/
+    // 圓圈)重新定位一次,會造成整片重繪抖動。改為只在 moveend 觸發即可,效果相同但不閃。
     // v183.78: popup 開啟時把英文自由文字即時翻成中文
     map.on('popupopen', async (e) => {
       try {
