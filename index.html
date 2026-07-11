@@ -3193,7 +3193,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.94</b></div>
+        <div>BUILD <b>v183.95</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -8825,6 +8825,35 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       } catch (e) {}
     };
     window.__gpWrap = _wrapWorld;   // v183.94: 供刷新後立即歸位
+    // v183.95: 診斷工具 — 在 Console 輸入 __gpDiag() 即可。
+    // 用途:分辨「物件還在地圖上但被丟到看不見的世界副本」(wrap bug,offscreen 會很大)
+    //      vs「物件根本沒被畫上去」(資料源沒回東西 / 圖層被關掉,總數會是 0)。
+    window.__gpMap = map;
+    window.__gpDiag = () => {
+      const b = map.getBounds(), c = map.getCenter();
+      let mk = 0, mkIn = 0, vec = 0, vecIn = 0;
+      const offLng = [];
+      map.eachLayer(l => {
+        if (l.getLatLng) {
+          const p = l.getLatLng(); if (!p) return;
+          mk++;
+          if (b.contains(p)) mkIn++; else if (offLng.length < 10) offLng.push(+p.lng.toFixed(1));
+        } else if (l.getLatLngs && l.getBounds) {
+          vec++;
+          try { if (b.intersects(l.getBounds())) vecIn++; } catch (e) {}
+        }
+      });
+      const r = {
+        zoom: map.getZoom(),
+        centerLng: +c.lng.toFixed(2),
+        viewLng: [+b.getWest().toFixed(1), +b.getEast().toFixed(1)],
+        markers_total: mk, markers_inView: mkIn, markers_OFFSCREEN: mk - mkIn,
+        vectors_total: vec, vectors_inView: vecIn,
+        offscreen_lng_sample: offLng,
+      };
+      console.log('%cGP-DIAG', 'color:#ff8c00;font-weight:700', JSON.stringify(r, null, 1));
+      return r;
+    };
     map.on('moveend', _wrapWorld);
     // v183.94: 安全網回來了,但只在【真的跑到別的世界副本】時才掃(|中心經度| > 180)。
     // 平常停在主副本時完全零成本,不會再造成 v183.88 修掉的那種全圖重繪抖動。
