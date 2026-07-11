@@ -3193,7 +3193,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.92</b></div>
+        <div>BUILD <b>v183.93</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -6567,6 +6567,10 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
   let shipLayer = null;
   let refreshTimer = null;
   let lastAircraftState = [];
+  // v183.93: 拖曳/縮放期間暫停重繪。renderAircraft/renderShips 每次刷新都會
+  // clearLayers() 再重建【數千個】DOM 標記;若剛好在使用者拖地圖時觸發,整片物件會
+  // 先消失再冒出來 → 就是「拖動時物件閃爍消失」。拖曳中先記下待辦,放開後補畫一次。
+  let _gpPanning = false, _gpNeedRender = false;
 
   // Aircraft type code patterns for icon shape selection
   const HELI_TYPE_RE = /^(H\d{2}|UH\d|AH\d|CH\d|MH\d|HH\d|EC\d|AS\d|S\d{2}|A\d{2}9|R\d{2}|B[VK]\d)/i;
@@ -7201,6 +7205,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
 
   function renderAircraft(){
     if (!map || !aircraftLayer) return;
+    if (_gpPanning) { _gpNeedRender = true; return; }   // v183.93: 拖曳中不重建標記
     aircraftLayer.clearLayers();
     // Two independent toggles — each layer can be turned on/off freely.
     // If both off → empty map. If both on → everything visible. No more
@@ -7231,6 +7236,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
   // Clicking a vessel opens the same detail card used for aircraft.
   function renderShips(){
     if (!map || !shipLayer) return;
+    if (_gpPanning) { _gpNeedRender = true; return; }   // v183.93: 拖曳中不重建標記
     shipLayer.clearLayers();
     const showShips = document.getElementById('monShowShips')?.checked;
     const countEl = document.getElementById('monShipCount');
@@ -8807,6 +8813,11 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         });
       } catch (e) {}
     };
+    map.on('movestart zoomstart', () => { _gpPanning = true; });
+    map.on('moveend zoomend', () => {
+      _gpPanning = false;
+      if (_gpNeedRender) { _gpNeedRender = false; try { renderAircraft(); renderShips(); } catch (e) {} }
+    });
     map.on('moveend', _wrapWorld);
     // v183.88: 移除 setInterval(_wrapWorld, 2000)。每 2 秒掃過全部圖層(數百~數千個飛機/船舶/
     // 圓圈)重新定位一次,會造成整片重繪抖動。改為只在 moveend 觸發即可,效果相同但不閃。
