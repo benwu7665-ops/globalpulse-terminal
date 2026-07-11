@@ -3187,7 +3187,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.83</b></div>
+        <div>BUILD <b>v183.84</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -8584,12 +8584,96 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       }
       return pts;
     }
+    // === v183.84: CWA 台灣中央氣象署 颱風路徑潛勢預報 (西北太平洋 + 南海) ==========
+    // 官方路徑 + 官方「潛勢預報範圍」(第70百分位誤差圓,俗稱甜筒圖)。
+    // 其他海域(大西洋/印度洋/東太平洋/南半球)CWA 不提供 → 由 GDACS 補位。
+    const _WD = ['\u65e5', '\u4e00', '\u4e8c', '\u4e09', '\u56db', '\u4e94', '\u516d'];
+    const _cwaLbl = d => '\u9031' + _WD[d.getDay()] + '(' + d.getDate() + ')<br>' + String(d.getHours()).padStart(2, '0') + '\u6642';
+    async function drawCwaTyphoons() {
+      const names = new Set();
+      let n = 0;
+      try {
+        const d = await _fetchJSON('https://ais-proxy.2syzkjy2vq.workers.dev/cwa-typhoon');
+        if (!d || !d.ok || !Array.isArray(d.cyclones)) return { names, n };
+        d.cyclones.forEach(tc => {
+          if (tc.en) names.add(String(tc.en).toUpperCase());
+          const past = tc.past || [], fcst = tc.fcst || [];
+          const cur = past.length ? past[past.length - 1] : null;
+          const _nm = tc.name + (tc.tyNo ? ' (\u7b2c' + tc.tyNo + '\u865f)' : '');
+
+          // 過去軌跡:實線、暗灰
+          if (past.length >= 2) {
+            L.polyline(past.map(o => [o.lat, o.lon]), { color: '#9aa7b4', weight: 2, opacity: 0.75, interactive: false }).addTo(cycloneLayer);
+            past.slice(0, -1).forEach(o => L.circleMarker([o.lat, o.lon], { radius: 2.5, color: '#9aa7b4', weight: 1, fillColor: '#9aa7b4', fillOpacity: 0.9, interactive: false }).addTo(cycloneLayer));
+          }
+
+          // 預報軌跡:白色虛線(由目前位置接出去)
+          const fl = (cur ? [[cur.lat, cur.lon]] : []).concat(fcst.map(o => [o.lat, o.lon]));
+          if (fl.length >= 2) L.polyline(fl, { color: '#fff', weight: 2, opacity: 0.95, dashArray: '6,5', interactive: false }).addTo(cycloneLayer);
+
+          // 預報點:官方潛勢圈(第70百分位半徑)+ 正圓 + 時間標籤
+          fcst.forEach(o => {
+            if (o.r70 > 0) {
+              L.circle([o.lat, o.lon], {
+                radius: o.r70 * 1000, color: '#ffc233', weight: 1, opacity: 0.75,
+                fillColor: '#ffc233', fillOpacity: 0.07, interactive: false,
+              }).addTo(cycloneLayer);
+            }
+            const dt = o.t ? new Date(o.t) : null;
+            const mk = L.circleMarker([o.lat, o.lon], { radius: 4, color: '#ff9500', weight: 1.5, fillColor: '#ffb347', fillOpacity: 1 });
+            if (dt && !isNaN(dt.getTime())) {
+              mk.bindTooltip(_cwaLbl(dt), { permanent: true, direction: 'top', offset: [0, -6], className: 'gp-tc-label', opacity: 1 });
+            }
+            mk.bindPopup(_gpBox(_nm + ' \u9810\u5831', [
+              ['\u6642\u9593', dt && !isNaN(dt.getTime()) ? dt.toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : ''],
+              ['\u9810\u5831\u6642\u6548', (o.hour != null ? '+' + o.hour + ' \u5c0f\u6642' : '')],
+              ['\u4e2d\u5fc3\u98a8\u901f', (o.wind != null ? o.wind + ' m/s' : '')],
+              ['\u77ac\u9593\u9663\u98a8', (o.gust != null ? o.gust + ' m/s' : '')],
+              ['\u4e2d\u5fc3\u6c23\u58d3', (o.pres != null ? o.pres + ' hPa' : '')],
+              ['\u6f5b\u52e2\u534a\u5f91', (o.r70 != null ? o.r70 + ' km' : '')],
+              ['\u4f4d\u7f6e', o.lat.toFixed(1) + ', ' + o.lon.toFixed(1)],
+              ['\u4f86\u6e90', '<span style="color:var(--amber,#ff8c00)">\u4e2d\u592e\u6c23\u8c61\u7f72 CWA</span>'],
+            ]), { className: 'gp-tc-popup' });
+            mk.addTo(cycloneLayer);
+          });
+
+          // 目前位置:颱風圖示
+          if (cur) {
+            const ct = cur.t ? new Date(cur.t) : null;
+            const icon = L.marker([cur.lat, cur.lon], { icon: L.divIcon({ className: 'gp-event', html: '<div style="color:#ff3b3b;line-height:0;">' + _svgCyclone + '</div>', iconSize: [26, 26], iconAnchor: [13, 13] }) });
+            icon.bindPopup(_gpBox(_nm, [
+              ['\u76ee\u524d\u6642\u9593', ct && !isNaN(ct.getTime()) ? ct.toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : ''],
+              ['\u570b\u969b\u547d\u540d', tc.en],
+              ['\u4e2d\u5fc3\u98a8\u901f', (cur.wind != null ? cur.wind + ' m/s' : '')],
+              ['\u77ac\u9593\u9663\u98a8', (cur.gust != null ? cur.gust + ' m/s' : '')],
+              ['\u4e2d\u5fc3\u6c23\u58d3', (cur.pres != null ? cur.pres + ' hPa' : '')],
+              ['\u79fb\u52d5', (cur.dir ? cur.dir + ' ' : '') + (cur.spd != null ? cur.spd + ' km/h' : '')],
+              ['\u4f4d\u7f6e', cur.lat.toFixed(1) + ', ' + cur.lon.toFixed(1)],
+              ['\u4f86\u6e90', '<span style="color:var(--amber,#ff8c00)">\u4e2d\u592e\u6c23\u8c61\u7f72 CWA</span>'],
+            ]), { className: 'gp-tc-popup' });
+            icon.addTo(cycloneLayer);
+            n++;
+          }
+        });
+      } catch (e) { console.warn('[cwa-typhoon] failed', e); }
+      return { names, n };
+    }
+
     async function refreshCyclones() {
       try {
         const data = await _fetchJSON('https://www.gdacs.org/gdacsapi/api/Events/geteventlist/EVENTS4APP');
         if (!data) throw new Error('no data');
         cycloneLayer.clearLayers();
-        const tcs = (data.features || []).filter(f => f.properties && f.properties.eventtype === 'TC');
+        // v183.84: CWA(台灣官方)優先畫西北太平洋+南海;GDACS 只補 CWA 沒涵蓋的海域。
+        // GDACS eventname 形如 "BAVI-26",去掉年份後綴再跟 CWA 的英文名比對,避免同一顆畫兩次。
+        const _cwa = await drawCwaTyphoons();
+        const tcs = (data.features || [])
+          .filter(f => f.properties && f.properties.eventtype === 'TC')
+          .filter(f => {
+            const raw = String(f.properties.eventname || f.properties.name || '').toUpperCase();
+            const base = raw.replace(/[-\s]?\d{2}$/, '').replace('TROPICAL CYCLONE', '').trim();
+            return !_cwa.names.has(base);
+          });
         // ── 共用小工具 ──
         const _fmtT = d => { try { return d.toLocaleString('zh-TW', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }); } catch (e) { return d.toLocaleString(); } };
         const _basin = (lat, lon) => { let L = lon; while (L > 180) L -= 360; while (L < -180) L += 360; if (lat >= 0) { if (L >= 100 && L < 180) return 'WP'; if (L < -100) return 'EP'; if (L >= -100 && L < -30) return 'NA'; if (L >= 30 && L < 100) return 'NI'; } else { if (L >= 30 && L < 135) return 'SI'; if (L >= 135 || L < -70) return 'SP'; } return '-'; };
@@ -8602,7 +8686,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         const _hav = (a, b) => { const toR = Math.PI / 180, x = (b.lon - a.lon) * toR * Math.cos((a.lat + b.lat) / 2 * toR), y = (b.lat - a.lat) * toR; return Math.sqrt(x * x + y * y) * 6371; };
         const _meta = tcs.map(f => { const pr = f.properties || {}, sev = pr.severitydata || {}; let cat = sev.severitytext || ''; if (cat) cat = _tw(cat.split('(')[0].split('>')[0].trim()); const wind = (sev.severity != null && !isNaN(parseFloat(sev.severity))) ? (Math.round(parseFloat(sev.severity)) + ' ' + (sev.severityunit || 'km/h')) : ''; return { pr: pr, col: _alertColor(pr.alertlevel), nm: (pr.name || pr.eventname || 'Cyclone').replace('Tropical Cyclone', '熱帶氣旋'), cat: cat, wind: wind, dm: pr.datemodified, c: f.geometry && f.geometry.coordinates }; });
         // ── 階段1:立即畫中心點(不等幾何,秒出) ──
-        let n = 0;
+        let n = _cwa.n;
         _meta.forEach(m => {
           if (!m.c) return;
           const lon = m.c[0], lat = m.c[1];
