@@ -3187,7 +3187,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.84</b></div>
+        <div>BUILD <b>v183.85</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -8588,41 +8588,53 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
     // 官方路徑 + 官方「潛勢預報範圍」(第70百分位誤差圓,俗稱甜筒圖)。
     // 其他海域(大西洋/印度洋/東太平洋/南半球)CWA 不提供 → 由 GDACS 補位。
     const _WD = ['\u65e5', '\u4e00', '\u4e8c', '\u4e09', '\u56db', '\u4e94', '\u516d'];
-    const _cwaLbl = d => '\u9031' + _WD[d.getDay()] + '(' + d.getDate() + ')<br>' + String(d.getHours()).padStart(2, '0') + '\u6642';
+    // 標籤:比照氣象署/颱風論壇 →「週六(11)上午」「週六(11)晚上」
+    const _cwaLbl = d => {
+      const h = d.getHours();
+      const seg = h < 6 ? '\u51cc\u6668' : (h < 12 ? '\u4e0a\u5348' : (h < 18 ? '\u4e0b\u5348' : '\u665a\u4e0a'));
+      return '\u9031' + _WD[d.getDay()] + '(' + d.getDate() + ')' + seg;
+    };
     async function drawCwaTyphoons() {
       const names = new Set();
       let n = 0;
       try {
         const d = await _fetchJSON('https://ais-proxy.2syzkjy2vq.workers.dev/cwa-typhoon');
-        if (!d || !d.ok || !Array.isArray(d.cyclones)) return { names, n };
+        if (!d) { console.warn('[CWA] 無回應 — Worker 是否已部署 v49.3?'); return { names, n }; }
+        if (!d.ok) { console.warn('[CWA] 端點回報錯誤:', d.error, '— 檢查 Cloudflare 是否已設 CWA_KEY secret'); return { names, n }; }
+        if (!Array.isArray(d.cyclones) || !d.cyclones.length) { console.log('[CWA] 目前西北太平洋/南海無活動中颱風'); return { names, n }; }
+        console.log('[CWA] 載入 ' + d.cyclones.length + ' 顆颱風:', d.cyclones.map(c => c.name).join(', '));
+
         d.cyclones.forEach(tc => {
           if (tc.en) names.add(String(tc.en).toUpperCase());
           const past = tc.past || [], fcst = tc.fcst || [];
           const cur = past.length ? past[past.length - 1] : null;
           const _nm = tc.name + (tc.tyNo ? ' (\u7b2c' + tc.tyNo + '\u865f)' : '');
 
-          // 過去軌跡:實線、暗灰
+          // ① 潛勢預報範圍(甜筒圖):先畫,墊在最底層
+          fcst.forEach(o => {
+            if (!(o.r70 > 0)) return;
+            L.circle([o.lat, o.lon], {
+              radius: o.r70 * 1000, color: '#e8e04a', weight: 1.2, opacity: 0.85,
+              fillColor: '#e8e04a', fillOpacity: 0.13, interactive: false,
+            }).addTo(cycloneLayer);
+          });
+
+          // ② 過去軌跡:實線暗灰 + 小點
           if (past.length >= 2) {
-            L.polyline(past.map(o => [o.lat, o.lon]), { color: '#9aa7b4', weight: 2, opacity: 0.75, interactive: false }).addTo(cycloneLayer);
-            past.slice(0, -1).forEach(o => L.circleMarker([o.lat, o.lon], { radius: 2.5, color: '#9aa7b4', weight: 1, fillColor: '#9aa7b4', fillOpacity: 0.9, interactive: false }).addTo(cycloneLayer));
+            L.polyline(past.map(o => [o.lat, o.lon]), { color: '#b9c4cf', weight: 2, opacity: 0.7, interactive: false }).addTo(cycloneLayer);
+            past.slice(0, -1).forEach(o => L.circleMarker([o.lat, o.lon], { radius: 2.5, color: '#b9c4cf', weight: 1, fillColor: '#8e9aa6', fillOpacity: 0.95, interactive: false }).addTo(cycloneLayer));
           }
 
-          // 預報軌跡:白色虛線(由目前位置接出去)
+          // ③ 預報軌跡:黃色虛線(氣象署風格)
           const fl = (cur ? [[cur.lat, cur.lon]] : []).concat(fcst.map(o => [o.lat, o.lon]));
-          if (fl.length >= 2) L.polyline(fl, { color: '#fff', weight: 2, opacity: 0.95, dashArray: '6,5', interactive: false }).addTo(cycloneLayer);
+          if (fl.length >= 2) L.polyline(fl, { color: '#f4e04d', weight: 2.2, opacity: 0.95, dashArray: '7,6', interactive: false }).addTo(cycloneLayer);
 
-          // 預報點:官方潛勢圈(第70百分位半徑)+ 正圓 + 時間標籤
+          // ④ 預報點:紅色颱風符號 + 時間標籤
           fcst.forEach(o => {
-            if (o.r70 > 0) {
-              L.circle([o.lat, o.lon], {
-                radius: o.r70 * 1000, color: '#ffc233', weight: 1, opacity: 0.75,
-                fillColor: '#ffc233', fillOpacity: 0.07, interactive: false,
-              }).addTo(cycloneLayer);
-            }
             const dt = o.t ? new Date(o.t) : null;
-            const mk = L.circleMarker([o.lat, o.lon], { radius: 4, color: '#ff9500', weight: 1.5, fillColor: '#ffb347', fillOpacity: 1 });
+            const mk = L.marker([o.lat, o.lon], { icon: L.divIcon({ className: 'gp-event', html: '<div style="color:#e8442f;line-height:0;">' + _svgCyclone + '</div>', iconSize: [22, 22], iconAnchor: [11, 11] }) });
             if (dt && !isNaN(dt.getTime())) {
-              mk.bindTooltip(_cwaLbl(dt), { permanent: true, direction: 'top', offset: [0, -6], className: 'gp-tc-label', opacity: 1 });
+              mk.bindTooltip(_cwaLbl(dt), { permanent: true, direction: 'top', offset: [0, -10], className: 'gp-tc-label', opacity: 1 });
             }
             mk.bindPopup(_gpBox(_nm + ' \u9810\u5831', [
               ['\u6642\u9593', dt && !isNaN(dt.getTime()) ? dt.toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : ''],
@@ -8630,17 +8642,17 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
               ['\u4e2d\u5fc3\u98a8\u901f', (o.wind != null ? o.wind + ' m/s' : '')],
               ['\u77ac\u9593\u9663\u98a8', (o.gust != null ? o.gust + ' m/s' : '')],
               ['\u4e2d\u5fc3\u6c23\u58d3', (o.pres != null ? o.pres + ' hPa' : '')],
-              ['\u6f5b\u52e2\u534a\u5f91', (o.r70 != null ? o.r70 + ' km' : '')],
+              ['\u6f5b\u52e2\u534a\u5f91', (o.r70 != null ? o.r70 + ' km (70% \u8aa4\u5dee)' : '')],
               ['\u4f4d\u7f6e', o.lat.toFixed(1) + ', ' + o.lon.toFixed(1)],
               ['\u4f86\u6e90', '<span style="color:var(--amber,#ff8c00)">\u4e2d\u592e\u6c23\u8c61\u7f72 CWA</span>'],
             ]), { className: 'gp-tc-popup' });
             mk.addTo(cycloneLayer);
           });
 
-          // 目前位置:颱風圖示
+          // ⑤ 目前位置:較大的颱風符號
           if (cur) {
             const ct = cur.t ? new Date(cur.t) : null;
-            const icon = L.marker([cur.lat, cur.lon], { icon: L.divIcon({ className: 'gp-event', html: '<div style="color:#ff3b3b;line-height:0;">' + _svgCyclone + '</div>', iconSize: [26, 26], iconAnchor: [13, 13] }) });
+            const icon = L.marker([cur.lat, cur.lon], { icon: L.divIcon({ className: 'gp-event', html: '<div style="color:#ff2d1f;line-height:0;filter:drop-shadow(0 0 5px rgba(255,45,31,.9));">' + _svgCyclone + '</div>', iconSize: [30, 30], iconAnchor: [15, 15] }) });
             icon.bindPopup(_gpBox(_nm, [
               ['\u76ee\u524d\u6642\u9593', ct && !isNaN(ct.getTime()) ? ct.toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : ''],
               ['\u570b\u969b\u547d\u540d', tc.en],
@@ -8655,7 +8667,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
             n++;
           }
         });
-      } catch (e) { console.warn('[cwa-typhoon] failed', e); }
+      } catch (e) { console.warn('[CWA] 繪製失敗', e); }
       return { names, n };
     }
 
@@ -8692,81 +8704,11 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
           const lon = m.c[0], lat = m.c[1];
           const mk = L.marker([lat, lon], { icon: L.divIcon({ className: 'gp-event', html: '<div style="color:' + m.col + ';line-height:0;">' + _svgCyclone + '</div>', iconSize: [26, 26], iconAnchor: [13, 13] }) });
           const _now = new Date();
-          mk.bindPopup(_tcBox({ name: m.nm, time: _fmtT(m.pr.todate ? new Date(m.pr.todate) : _now), lead: '\u73fe\u5728', basin: _basin(lat, lon), cat: m.cat, wind: m.wind, pos: lat.toFixed(1) + ', ' + lon.toFixed(1), gdacs: (m.dm ? _fmtT(new Date(m.dm)) : ''), upd: _fmtT(_now) }), { className: 'gp-tc-popup' });
+          mk.bindPopup(_tcBox({ name: m.nm, time: _fmtT(m.pr.todate ? new Date(m.pr.todate) : _now), lead: '\u73fe\u5728 (\u50c5\u4e2d\u5fc3\u9ede)', basin: _basin(lat, lon), cat: m.cat, wind: m.wind, pos: lat.toFixed(1) + ', ' + lon.toFixed(1), gdacs: (m.dm ? _fmtT(new Date(m.dm)) : ''), upd: _fmtT(_now) }), { className: 'gp-tc-popup' });
           mk.addTo(cycloneLayer);
           n++;
         });
         const cnt = document.getElementById('monCycloneCount'); if (cnt) cnt.textContent = n;
-        // ── 階段2:並行抓幾何,逐一補上預報錐(日期分組,消除重複標籤) ──
-        const _geos = await Promise.all(tcs.map(f => { const g = f.properties && f.properties.url && f.properties.url.geometry; return g ? _fetchJSON(g).then(r => ({ ok: true, geo: r })).catch(e => ({ ok: false })) : Promise.resolve({ ok: true, geo: null }); }));
-        _meta.forEach((m, ti) => {
-          const gr = _geos[ti]; const geo = (gr && gr.ok) ? gr.geo : null;
-          if (!geo || !geo.features) return;
-          const c = m.c, nm = m.nm, cat = m.cat, wind = m.wind;
-          const _pts = [], _polys = []; let _trackGeo = null, _trackCoords = null;
-          geo.features.forEach(gf => {
-            const gt = gf.geometry && gf.geometry.type; if (!gt) return;
-            if (gt === 'Point') { const pc = gf.geometry.coordinates; if (pc) _pts.push({ lat: pc[1], lon: pc[0], p: gf.properties || {} }); }
-            else if (gt === 'LineString') { if (!_trackGeo) { _trackGeo = gf; _trackCoords = gf.geometry.coordinates; } }
-            else if (gt === 'MultiLineString') { if (!_trackGeo) { _trackGeo = gf; _trackCoords = gf.geometry.coordinates.reduce((a, b) => a.length >= b.length ? a : b, []); } }
-            else if (gt === 'Polygon') { _polys.push({ rings: gf.geometry.coordinates, p: gf.properties || {} }); }
-            else if (gt === 'MultiPolygon') { gf.geometry.coordinates.forEach(pp => _polys.push({ rings: pp, p: gf.properties || {} })); }
-          });
-          const _raw = [];
-          _polys.forEach(pl => {
-            const ring = pl.rings && pl.rings[0]; if (!ring || ring.length < 4) return;
-            let sx = 0, sy = 0; ring.forEach(c2 => { sx += c2[0]; sy += c2[1]; }); const cx = sx / ring.length, cy = sy / ring.length;
-            let rs = 0; ring.forEach(c2 => { rs += _hav({ lat: cy, lon: cx }, { lat: c2[1], lon: c2[0] }); }); const r = rs / ring.length;
-            if (!(r > 0) || r > 900) return;
-            _raw.push({ lat: cy, lon: cx, r: r, date: _pickDate(pl.p), p: pl.p });
-          });
-          // 依「日期」分組:同一預報時刻只留一顆(圓心取平均、半徑取最大)→ 消除重複標籤
-          let _circles = [];
-          if (_raw.filter(o => o.date).length >= 2) {
-            // 同一預報時刻只留「最外圈那顆」(半徑最大):它的圓心才是該時刻的預報位置;象限小圈質心偏位,捨棄
-            const g = {};
-            _raw.forEach(o => { if (!o.date) return; const key = 'd' + Math.round(o.date.getTime() / 3600000); if (!g[key] || o.r > g[key].r) g[key] = { lat: o.lat, lon: o.lon, r: o.r, date: o.date, p: o.p }; });
-            _circles = Object.keys(g).map(k => g[k]).sort((a, b) => a.date - b.date);
-          } else {
-            _raw.forEach(o => { let mg = false; for (const cc of _circles) { if (_hav(cc, o) < 55) { if (o.r > cc.r) { cc.r = o.r; cc.p = o.p; } mg = true; break; } } if (!mg) _circles.push(o); });
-          }
-          _pts.forEach(o => { o.date = _pickDate(o.p); });
-          let _centers = [];
-          if (_pts.length >= 3) { if (_pts.every(o => o.date)) _pts.sort((a, b) => a.date - b.date); _centers = _pts.map(o => ({ lat: o.lat, lon: o.lon, date: o.date, r: null, p: o.p })); }
-          else if (_circles.length >= 2) { if (_circles.every(o => o.date)) _circles.sort((a, b) => a.date - b.date); else if (c) _circles.sort((a, b) => _hav({ lat: c[1], lon: c[0] }, a) - _hav({ lat: c[1], lon: c[0] }, b)); if (_circles.length > 14) { const st = _circles.length / 14, s2 = []; for (let k = 0; k < 14; k++) s2.push(_circles[Math.floor(k * st)]); _circles = s2; } _centers = _circles; }
-          else if (_trackCoords && _trackCoords.length >= 2) { _centers = _trackCoords.map(pc => ({ lat: pc[1], lon: pc[0], date: null, r: null })); }
-          else if (_circles.length === 1) { _centers = _circles; }
-          // v183.83: 一律照時間排序。有 2 個以上帶日期的點時,直接捨棄無日期的雜訊點
-          // (它們多半是象限圈/輔助幾何,硬插進軌跡只會讓路徑歪掉);全無日期時才保留原順序。
-          {
-            const _dated = _centers.filter(o => o.date).sort((a, b) => a.date - b.date);
-            if (_dated.length >= 2) _centers = _dated;
-            else if (_dated.length === 1 && _centers.length > 1) { /* 只有一個日期 → 維持原順序,不亂排 */ }
-          }
-          if (!_centers.length) return;
-          try { console.log('GP-CYCLONE ' + nm + ' | pts=' + _pts.length + ' circles=' + _circles.length + '\n' + _centers.map((o, i) => '  #' + i + ' ' + (o.date ? o.date.toISOString() : 'NO-DATE') + '  ' + (+o.lat).toFixed(2) + ',' + (+o.lon).toFixed(2)).join('\n')); } catch (e) {}
-          const _anyDate = _centers.some(o => o.date), _nowMs = Date.now();
-          let _fi; if (!_anyDate) { _fi = 0; } else { _fi = _centers.findIndex(o => o.date && o.date.getTime() >= _nowMs); if (_fi < 0) _fi = _centers.length; }
-          // 歷史軌跡(已知路徑):實線、較暗、不畫不確定圓
-          if (_fi > 1) L.polyline(_centers.slice(0, _fi).map(o => [o.lat, o.lon]), { color: '#c7ced6', weight: 1.4, opacity: 0.55, interactive: false }).addTo(cycloneLayer);
-          // 預報軌跡:白虛線(接上最後一個歷史點)
-          const _fSeg = _centers.slice(Math.max(0, _fi - 1));
-          if (_fSeg.length > 1) L.polyline(_fSeg.map(o => [o.lat, o.lon]), { color: '#ffffff', weight: 1.7, opacity: 0.9, dashArray: '6 4', interactive: false }).addTo(cycloneLayer);
-          const _cum = [0]; for (let k = 1; k < _centers.length; k++) _cum.push(_cum[k - 1] + _hav(_centers[k - 1], _centers[k]));
-          const _total = _cum[_cum.length - 1] || 1;
-          const _rEnd = Math.max(200, Math.min(560, _total * 0.42)), _rStart = Math.min(75, _rEnd * 0.28);
-          _centers.forEach((o, i) => {
-            const isFut = _anyDate ? (o.date && o.date.getTime() >= _nowMs) : true;
-            // 半徑一律用「沿軌跡由小到大的合成成長」:古→今→未來必為小到大,永不反向;每顆颱風都有完整錐
-            const rKm = _rStart + (_rEnd - _rStart) * (_cum[i] / _total);
-            if (rKm > 0) L.circle([o.lat, o.lon], { radius: rKm * 1000, color: '#ffd76b', weight: 1, opacity: 0.5, fillColor: '#f2c14e', fillOpacity: 0.10, interactive: false }).addTo(cycloneLayer);
-            const _dot = L.circleMarker([o.lat, o.lon], { radius: isFut ? 3.4 : 2.8, color: isFut ? '#ff9f1c' : '#9fb0c0', weight: 1.3, fillColor: isFut ? '#ffcf6b' : '#c7ced6', fillOpacity: 1, interactive: true, bubblingMouseEvents: false });
-            if (o.date) { const _hh = String(o.date.getHours()).padStart(2, '0'), _mm = String(o.date.getMinutes()).padStart(2, '0'); _dot.bindTooltip((o.date.getMonth() + 1) + '\u6708' + o.date.getDate() + '\u65e5<br>' + _hh + ':' + _mm, { permanent: true, direction: 'top', className: 'gp-tc-label', offset: [0, -4], opacity: 1 }); }
-            const _lead = o.date ? Math.round((o.date.getTime() - Date.now()) / 3600000) : null;
-            _dot.bindPopup(_tcBox({ name: nm, time: o.date ? _fmtT(o.date) : '', lead: (_lead != null ? ((_lead >= 0 ? '+' : '') + _lead + 'h') : ''), basin: _basin(o.lat, o.lon), cat: cat, wind: wind, pos: o.lat.toFixed(1) + ', ' + o.lon.toFixed(1), gdacs: (m.dm ? _fmtT(new Date(m.dm)) : ''), upd: _fmtT(new Date()) }), { className: 'gp-tc-popup' });
-            _dot.addTo(cycloneLayer);
-          });
-        });
       } catch (e) { console.warn('[cyclones] refresh failed', e); }
     }
     const _tcToggle = document.getElementById('monShowCyclone');
