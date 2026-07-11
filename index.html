@@ -3193,7 +3193,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.93</b></div>
+        <div>BUILD <b>v183.94</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -7205,7 +7205,6 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
 
   function renderAircraft(){
     if (!map || !aircraftLayer) return;
-    if (_gpPanning) { _gpNeedRender = true; return; }   // v183.93: 拖曳中不重建標記
     aircraftLayer.clearLayers();
     // Two independent toggles — each layer can be turned on/off freely.
     // If both off → empty map. If both on → everything visible. No more
@@ -7226,6 +7225,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
     const civEl = document.getElementById('monCivilCount');
     if (milEl) milEl.textContent = milCount;
     if (civEl) civEl.textContent = civilCount;
+    try { if (window.__gpWrap && Math.abs(map.getCenter().lng) > 180) window.__gpWrap(); } catch (e) {}
   }
 
   // Ship overlay — pulls from AIS_STATE.vessels (populated by the live
@@ -7236,7 +7236,6 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
   // Clicking a vessel opens the same detail card used for aircraft.
   function renderShips(){
     if (!map || !shipLayer) return;
-    if (_gpPanning) { _gpNeedRender = true; return; }   // v183.93: 拖曳中不重建標記
     shipLayer.clearLayers();
     const showShips = document.getElementById('monShowShips')?.checked;
     const countEl = document.getElementById('monShipCount');
@@ -7264,6 +7263,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       count++;
     });
     if (countEl) countEl.textContent = count;
+    try { if (window.__gpWrap && Math.abs(map.getCenter().lng) > 180) window.__gpWrap(); } catch (e) {}
   }
 
   // ---- v180.69 — Vessel photo lookup (Wikimedia Commons) ----
@@ -8794,33 +8794,42 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
     map.on('zoomend', _tcZoomGate); _tcZoomGate();
     // v183.61: 無限世界複製 — 不用 worldCopyJump(會閃),改成把所有標記/軌跡即時搬到目前所在的那圈世界。
     // 逐層依目前地圖中心經度,把每個圖徵移到最近的 360° 複製;自我校正,可無限左右滑動而資料一直在。
+    // v183.94: _wrapWorld 重寫為【非破壞性】。
+    // 舊版直接用「當前座標」再算一次並覆蓋回去 → 原始經度永久遺失,一旦某次算錯,
+    // 物件就卡在看不見的世界副本,再也回不來(必須重整才會從 API 重拿座標)。
+    // 這正是「某些角度物件幾乎全消失、要重整才回來」的原因。
+    // 現在:第一次看到某圖層時記住它的【原始座標】,之後每次都從原始值重算 → 完全冪等,
+    // 永遠不會累積誤差,也永遠救得回來。
     const _wrapWorld = () => {
       try {
         const cen = map.getCenter().lng;
         map.eachLayer(l => {
-          // v183.87: 颱風圖層每 2 秒被重新定位一次(圈+線+標記數十個)是拖曳/縮放時閃爍的元凶之一。
-          // 它是靜態幾何(不像飛機船舶會動),不需要每秒重排,跳過。
           if (l._gpNoWrap) return;
           if (l.getLatLng && l.setLatLng) {
-            const p = l.getLatLng(); const t = p.lng - Math.round((p.lng - cen) / 360) * 360;
-            if (Math.abs(t - p.lng) > 1e-6) l.setLatLng([p.lat, t]);
+            if (l._gpLng0 == null) { const p0 = l.getLatLng(); if (!p0) return; l._gpLng0 = p0.lng; l._gpLat0 = p0.lat; }
+            const t = l._gpLng0 - Math.round((l._gpLng0 - cen) / 360) * 360;
+            const cur = l.getLatLng();
+            if (!cur || Math.abs(t - cur.lng) > 1e-6) l.setLatLng([l._gpLat0, t]);
           } else if (l.getLatLngs && l.setLatLngs) {
-            const lls = l.getLatLngs(); const flat = []; const collect = a => a.forEach(x => Array.isArray(x) ? collect(x) : (x && x.lng !== undefined && flat.push(x))); collect(lls);
+            if (l._gpLLs0 == null) {
+              const cp = a => a.map(x => Array.isArray(x) ? cp(x) : { lat: x.lat, lng: x.lng });
+              try { l._gpLLs0 = cp(l.getLatLngs()); } catch (e) { return; }
+            }
+            const flat = []; const collect = a => a.forEach(x => Array.isArray(x) ? collect(x) : (x && x.lng !== undefined && flat.push(x))); collect(l._gpLLs0);
             if (!flat.length) return;
             const d = -Math.round((flat[0].lng - cen) / 360) * 360;
-            if (Math.abs(d) > 1e-6) { const sh = a => a.map(x => Array.isArray(x) ? sh(x) : [x.lat, x.lng + d]); l.setLatLngs(sh(lls)); }
+            const sh = a => a.map(x => Array.isArray(x) ? sh(x) : [x.lat, x.lng + d]);
+            l.setLatLngs(sh(l._gpLLs0));
           }
         });
       } catch (e) {}
     };
-    map.on('movestart zoomstart', () => { _gpPanning = true; });
-    map.on('moveend zoomend', () => {
-      _gpPanning = false;
-      if (_gpNeedRender) { _gpNeedRender = false; try { renderAircraft(); renderShips(); } catch (e) {} }
-    });
+    window.__gpWrap = _wrapWorld;   // v183.94: 供刷新後立即歸位
     map.on('moveend', _wrapWorld);
-    // v183.88: 移除 setInterval(_wrapWorld, 2000)。每 2 秒掃過全部圖層(數百~數千個飛機/船舶/
-    // 圓圈)重新定位一次,會造成整片重繪抖動。改為只在 moveend 觸發即可,效果相同但不閃。
+    // v183.94: 安全網回來了,但只在【真的跑到別的世界副本】時才掃(|中心經度| > 180)。
+    // 平常停在主副本時完全零成本,不會再造成 v183.88 修掉的那種全圖重繪抖動。
+    // 沒有這道網,刷新時新加入的物件會停在錯的副本上直到下次 moveend → 看起來就是「消失了」。
+    setInterval(() => { try { if (Math.abs(map.getCenter().lng) > 180) _wrapWorld(); } catch (e) {} }, 2000);
     // v183.78: popup 開啟時把英文自由文字即時翻成中文
     map.on('popupopen', async (e) => {
       try {
