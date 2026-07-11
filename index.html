@@ -3193,7 +3193,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.91</b></div>
+        <div>BUILD <b>v183.92</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -8419,15 +8419,15 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         let n = 0;
         (data.events || []).forEach(ev => {
           const cat = (ev.categories && ev.categories[0] && ev.categories[0].id) || '';
+          // v183.92: EONET 的 severeStorms 就是熱帶氣旋(如 "Super Typhoon Bavi",青藍色 #22d3ee)。
+          // 【颱風】圖層已用 CWA(官方)+ GDACS(其他海域)全球覆蓋熱帶氣旋,EONET 再畫一次會變成
+          // 同一顆颱風出現兩顆圖示 + 兩條軌跡互相打架。故此處直接排除,熱帶氣旋一律交給颱風圖層。
+          if (cat === 'severeStorms') return;
           const st = _EONET_STYLE[cat] || _eonetDefault;
           const geoms = (ev.geometry || []).filter(g => g && (g.type === 'Point' || g.type === 'Polygon'));
           if (!geoms.length) return;
           const latest = _asPoint(geoms[geoms.length - 1]);
           if (!latest) return;
-          if (cat === 'severeStorms' && geoms.length > 1) {
-            const pts = geoms.map(_asPoint).filter(Boolean);
-            if (pts.length > 1) L.polyline(pts, { color: st.c, weight: 1.4, opacity: 0.5, dashArray: '4 4' }).addTo(eventLayer);
-          }
           const _glyph = _EONET_SVG[cat] || _EONET_SVG_DEFAULT;
           const mk = L.marker(latest, { icon: L.divIcon({
             className: 'gp-event',
