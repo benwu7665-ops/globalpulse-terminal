@@ -3187,7 +3187,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.82</b></div>
+        <div>BUILD <b>v183.83</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -8595,7 +8595,10 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         const _basin = (lat, lon) => { let L = lon; while (L > 180) L -= 360; while (L < -180) L += 360; if (lat >= 0) { if (L >= 100 && L < 180) return 'WP'; if (L < -100) return 'EP'; if (L >= -100 && L < -30) return 'NA'; if (L >= 30 && L < 100) return 'NI'; } else { if (L >= 30 && L < 135) return 'SI'; if (L >= 135 || L < -70) return 'SP'; } return '-'; };
         const _tcBox = o => { const rows = [['\u98a8\u66b4', o.name], ['\u6642\u9593', o.time], ['\u9810\u4f30', o.lead], ['\u6d77\u76c6', o.basin], ['\u5206\u985e', o.cat], ['\u98a8\u901f', o.wind], ['\u4f4d\u7f6e', o.pos], ['GDACS \u66f4\u65b0', o.gdacs], ['\u672c\u6a5f\u5237\u65b0', o.upd]]; let h = '<div class="gp-tc-title">\u98a8\u66b4\u9810\u6e2c</div><table class="gp-tc-tbl">'; rows.forEach(r => { if (r[1]) h += '<tr><td class="k">' + r[0] + '</td><td class="v">' + r[1] + '</td></tr>'; }); return h + '</table>'; };
         const _mkDate = v => { if (v == null) return null; const d = new Date(v); if (!isNaN(d.getTime()) && d.getFullYear() >= 2015 && d.getFullYear() <= 2100) return d; return null; };
-        const _pickDate = p => { for (const k of ['trackdate', 'polygondate', 'forecastdate', 'datetime', 'date', 'validtime', 'dtg', 'todate', 'fromdate']) { const d = _mkDate(p[k]); if (d) return d; } for (const k of ['polygonlabel', 'description', 'name', 'Class']) { if (typeof p[k] === 'string') { const d = _mkDate(p[k]); if (d) return d; } } return null; };
+        // v183.83: 只採「該點自己的時間」。todate/fromdate 是【事件級】起訖時間(整顆颱風的),
+        // 拿來當點的時間會把事件結束時刻(如 7/10 12:00)硬貼到某個無 trackdate 的點上,
+        // 造成該點被排到最前、卻畫在軌跡中段 → 「7/11 後面冒出 7/10」的元凶。故移除這兩個 fallback。
+        const _pickDate = p => { for (const k of ['trackdate', 'polygondate', 'forecastdate', 'datetime', 'date', 'validtime', 'dtg']) { const d = _mkDate(p[k]); if (d) return d; } for (const k of ['polygonlabel', 'description']) { if (typeof p[k] === 'string') { const d = _mkDate(p[k]); if (d) return d; } } return null; };
         const _hav = (a, b) => { const toR = Math.PI / 180, x = (b.lon - a.lon) * toR * Math.cos((a.lat + b.lat) / 2 * toR), y = (b.lat - a.lat) * toR; return Math.sqrt(x * x + y * y) * 6371; };
         const _meta = tcs.map(f => { const pr = f.properties || {}, sev = pr.severitydata || {}; let cat = sev.severitytext || ''; if (cat) cat = _tw(cat.split('(')[0].split('>')[0].trim()); const wind = (sev.severity != null && !isNaN(parseFloat(sev.severity))) ? (Math.round(parseFloat(sev.severity)) + ' ' + (sev.severityunit || 'km/h')) : ''; return { pr: pr, col: _alertColor(pr.alertlevel), nm: (pr.name || pr.eventname || 'Cyclone').replace('Tropical Cyclone', '熱帶氣旋'), cat: cat, wind: wind, dm: pr.datemodified, c: f.geometry && f.geometry.coordinates }; });
         // ── 階段1:立即畫中心點(不等幾何,秒出) ──
@@ -8649,16 +8652,12 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
           else if (_circles.length >= 2) { if (_circles.every(o => o.date)) _circles.sort((a, b) => a.date - b.date); else if (c) _circles.sort((a, b) => _hav({ lat: c[1], lon: c[0] }, a) - _hav({ lat: c[1], lon: c[0] }, b)); if (_circles.length > 14) { const st = _circles.length / 14, s2 = []; for (let k = 0; k < 14; k++) s2.push(_circles[Math.floor(k * st)]); _circles = s2; } _centers = _circles; }
           else if (_trackCoords && _trackCoords.length >= 2) { _centers = _trackCoords.map(pc => ({ lat: pc[1], lon: pc[0], date: null, r: null })); }
           else if (_circles.length === 1) { _centers = _circles; }
-          // v183.81: 一律照時間排序 — 只要有日期就排,避免缺日期時整段不排、今天的點被插到未來點中間
-          if (_centers.some(o => o.date)) {
+          // v183.83: 一律照時間排序。有 2 個以上帶日期的點時,直接捨棄無日期的雜訊點
+          // (它們多半是象限圈/輔助幾何,硬插進軌跡只會讓路徑歪掉);全無日期時才保留原順序。
+          {
             const _dated = _centers.filter(o => o.date).sort((a, b) => a.date - b.date);
-            const _undated = _centers.filter(o => !o.date);
-            if (!_undated.length) { _centers = _dated; }
-            else {
-              const _res = _dated.slice();
-              _undated.forEach(u => { let bi = 0, bd = Infinity; for (let k = 0; k < _res.length; k++) { const d = _hav(_res[k], u); if (d < bd) { bd = d; bi = k; } } _res.splice(bi + 1, 0, u); });
-              _centers = _res;
-            }
+            if (_dated.length >= 2) _centers = _dated;
+            else if (_dated.length === 1 && _centers.length > 1) { /* 只有一個日期 → 維持原順序,不亂排 */ }
           }
           if (!_centers.length) return;
           try { console.log('GP-CYCLONE ' + nm + ' | pts=' + _pts.length + ' circles=' + _circles.length + '\n' + _centers.map((o, i) => '  #' + i + ' ' + (o.date ? o.date.toISOString() : 'NO-DATE') + '  ' + (+o.lat).toFixed(2) + ',' + (+o.lon).toFixed(2)).join('\n')); } catch (e) {}
