@@ -3193,7 +3193,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.90</b></div>
+        <div>BUILD <b>v183.91</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -8735,9 +8735,18 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         if (!data) throw new Error('no data');
         const _sink = [];
         const _cwa = buildCwaTyphoons(cwaData, _sink);
+        // v183.91: 去重改用【海域】而非名字。原本比對 GDACS 的 eventname(如 "BAVI-26")去掉年份
+        // 後跟 CWA 的英文名比對,但格式不合就失效 → 同一顆颱風被 CWA 畫一次(紅)、GDACS 再畫一次(藍)。
+        // 現在:只要 CWA 有資料,GDACS 在【西北太平洋 + 南海】(CWA 的職責範圍)一律不畫,
+        // 不管它叫什麼名字都不會重複。其他海域(大西洋/印度洋/東太平洋/南半球)GDACS 照常補位。
+        const _cwaActive = _cwa.n > 0;
+        const _inCwaBasin = (lat, lon) => (lat >= 0 && lat <= 60 && lon >= 100 && lon <= 180);
         const tcs = (data.features || [])
           .filter(f => f.properties && f.properties.eventtype === 'TC')
           .filter(f => {
+            const g = f.geometry && f.geometry.coordinates;
+            const lon = g ? +g[0] : NaN, lat = g ? +g[1] : NaN;
+            if (_cwaActive && isFinite(lat) && isFinite(lon) && _inCwaBasin(lat, lon)) return false;
             const raw = String(f.properties.eventname || f.properties.name || '').toUpperCase();
             const base = raw.replace(/[-\s]?\d{2}$/, '').replace('TROPICAL CYCLONE', '').trim();
             return !_cwa.names.has(base);
