@@ -3193,7 +3193,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.0</b></div>
+        <div>BUILD <b>v184.1</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -8854,7 +8854,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         const r = window.__gpDiagQuiet ? window.__gpDiagQuiet() : null;
         if (!r) return;
         el.textContent =
-          'v184.0  zoom ' + r.zoom + '  cenLng ' + r.centerLng + (r.ZOOM_STUCK ? '  \u26a0STUCK' : '') + '\n' +
+          'v184.1  zoom ' + r.zoom + '  cenLng ' + r.centerLng + (r.ZOOM_STUCK ? '  \u26a0STUCK' : '') + '\n' +
           'MARKERS tot ' + r.markers_total + '  in ' + r.markers_inView + '  DOMvis ' + r.DOM_visible + '  hid ' + r.DOM_hidden + '  op0 ' + r.DOM_opacity0 + '  cov ' + r.covered + '\n' +
           'VECTORS tot ' + r.vectors_total + '  in ' + r.vectors_inView + '\n' +
           Object.keys(r.perLayer).map(k => k + ' ' + r.perLayer[k]).join('  ') + '\n' +
@@ -8902,10 +8902,32 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
           try { if (b.intersects(l.getBounds())) vecIn++; } catch (e) {}
         }
       });
-      // 各圖層分項 — 消失時能看出是「誰」掉了
+      // v184.1: 各圖層三段式 tot/in/vis —「總數 / 視野內 / 實際可見」。
+      // 消失時一眼看出:in 高 vis 低 = 在視野內卻沒畫出來(渲染);in 低 = 根本不在視野(資料/位置)。
+      const _cnt3 = grp => {
+        let t = 0, i = 0, vv = 0;
+        try {
+          grp.eachLayer(l => {
+            if (!l.getLatLng) return;
+            const p = l.getLatLng(); if (!p) return;
+            t++;
+            if (!b.contains(p)) return;
+            i++;
+            try {
+              const el = l.getElement && l.getElement(); if (!el) return;
+              const r = el.getBoundingClientRect();
+              if (r.right > crect.left && r.left < crect.right && r.bottom > crect.top && r.top < crect.bottom && (r.width || r.height)) {
+                const cs = getComputedStyle(el);
+                if (cs.visibility !== 'hidden' && parseFloat(cs.opacity) !== 0) vv++;
+              }
+            } catch (e) {}
+          });
+        } catch (e) {}
+        return t + '/' + i + '/' + vv;
+      };
       const per = {};
-      const cand = { ship: (typeof shipLayer !== 'undefined') && shipLayer, air: (typeof aircraftLayer !== 'undefined') && aircraftLayer, quake: (typeof quakeLayer !== 'undefined') && quakeLayer, event: (typeof eventLayer !== 'undefined') && eventLayer, tc: (typeof cycloneLayer !== 'undefined') && cycloneLayer, alert: (typeof alertLayer !== 'undefined') && alertLayer, launch: (typeof launchLayer !== 'undefined') && launchLayer };
-      Object.keys(cand).forEach(k => { try { if (cand[k] && cand[k].getLayers) per[k] = cand[k].getLayers().length; } catch (e) {} });
+      const cand = { ship: (typeof shipLayer !== 'undefined') && shipLayer, air: (typeof aircraftLayer !== 'undefined') && aircraftLayer, quake: (typeof quakeLayer !== 'undefined') && quakeLayer, event: (typeof eventLayer !== 'undefined') && eventLayer, tc: (typeof cycloneLayer !== 'undefined') && cycloneLayer };
+      Object.keys(cand).forEach(k => { try { if (cand[k] && cand[k].eachLayer) per[k] = _cnt3(cand[k]); } catch (e) {} });
       const r = {
         zoom: map.getZoom(),
         centerLng: +c.lng.toFixed(2),
