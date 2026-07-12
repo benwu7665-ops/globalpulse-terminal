@@ -2659,6 +2659,14 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
      basemap, plus a vector overlay layer that we drive from OpenSky's
      live aircraft positions. -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+<script>
+/* v184.3: 關閉 Leaflet 的 GPU 3D transform。
+   診斷結論:800+ 個各自帶 translate3d 的標記觸發 Safari 合成器放棄繪製圖層
+   (DOM 位置/樣式/層級全部正常、像素卻消失,徽章數據已排除其他所有可能)。
+   改用 2D 定位 → 沒有各自的合成圖層 → Safari 的 bug 沒有東西可壞。
+   副作用:縮放改為瞬間切換(無平滑動畫),同時根除所有縮放動畫競態。 */
+window.L_DISABLE_3D = true;
+</script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="" defer></script>
 </head>
 <body>
@@ -3193,7 +3201,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.2</b></div>
+        <div>BUILD <b>v184.3</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -8856,7 +8864,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         const r = window.__gpDiagQuiet ? window.__gpDiagQuiet() : null;
         if (!r) return;
         el.textContent =
-          'v184.2  zoom ' + r.zoom + '  cenLng ' + r.centerLng + (r.ZOOM_STUCK ? '  \u26a0STUCK' : '') + '\n' +
+          'v184.3  zoom ' + r.zoom + '  cenLng ' + r.centerLng + (r.ZOOM_STUCK ? '  \u26a0STUCK' : '') + '\n' +
           'MARKERS tot ' + r.markers_total + '  in ' + r.markers_inView + '  DOMvis ' + r.DOM_visible + '  hid ' + r.DOM_hidden + '  op0 ' + r.DOM_opacity0 + '  cov ' + r.covered + '\n' +
           'VECTORS tot ' + r.vectors_total + '  in ' + r.vectors_inView + '\n' +
           Object.keys(r.perLayer).map(k => k + ' ' + r.perLayer[k]).join('  ') + '\n' +
@@ -8984,13 +8992,20 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
     // v184.2: Safari 合成器自癒。症狀:DOM 位置/樣式/透明度全部正常(診斷全綠)但像素沒畫
     // —— Safari 在縮放動畫+點擊時序下偶爾停止繪製 transform 圖層(WebKit 已知 bug 類型)。
     // 對 markerPane 做一次 translateZ 微擾再還原,強制重新合成。零視覺副作用。
+    let _gpRepaintT = 0;
     const _gpRepaint = () => {
       try {
-        const mp = map.getPanes && map.getPanes().markerPane;
+        const now = Date.now();
+        if (now - _gpRepaintT < 1500) return;   // 節流,AIS 高頻更新時不重複轟炸
+        _gpRepaintT = now;
+        const mp = map._mapPane;
         if (!mp) return;
-        const t0 = mp.style.transform || '';
-        mp.style.transform = t0 ? t0 + ' translateZ(0)' : 'translateZ(0)';
-        requestAnimationFrame(() => { try { mp.style.transform = t0; } catch (e) {} });
+        // display:none → 強制同步 reflow → 還原,全部在同一個 task 內 → 瀏覽器不會
+        // 在中間繪製任何一幀(無閃爍),但渲染子樹被強制重建 → 合成器必須重畫。
+        const d0 = mp.style.display;
+        mp.style.display = 'none';
+        void mp.offsetHeight;
+        mp.style.display = d0 || '';
       } catch (e) {}
     };
     window.__gpRepaint = _gpRepaint;
