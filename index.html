@@ -3193,7 +3193,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.1</b></div>
+        <div>BUILD <b>v184.2</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -7226,6 +7226,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
     if (milEl) milEl.textContent = milCount;
     if (civEl) civEl.textContent = civilCount;
     try { if (window.__gpWrap && Math.abs(map.getCenter().lng) > 180) window.__gpWrap(); } catch (e) {}
+    try { if (window.__gpRepaint) requestAnimationFrame(window.__gpRepaint); } catch (e) {}
   }
 
   // Ship overlay — pulls from AIS_STATE.vessels (populated by the live
@@ -7265,6 +7266,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
     });
     if (countEl) countEl.textContent = count;
     try { if (window.__gpWrap && Math.abs(map.getCenter().lng) > 180) window.__gpWrap(); } catch (e) {}
+    try { if (window.__gpRepaint) requestAnimationFrame(window.__gpRepaint); } catch (e) {}
   }
 
   // ---- v180.69 — Vessel photo lookup (Wikimedia Commons) ----
@@ -8854,10 +8856,11 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         const r = window.__gpDiagQuiet ? window.__gpDiagQuiet() : null;
         if (!r) return;
         el.textContent =
-          'v184.1  zoom ' + r.zoom + '  cenLng ' + r.centerLng + (r.ZOOM_STUCK ? '  \u26a0STUCK' : '') + '\n' +
+          'v184.2  zoom ' + r.zoom + '  cenLng ' + r.centerLng + (r.ZOOM_STUCK ? '  \u26a0STUCK' : '') + '\n' +
           'MARKERS tot ' + r.markers_total + '  in ' + r.markers_inView + '  DOMvis ' + r.DOM_visible + '  hid ' + r.DOM_hidden + '  op0 ' + r.DOM_opacity0 + '  cov ' + r.covered + '\n' +
           'VECTORS tot ' + r.vectors_total + '  in ' + r.vectors_inView + '\n' +
           Object.keys(r.perLayer).map(k => k + ' ' + r.perLayer[k]).join('  ') + '\n' +
+          r.pane + '\n' +
           'off-lng ' + (r.offscreen_lng_sample.slice(0, 4).join(',') || '-');
       } catch (e) {}
     };
@@ -8928,7 +8931,14 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       const per = {};
       const cand = { ship: (typeof shipLayer !== 'undefined') && shipLayer, air: (typeof aircraftLayer !== 'undefined') && aircraftLayer, quake: (typeof quakeLayer !== 'undefined') && quakeLayer, event: (typeof eventLayer !== 'undefined') && eventLayer, tc: (typeof cycloneLayer !== 'undefined') && cycloneLayer };
       Object.keys(cand).forEach(k => { try { if (cand[k] && cand[k].eachLayer) per[k] = _cnt3(cand[k]); } catch (e) {} });
+      let paneTxt = '';
+      try {
+        const ps = map.getPanes();
+        const mcs = getComputedStyle(ps.markerPane), tcs = getComputedStyle(ps.tilePane);
+        paneTxt = 'mk[z' + mcs.zIndex + ' o' + mcs.opacity + ' ' + mcs.visibility.charAt(0) + ' kids' + ps.markerPane.childElementCount + '] tile[z' + tcs.zIndex + ']';
+      } catch (e) {}
       const r = {
+        pane: paneTxt,
         zoom: map.getZoom(),
         centerLng: +c.lng.toFixed(2),
         viewLng: [+b.getWest().toFixed(1), +b.getEast().toFixed(1)],
@@ -8971,6 +8981,20 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       } catch (e) {}
     };
     map.on('zoomend moveend', _gpRepos);
+    // v184.2: Safari 合成器自癒。症狀:DOM 位置/樣式/透明度全部正常(診斷全綠)但像素沒畫
+    // —— Safari 在縮放動畫+點擊時序下偶爾停止繪製 transform 圖層(WebKit 已知 bug 類型)。
+    // 對 markerPane 做一次 translateZ 微擾再還原,強制重新合成。零視覺副作用。
+    const _gpRepaint = () => {
+      try {
+        const mp = map.getPanes && map.getPanes().markerPane;
+        if (!mp) return;
+        const t0 = mp.style.transform || '';
+        mp.style.transform = t0 ? t0 + ' translateZ(0)' : 'translateZ(0)';
+        requestAnimationFrame(() => { try { mp.style.transform = t0; } catch (e) {} });
+      } catch (e) {}
+    };
+    window.__gpRepaint = _gpRepaint;
+    map.on('zoomend moveend', () => setTimeout(_gpRepaint, 50));
     // v184.0: 卡死看門狗。Leaflet 的 _animatingZoom 在快速連續縮放下可能卡在 true
     // (內部 transitionend 遺失,已知通病)。v183.97/98 的守門全是 fail-closed:
     // 旗標一卡,重繪/歸位/自癒全被鎖死 → 「物件消失且放開也不回來」。
