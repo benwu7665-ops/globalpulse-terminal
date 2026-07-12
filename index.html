@@ -3193,7 +3193,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.97</b></div>
+        <div>BUILD <b>v183.98</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -8854,7 +8854,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         const r = window.__gpDiagQuiet ? window.__gpDiagQuiet() : null;
         if (!r) return;
         el.textContent =
-          'zoom ' + r.zoom + '  cenLng ' + r.centerLng + '\n' +
+          'v183.98  zoom ' + r.zoom + '  cenLng ' + r.centerLng + '\n' +
           'MARKERS tot ' + r.markers_total + '  in ' + r.markers_inView + '  DOMvis ' + r.DOM_visible + '\n' +
           'VECTORS tot ' + r.vectors_total + '  in ' + r.vectors_inView + '\n' +
           Object.keys(r.perLayer).map(k => k + ' ' + r.perLayer[k]).join('  ') + '\n' +
@@ -8903,6 +8903,17 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
     };
     window.__gpDiagQuiet = () => { const f = window.__gpDiag; const log = console.log; console.log = () => {}; try { return f(); } finally { console.log = log; } };
     map.on('moveend', _wrapWorld);
+    // v183.98: 自癒掃描 — 不管是什麼原因把標記的 DOM 畫歪(縮放動畫競態、或任何未知原因),
+    // 縮放/移動一結束就把每個標記依目前地圖變換重新定位。setLatLng(原座標) 會強制重算螢幕位置。
+    // 這是保底:即使預防(v183.97 的 _animatingZoom 守門)漏接,也會在下一次 zoomend/moveend 自動復原,
+    // 「消失後要重整才回來」在機制上不再可能。
+    const _gpRepos = () => {
+      try {
+        if (map._animatingZoom) return;
+        map.eachLayer(l => { try { if (l.getLatLng && l.setLatLng && l.getElement && l.getElement()) l.setLatLng(l.getLatLng()); } catch (e) {} });
+      } catch (e) {}
+    };
+    map.on('zoomend moveend', _gpRepos);
     // v183.94: 安全網回來了,但只在【真的跑到別的世界副本】時才掃(|中心經度| > 180)。
     // 平常停在主副本時完全零成本,不會再造成 v183.88 修掉的那種全圖重繪抖動。
     // 沒有這道網,刷新時新加入的物件會停在錯的副本上直到下次 moveend → 看起來就是「消失了」。
