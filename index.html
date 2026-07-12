@@ -3193,7 +3193,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.99</b></div>
+        <div>BUILD <b>v184.0</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -7204,7 +7204,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
     // v183.97: 縮放動畫中不重建標記 — 動畫中新建的圖示會拿到舊 transform,整批畫歪到螢幕外;
     // 若資料源接著 stale(OpenSky 免費版常斷),沒有下次刷新自癒 → 物件「永久消失直到重整」。
     // 用 Leaflet 內建 _animatingZoom(zoomend 必發,不會像手寫旗標卡死),延後到動畫結束再畫。
-    if (map._animatingZoom) { if (!renderAircraft._pend) { renderAircraft._pend = true; map.once('zoomend', () => { renderAircraft._pend = false; try { renderAircraft(); } catch (e) {} }); } return; }
+    if (map._animatingZoom) { if (!renderAircraft._pend) { renderAircraft._pend = true; const _go = () => { if (!renderAircraft._pend) return; renderAircraft._pend = false; try { renderAircraft(); } catch (e) {} }; map.once('zoomend', _go); setTimeout(_go, 1200); } return; }   // v184.0: fail-open — zoomend 沒來也會在 1.2s 後補繪
     aircraftLayer.clearLayers();
     // Two independent toggles — each layer can be turned on/off freely.
     // If both off → empty map. If both on → everything visible. No more
@@ -7236,7 +7236,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
   // Clicking a vessel opens the same detail card used for aircraft.
   function renderShips(){
     if (!map || !shipLayer) return;
-    if (map._animatingZoom) { if (!renderShips._pend) { renderShips._pend = true; map.once('zoomend', () => { renderShips._pend = false; try { renderShips(); } catch (e) {} }); } return; }
+    if (map._animatingZoom) { if (!renderShips._pend) { renderShips._pend = true; const _go = () => { if (!renderShips._pend) return; renderShips._pend = false; try { renderShips(); } catch (e) {} }; map.once('zoomend', _go); setTimeout(_go, 1200); } return; }   // v184.0: fail-open
     shipLayer.clearLayers();
     const showShips = document.getElementById('monShowShips')?.checked;
     const countEl = document.getElementById('monShipCount');
@@ -8854,8 +8854,8 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         const r = window.__gpDiagQuiet ? window.__gpDiagQuiet() : null;
         if (!r) return;
         el.textContent =
-          'v183.99  zoom ' + r.zoom + '  cenLng ' + r.centerLng + '\n' +
-          'MARKERS tot ' + r.markers_total + '  in ' + r.markers_inView + '  DOMvis ' + r.DOM_visible + '\n' +
+          'v184.0  zoom ' + r.zoom + '  cenLng ' + r.centerLng + (r.ZOOM_STUCK ? '  \u26a0STUCK' : '') + '\n' +
+          'MARKERS tot ' + r.markers_total + '  in ' + r.markers_inView + '  DOMvis ' + r.DOM_visible + '  hid ' + r.DOM_hidden + '  op0 ' + r.DOM_opacity0 + '  cov ' + r.covered + '\n' +
           'VECTORS tot ' + r.vectors_total + '  in ' + r.vectors_inView + '\n' +
           Object.keys(r.perLayer).map(k => k + ' ' + r.perLayer[k]).join('  ') + '\n' +
           'off-lng ' + (r.offscreen_lng_sample.slice(0, 4).join(',') || '-');
@@ -8870,14 +8870,32 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       // v183.97: DOM 實際可見數 — latlng 說在視野內,但圖示的 DOM 被 transform 畫歪到螢幕外時,
       // 這個數字會遠小於 in-view。這是分辨「資料沒了」vs「畫歪了」的決定性指標。
       const crect = map.getContainer().getBoundingClientRect();
-      let domVis = 0;
+      let domVis = 0, hid = 0, op0 = 0, cov = 0, covS = 0;
       map.eachLayer(l => {
         if (l.getLatLng) {
           const p = l.getLatLng(); if (!p) return;
           mk++;
           if (b.contains(p)) {
             mkIn++;
-            try { const el = l.getElement && l.getElement(); if (el) { const r = el.getBoundingClientRect(); if (r.right > crect.left && r.left < crect.right && r.bottom > crect.top && r.top < crect.bottom && (r.width || r.height)) domVis++; } } catch (e) {}
+            try {
+              const el = l.getElement && l.getElement();
+              if (el) {
+                const r = el.getBoundingClientRect();
+                if (r.right > crect.left && r.left < crect.right && r.bottom > crect.top && r.top < crect.bottom && (r.width || r.height)) {
+                  domVis++;
+                  // v184.0: 驗屍指標 — 位置對但看不見時,分辨是隱藏/透明/被蓋住
+                  const cs = getComputedStyle(el);
+                  if (cs.visibility === 'hidden') hid++;
+                  else if (parseFloat(cs.opacity) === 0) op0++;
+                  else if (covS < 30) {
+                    covS++;
+                    const cx = (r.left + r.right) / 2, cy = (r.top + r.bottom) / 2;
+                    const top = document.elementFromPoint(cx, cy);
+                    if (top && top !== el && !el.contains(top) && !top.closest('.leaflet-marker-pane')) cov++;
+                  }
+                }
+              }
+            } catch (e) {}
           } else if (offLng.length < 10) offLng.push(+p.lng.toFixed(1));
         } else if (l.getLatLngs && l.getBounds) {
           vec++;
@@ -8894,6 +8912,8 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         viewLng: [+b.getWest().toFixed(1), +b.getEast().toFixed(1)],
         markers_total: mk, markers_inView: mkIn, markers_OFFSCREEN: mk - mkIn,
         DOM_visible: domVis,
+        DOM_hidden: hid, DOM_opacity0: op0, covered: cov + '/' + covS,
+        ZOOM_STUCK: !!(map._animatingZoom || (map._mapPane && map._mapPane.className.indexOf('leaflet-zoom-anim') >= 0)),
         vectors_total: vec, vectors_inView: vecIn,
         perLayer: per,
         offscreen_lng_sample: offLng,
@@ -8929,6 +8949,28 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       } catch (e) {}
     };
     map.on('zoomend moveend', _gpRepos);
+    // v184.0: 卡死看門狗。Leaflet 的 _animatingZoom 在快速連續縮放下可能卡在 true
+    // (內部 transitionend 遺失,已知通病)。v183.97/98 的守門全是 fail-closed:
+    // 旗標一卡,重繪/歸位/自癒全被鎖死 → 「物件消失且放開也不回來」。
+    // 看門狗每秒檢查:卡超過 2 秒即強制解鎖(還原 CSS class + 清旗標)並全面重繪。
+    let _gpStuckT0 = 0;
+    setInterval(() => {
+      try {
+        if (map._animatingZoom) {
+          if (!_gpStuckT0) { _gpStuckT0 = Date.now(); return; }
+          if (Date.now() - _gpStuckT0 > 2000) {
+            _gpStuckT0 = 0;
+            try { L.DomUtil.removeClass(map._mapPane, 'leaflet-zoom-anim'); } catch (e) {}
+            map._animatingZoom = false;
+            try { _wrapWorld(); } catch (e) {}
+            try { _gpRepos(); } catch (e) {}
+            try { if (typeof renderAircraft === 'function') { renderAircraft._pend = false; renderAircraft(); } } catch (e) {}
+            try { if (typeof renderShips === 'function') { renderShips._pend = false; renderShips(); } } catch (e) {}
+            console.warn('[GP] zoom-anim \u5361\u6b7b\u5df2\u5f37\u5236\u89e3\u9664\u4e26\u91cd\u7e6a');
+          }
+        } else { _gpStuckT0 = 0; }
+      } catch (e) {}
+    }, 1000);
     // v183.94: 安全網回來了,但只在【真的跑到別的世界副本】時才掃(|中心經度| > 180)。
     // 平常停在主副本時完全零成本,不會再造成 v183.88 修掉的那種全圖重繪抖動。
     // 沒有這道網,刷新時新加入的物件會停在錯的副本上直到下次 moveend → 看起來就是「消失了」。
