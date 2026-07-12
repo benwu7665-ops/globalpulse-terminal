@@ -3193,7 +3193,7 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v183.98</b></div>
+        <div>BUILD <b>v183.99</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -8854,7 +8854,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         const r = window.__gpDiagQuiet ? window.__gpDiagQuiet() : null;
         if (!r) return;
         el.textContent =
-          'v183.98  zoom ' + r.zoom + '  cenLng ' + r.centerLng + '\n' +
+          'v183.99  zoom ' + r.zoom + '  cenLng ' + r.centerLng + '\n' +
           'MARKERS tot ' + r.markers_total + '  in ' + r.markers_inView + '  DOMvis ' + r.DOM_visible + '\n' +
           'VECTORS tot ' + r.vectors_total + '  in ' + r.vectors_inView + '\n' +
           Object.keys(r.perLayer).map(k => k + ' ' + r.perLayer[k]).join('  ') + '\n' +
@@ -8902,6 +8902,21 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       return r;
     };
     window.__gpDiagQuiet = () => { const f = window.__gpDiag; const log = console.log; console.log = () => {}; try { return f(); } finally { console.log = log; } };
+    // v183.99: 【根治】世界副本漂移。徽章抓到 cenLng=366 — 使用者把地圖拖了整整一圈,
+    // 看的是世界副本#2;物件靠 moveend 的 _wrapWorld 搬運 → 拖曳中搬運不動作 →
+    // 「按著拖會消失、放開就出現」。與其每次搬 800+ 個物件去追視角,
+    // 不如放開時把【地圖】無感跳回主副本:地磚無限重複,畫面完全相同,
+    // 物件天生就在正確位置,且 cenLng 永遠收斂在 ±180,漂移不再累積。
+    const _gpNormalizeView = () => {
+      try {
+        const c = map.getCenter();
+        if (Math.abs(c.lng) <= 180) return false;
+        const w = ((c.lng + 180) % 360 + 360) % 360 - 180;
+        map.setView([c.lat, w], map.getZoom(), { animate: false });
+        return true;
+      } catch (e) { return false; }
+    };
+    map.on('moveend', _gpNormalizeView);
     map.on('moveend', _wrapWorld);
     // v183.98: 自癒掃描 — 不管是什麼原因把標記的 DOM 畫歪(縮放動畫競態、或任何未知原因),
     // 縮放/移動一結束就把每個標記依目前地圖變換重新定位。setLatLng(原座標) 會強制重算螢幕位置。
