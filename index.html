@@ -3201,7 +3201,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.3</b></div>
+        <div>BUILD <b>v184.4</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -8864,7 +8864,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         const r = window.__gpDiagQuiet ? window.__gpDiagQuiet() : null;
         if (!r) return;
         el.textContent =
-          'v184.3  zoom ' + r.zoom + '  cenLng ' + r.centerLng + (r.ZOOM_STUCK ? '  \u26a0STUCK' : '') + '\n' +
+          'v184.4  zoom ' + r.zoom + '  cenLng ' + r.centerLng + (r.ZOOM_STUCK ? '  \u26a0STUCK' : '') + '\n' +
           'MARKERS tot ' + r.markers_total + '  in ' + r.markers_inView + '  DOMvis ' + r.DOM_visible + '  hid ' + r.DOM_hidden + '  op0 ' + r.DOM_opacity0 + '  cov ' + r.covered + '\n' +
           'VECTORS tot ' + r.vectors_total + '  in ' + r.vectors_inView + '\n' +
           Object.keys(r.perLayer).map(k => k + ' ' + r.perLayer[k]).join('  ') + '\n' +
@@ -8978,6 +8978,41 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
     };
     map.on('moveend', _gpNormalizeView);
     map.on('moveend', _wrapWorld);
+
+    // ═══ v184.4: 圖層偏好記憶 ═══════════════════════════════════════════
+    // 需求:預設全部不勾;使用者勾選後自動存檔(localStorage,存在各自瀏覽器),
+    //       下次進來自動還原,不用每次重勾。
+    // 做法:對每個 monShow* 開關「派發 change 事件」模擬真人點擊 → 完全重用
+    //       各圖層既有的開關邏輯(含 ACLED 這種勾了才抓資料的懶載入),
+    //       不另寫第二套加/移除圖層的程式,避免互相打架。
+    // 存檔時機:每次勾/取消立刻存(比「退出時存」可靠,關瀏覽器也不會漏)。
+    const GP_PREF_KEY = 'gp-layer-prefs-v1';
+    const _prefBoxes = () => Array.prototype.slice.call(document.querySelectorAll('input[type="checkbox"][id^="monShow"]'));
+    const _savePrefs = () => {
+      try {
+        const st = {};
+        _prefBoxes().forEach(b => { st[b.id] = !!b.checked; });
+        localStorage.setItem(GP_PREF_KEY, JSON.stringify(st));
+      } catch (e) {}
+    };
+    setTimeout(() => {
+      try {
+        let saved = null;
+        try { saved = JSON.parse(localStorage.getItem(GP_PREF_KEY) || 'null'); } catch (e) {}
+        _prefBoxes().forEach(b => {
+          const want = saved ? !!saved[b.id] : false;   // 沒有存檔(首次進站)→ 一律不勾
+          if (b.checked !== want) {
+            b.checked = want;
+            b.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+          b.addEventListener('change', _savePrefs);
+        });
+        // 飛機/船舶的顯示過濾是在重繪時讀取勾選狀態,套用偏好後立即重繪一次讓畫面同步
+        try { if (typeof renderAircraft === 'function') renderAircraft(); } catch (e) {}
+        try { if (typeof renderShips === 'function') renderShips(); } catch (e) {}
+      } catch (e) {}
+    }, 400);
+    // ═════════════════════════════════════════════════════════════════════
     // v183.98: 自癒掃描 — 不管是什麼原因把標記的 DOM 畫歪(縮放動畫競態、或任何未知原因),
     // 縮放/移動一結束就把每個標記依目前地圖變換重新定位。setLatLng(原座標) 會強制重算螢幕位置。
     // 這是保底:即使預防(v183.97 的 _animatingZoom 守門)漏接,也會在下一次 zoomend/moveend 自動復原,
