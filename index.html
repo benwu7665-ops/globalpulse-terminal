@@ -3201,7 +3201,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.8</b></div>
+        <div>BUILD <b>v184.9</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -9157,6 +9157,11 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         p.style.display = _open ? 'block' : 'none';
         if (_open) {
           applyWidgets(); buildStreamSel();
+          // v184.9: 自動續播上次頻道 — 修正「單頻道分類的下拉選不出 change、永遠播不了」
+          try {
+            const cs0 = document.getElementById('mpStreamCat'), sel0 = document.getElementById('mpStreamSel');
+            if (cs0 && sel0 && sel0.value !== '__custom' && chanList(cs0.value).length) playStream(cs0.value, parseInt(sel0.value, 10) || 0);
+          } catch (e) {}
           loadIdx(); loadTg();
           _tIdx = setInterval(loadIdx, 60 * 1000);
           _tTg = setInterval(loadTg, 120 * 1000);
@@ -9168,9 +9173,10 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
 
       setTimeout(() => {
         const cs = document.getElementById('mpStreamCat'), sel = document.getElementById('mpStreamSel');
-        if (cs) cs.addEventListener('change', () => buildChanSel(cs.value, 0));
+        if (cs) cs.addEventListener('change', () => { buildChanSel(cs.value, 0); if (chanList(cs.value).length) playStream(cs.value, 0); else stopStream(); });
         if (sel) sel.addEventListener('change', () => { if (sel.value === '__custom') customStream(); else playStream(cs.value, parseInt(sel.value, 10)); });
         const st = document.getElementById('mpYtStop'); if (st) st.addEventListener('click', stopStream);
+        const nw = document.getElementById('mpYtNow'); if (nw) { nw.style.cursor = 'pointer'; nw.title = '\u9ede\u64ca\u64ad\u653e/\u91cd\u65b0\u64ad\u653e'; nw.addEventListener('click', () => { if (sel && sel.value !== '__custom' && cs) playStream(cs.value, parseInt(sel.value, 10) || 0); }); }
         const mu = document.getElementById('mpYtMute'); if (mu) mu.addEventListener('click', () => { _muted = !_muted; mu.textContent = _muted ? '\ud83d\udd07' : '\ud83d\udd0a'; if (_cur) { const i = parseInt((sel || {}).value, 10); if (!isNaN(i) && cs) playStream(cs.value, i); } });
         const pp = document.getElementById('mpYtPop'); if (pp) pp.addEventListener('click', () => { if (_cur) window.open(_cur.watch || _cur.src, '_blank'); });
         const rf = document.getElementById('mpTgRefresh'); if (rf) rf.addEventListener('click', loadTg);
