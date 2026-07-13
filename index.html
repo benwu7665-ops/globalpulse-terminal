@@ -3201,7 +3201,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.5</b></div>
+        <div>BUILD <b>v184.6</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -5047,6 +5047,37 @@ window.L_DISABLE_3D = true;
         #monLayerFab:hover { background:rgba(255,140,0,.18); border-color:rgba(255,140,0,.7); }
       </style>
       <button id="monLayerFab" onclick="toggleMonLayers()" style="position:absolute;left:12px;bottom:12px;z-index:600;background:rgba(15,15,18,.92);color:var(--amber);border:1px solid rgba(255,140,0,.4);border-radius:6px;padding:7px 13px;font-family:var(--font-mono);font-size:12px;font-weight:700;letter-spacing:.05em;cursor:pointer;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:0 2px 10px rgba(0,0,0,.5);">≡ <span class="t-zh">圖層</span><span class="t-en">LAYERS</span></button>
+      <button id="monPanelFab" onclick="toggleMonPanel()" style="position:absolute;right:12px;bottom:12px;z-index:600;background:rgba(15,15,18,.92);color:var(--amber);border:1px solid rgba(255,140,0,.4);border-radius:6px;padding:7px 13px;font-family:var(--font-mono);font-size:12px;font-weight:700;letter-spacing:.05em;cursor:pointer;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:0 2px 10px rgba(0,0,0,.5);">◉ <span class="t-zh">監控</span><span class="t-en">MONITOR</span></button>
+      <div id="monPanel" style="display:none;position:absolute;right:12px;bottom:56px;z-index:650;width:min(430px,calc(100% - 24px));max-height:calc(100% - 70px);overflow-y:auto;background:rgba(10,12,16,.96);border:1px solid rgba(255,140,0,.45);border-radius:8px;font-family:var(--font-mono);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);box-shadow:0 6px 26px rgba(0,0,0,.65);">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:1px solid rgba(255,140,0,.28);">
+          <span style="color:var(--amber);font-weight:700;font-size:13px;letter-spacing:.06em;">◉ <span class="t-zh">監控面板</span><span class="t-en">MONITOR</span></span>
+          <span onclick="toggleMonPanel()" style="color:var(--text-dim);cursor:pointer;font-size:15px;padding:0 4px;">✕</span>
+        </div>
+        <!-- ① 全球指數 -->
+        <div style="padding:9px 12px;border-bottom:1px solid rgba(255,140,0,.18);">
+          <div style="color:var(--amber);font-size:11px;font-weight:700;margin-bottom:6px;"><span class="t-zh">全球指數</span><span class="t-en">GLOBAL INDICES</span> <span id="mpIdxUpd" style="color:var(--text-dim);font-weight:400;font-size:10px;"></span></div>
+          <table style="width:100%;border-collapse:collapse;font-size:11px;"><tbody id="mpIdxBody"><tr><td style="color:var(--text-dim);padding:6px 0;">載入中…</td></tr></tbody></table>
+        </div>
+        <!-- ② Telegram 即時消息鏈 -->
+        <div style="padding:9px 12px;border-bottom:1px solid rgba(255,140,0,.18);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <span style="color:var(--amber);font-size:11px;font-weight:700;">Telegram <span class="t-zh">即時消息鏈</span><span class="t-en">INTEL FEED</span></span>
+            <span id="mpTgRefresh" style="color:var(--amber);border:1px solid rgba(255,140,0,.4);border-radius:4px;padding:1px 8px;font-size:10px;cursor:pointer;">重新整理</span>
+          </div>
+          <div id="mpTgMeta" style="color:var(--text-dim);font-size:10px;margin-bottom:6px;"></div>
+          <div id="mpTgList" style="display:flex;flex-direction:column;gap:8px;"><div style="color:var(--text-dim);font-size:11px;">載入中…</div></div>
+        </div>
+        <!-- ③ LIVE 直播 -->
+        <div style="padding:9px 12px;">
+          <div style="color:var(--amber);font-size:11px;font-weight:700;margin-bottom:6px;">LIVE <span class="t-zh">直播</span><span class="t-en">STREAM</span></div>
+          <div style="display:flex;gap:6px;margin-bottom:7px;">
+            <input id="mpYtUrl" type="text" placeholder="貼上 YouTube 直播網址(例:EBC 財經 24hr)" style="flex:1;background:rgba(0,0,0,.5);border:1px solid rgba(255,140,0,.35);border-radius:4px;color:var(--text);font-family:var(--font-mono);font-size:11px;padding:5px 8px;">
+            <button id="mpYtGo" style="background:rgba(255,140,0,.15);color:var(--amber);border:1px solid rgba(255,140,0,.45);border-radius:4px;font-family:var(--font-mono);font-size:11px;padding:5px 10px;cursor:pointer;">播放</button>
+            <button id="mpYtStop" style="background:transparent;color:var(--text-dim);border:1px solid rgba(255,255,255,.2);border-radius:4px;font-family:var(--font-mono);font-size:11px;padding:5px 10px;cursor:pointer;">停止</button>
+          </div>
+          <div id="mpYtBox" style="display:none;position:relative;width:100%;padding-top:56.25%;background:#000;border:1px solid rgba(255,140,0,.25);border-radius:4px;overflow:hidden;"></div>
+        </div>
+      </div>
       <div id="monLayerPanel" style="position:absolute;left:12px;bottom:54px;z-index:600;display:none;width:212px;max-height:calc(100% - 84px);overflow-y:auto;background:rgba(15,15,18,.95);border:1px solid rgba(255,140,0,.35);border-radius:8px;padding:10px 12px;font-family:var(--font-mono);font-size:11.5px;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 6px 24px rgba(0,0,0,.6);">
         <div style="color:var(--amber);font-weight:700;letter-spacing:.08em;font-size:11px;margin-bottom:2px;">◧ <span class="t-zh">圖層控制</span><span class="t-en">LAYERS</span></div>
         <div class="mlp-sec"><span class="t-zh">監控</span><span class="t-en">SURVEILLANCE</span></div>
@@ -8887,6 +8918,97 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         try { if (typeof renderShips === 'function') renderShips(); } catch (e) {}
       } catch (e) {}
     }, 400);
+    // ═════════════════════════════════════════════════════════════════════
+
+    // ═══ v184.6: 右下角監控面板 ═══════════════════════════════════════════
+    // 三部件:全球指數(/gindices)、Telegram 消息鏈(/telegram)、YouTube 直播嵌入。
+    // 只在面板開啟時抓資料與輪詢(指數 60s / 消息 120s),關閉即停,不浪費配額。
+    (function () {
+      const WK = 'https://ais-proxy.2syzkjy2vq.workers.dev';
+      const IDX_NAME = { '^GSPC': 'S&P 500', '^NDX': 'NASDAQ 100', '^RUT': '\u7f85\u7d20 2000', '^FTSE': '\u82f1 FTSE', '^GDAXI': '\u5fb7 DAX', '^FCHI': '\u6cd5 CAC40', '^N225': '\u65e5\u7d93 225', '^HSI': '\u6046\u751f', '000001.SS': '\u4e0a\u8b49', '^TWII': '\u53f0\u7063\u52a0\u6b0a' };
+      const _esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const _fmtT = iso => { try { const d = new Date(iso); return String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0') + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); } catch (e) { return ''; } };
+      let _open = false, _tIdx = null, _tTg = null;
+
+      async function loadIdx() {
+        try {
+          const d = await _fetchJSON(WK + '/gindices');
+          const tb = document.getElementById('mpIdxBody');
+          if (!tb) return;
+          if (!d || !d.ok || !d.indices || !d.indices.length) { tb.innerHTML = '<tr><td style="color:var(--text-dim);padding:6px 0;">\u6307\u6578\u66ab\u6642\u62ff\u4e0d\u5230(Yahoo \u7aef\u9ede\u9650\u6d41?)</td></tr>'; return; }
+          tb.innerHTML = d.indices.map(o => {
+            const up = (o.chg || 0) >= 0;
+            const col = up ? 'var(--up,#26d07c)' : 'var(--down,#ff4d4d)';
+            const arrow = up ? '\u25b2' : '\u25bc';
+            return '<tr style="border-bottom:1px solid rgba(255,255,255,.05);">'
+              + '<td style="padding:4px 0;color:var(--text);">' + (IDX_NAME[o.sym] || o.sym) + '<span style="color:var(--text-dim);font-size:9px;"> ' + o.sym + '</span></td>'
+              + '<td style="padding:4px 0;text-align:right;color:var(--text);">' + (o.px != null ? o.px.toLocaleString('en-US', { maximumFractionDigits: 2 }) : '-') + '</td>'
+              + '<td style="padding:4px 0 4px 10px;text-align:right;color:' + col + ';">' + arrow + ' ' + (o.chg != null ? (up ? '+' : '') + o.chg : '-') + '</td>'
+              + '<td style="padding:4px 0 4px 10px;text-align:right;color:' + col + ';">' + (o.chgPct != null ? (up ? '+' : '') + o.chgPct + '%' : '-') + '</td>'
+              + '</tr>';
+          }).join('');
+          const u = document.getElementById('mpIdxUpd'); if (u) u.textContent = '\u00b7 ' + _fmtT(d.updated);
+        } catch (e) {}
+      }
+
+      async function loadTg() {
+        try {
+          const d = await _fetchJSON(WK + '/telegram?channels=intelslava,clashreport&limit=20');
+          const box = document.getElementById('mpTgList'), meta = document.getElementById('mpTgMeta');
+          if (!box) return;
+          if (!d || !d.ok || !d.messages || !d.messages.length) { box.innerHTML = '<div style="color:var(--text-dim);font-size:11px;">\u62ff\u4e0d\u5230\u6d88\u606f(t.me \u53ef\u80fd\u6682\u6642\u64cb\u4e86,\u7a0d\u5f8c\u91cd\u8a66)</div>'; return; }
+          if (meta) meta.textContent = '\u5373\u6642 \u00b7 ' + d.count + ' \u5247 \u00b7 ' + d.channels.length + ' \u500b\u983b\u9053 \u00b7 ' + _fmtT(d.updated);
+          box.innerHTML = d.messages.map(m => {
+            const gt = 'https://translate.google.com/?sl=auto&tl=zh-TW&op=translate&text=' + encodeURIComponent(m.text.slice(0, 700));
+            return '<div style="border:1px solid rgba(255,140,0,.2);border-radius:5px;padding:7px 9px;background:rgba(255,140,0,.03);">'
+              + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">'
+              + '<span style="color:var(--amber);font-size:10px;font-weight:700;">' + _esc(m.chName) + ' \u00b7 ' + _fmtT(m.t) + '</span>'
+              + '<a href="' + gt + '" target="_blank" rel="noopener" style="color:var(--amber);border:1px solid rgba(255,140,0,.4);border-radius:3px;padding:0 7px;font-size:10px;text-decoration:none;">\u7ffb\u8b6f</a>'
+              + '</div>'
+              + '<div style="color:var(--text);font-size:11px;line-height:1.5;">' + _esc(m.text) + '</div>'
+              + (m.url ? '<div style="margin-top:3px;"><a href="' + m.url + '" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:9px;text-decoration:none;">' + _esc(m.ch) + ' \u2197</a></div>' : '')
+              + '</div>';
+          }).join('');
+        } catch (e) {}
+      }
+
+      // YouTube 直播:貼網址 → 解析影片ID → 嵌入;記住上次網址
+      const YT_KEY = 'gp-monpanel-yt';
+      const _ytId = u => { const m = String(u).match(/(?:youtu\.be\/|v=|\/live\/|\/embed\/)([A-Za-z0-9_-]{11})/); return m ? m[1] : null; };
+      function playYt(url) {
+        const id = _ytId(url);
+        const box = document.getElementById('mpYtBox');
+        if (!box) return;
+        if (!id) { box.style.display = 'none'; box.innerHTML = ''; alert('\u770b\u4e0d\u61c2\u9019\u500b\u7db2\u5740,\u8acb\u8cbc YouTube \u5f71\u7247/\u76f4\u64ad\u9023\u7d50'); return; }
+        try { localStorage.setItem(YT_KEY, url); } catch (e) {}
+        box.style.display = 'block';
+        box.innerHTML = '<iframe src="https://www.youtube.com/embed/' + id + '?autoplay=1&mute=1" style="position:absolute;inset:0;width:100%;height:100%;border:0;" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
+      }
+      function stopYt() { const box = document.getElementById('mpYtBox'); if (box) { box.innerHTML = ''; box.style.display = 'none'; } }
+
+      window.toggleMonPanel = function () {
+        const p = document.getElementById('monPanel');
+        if (!p) return;
+        _open = p.style.display === 'none';
+        p.style.display = _open ? 'block' : 'none';
+        if (_open) {
+          loadIdx(); loadTg();
+          _tIdx = setInterval(loadIdx, 60 * 1000);
+          _tTg = setInterval(loadTg, 120 * 1000);
+          try { const last = localStorage.getItem(YT_KEY); const inp = document.getElementById('mpYtUrl'); if (last && inp && !inp.value) inp.value = last; } catch (e) {}
+        } else {
+          clearInterval(_tIdx); clearInterval(_tTg);
+          stopYt();   // 關面板順便停直播,不留背景聲音/流量
+        }
+      };
+      setTimeout(() => {
+        const go = document.getElementById('mpYtGo'), st = document.getElementById('mpYtStop'), inp = document.getElementById('mpYtUrl'), rf = document.getElementById('mpTgRefresh');
+        if (go) go.addEventListener('click', () => playYt(inp && inp.value));
+        if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') playYt(inp.value); });
+        if (st) st.addEventListener('click', stopYt);
+        if (rf) rf.addEventListener('click', loadTg);
+      }, 500);
+    })();
     // ═════════════════════════════════════════════════════════════════════
     // v183.98: 自癒掃描 — 不管是什麼原因把標記的 DOM 畫歪(縮放動畫競態、或任何未知原因),
     // 縮放/移動一結束就把每個標記依目前地圖變換重新定位。setLatLng(原座標) 會強制重算螢幕位置。
