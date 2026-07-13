@@ -3201,7 +3201,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.7</b></div>
+        <div>BUILD <b>v184.8</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -5098,7 +5098,7 @@ window.L_DISABLE_3D = true;
             </div>
             <div class="gp-mp-body">
               <div class="gp-mp-row">
-                <select class="gp-mp-sel" disabled style="width:96px;"><option>台灣直播</option></select>
+                <select class="gp-mp-sel" id="mpStreamCat" style="width:112px;"></select>
                 <select class="gp-mp-sel" id="mpStreamSel" style="flex:1;"></select>
               </div>
               <div class="gp-mp-ytwrap" id="mpYtBox"></div>
@@ -8989,9 +8989,33 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       const WK = 'https://ais-proxy.2syzkjy2vq.workers.dev';
       const LSW = 'gp-mp-hidden', LSS = 'gp-mp-streams', LSSEL = 'gp-mp-stream-sel';
       const CAT = { intelslava: '\u5730\u7de3\u653f\u6cbb', clashreport: '\u5730\u7de3\u653f\u6cbb' };
-      const DEF_STREAMS = [
-        { name: 'EBC Financial News 24hr', src: 'https://www.youtube.com/embed/live_stream?channel=UCuzqko_GKcj9922M1gUo__w', watch: 'https://www.youtube.com/user/57ETFN/live' },
-      ];
+      // 全球頻道庫。type:
+      //   channel = 用頻道 ID 直嵌(live_stream?channel=,重開直播不失效)
+      //   handle  = 用官方 @handle 經 Worker /ytlive 即時解析目前直播的 videoId
+      // @handle 比影片 ID 穩定得多(影片 ID 在頻道重開直播時會換,handle 永遠不變)。
+      const STREAM_DB = {
+        '\u53f0\u7063\u76f4\u64ad': [
+          { name: 'EBC Financial News 24hr', type: 'channel', id: 'UCuzqko_GKcj9922M1gUo__w', watch: 'https://www.youtube.com/user/57ETFN/live' },
+        ],
+        '\u7f8e\u570b\u8ca1\u7d93': [
+          { name: 'Bloomberg TV', type: 'handle', h: '@markets' },
+          { name: 'Yahoo Finance', type: 'handle', h: '@YahooFinance' },
+        ],
+        '\u570b\u969b\u65b0\u805e': [
+          { name: 'Sky News', type: 'handle', h: '@SkyNews' },
+          { name: 'Al Jazeera English', type: 'handle', h: '@aljazeeraenglish' },
+          { name: 'France 24 English', type: 'handle', h: '@France24_en' },
+          { name: 'DW News', type: 'handle', h: '@dwnews' },
+          { name: 'TRT World', type: 'handle', h: '@trtworld' },
+          { name: 'WION', type: 'handle', h: '@WION' },
+          { name: 'CNA', type: 'handle', h: '@channelnewsasia' },
+          { name: 'Euronews', type: 'handle', h: '@euronews' },
+        ],
+        '\u592a\u7a7a': [
+          { name: 'NASA TV', type: 'handle', h: '@NASA' },
+        ],
+        '\u81ea\u8a02': [],
+      };
       const _esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const _fmtT = iso => { try { const d = new Date(iso); return String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0') + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); } catch (e) { return ''; } };
       const _fmtHMS = ep => { try { const d = new Date(ep * 1000); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ':' + String(d.getSeconds()).padStart(2, '0'); } catch (e) { return ''; } };
@@ -9015,35 +9039,62 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       }
 
       // ── LIVE STREAMS ──
-      function streamList() { return DEF_STREAMS.concat(_ls(LSS, [])); }
+      const _cats = () => Object.keys(STREAM_DB);
+      function chanList(cat) { return cat === '\u81ea\u8a02' ? _ls(LSS, []) : (STREAM_DB[cat] || []); }
       function buildStreamSel() {
+        const cs = document.getElementById('mpStreamCat'), sel = document.getElementById('mpStreamSel');
+        if (!cs || !sel) return;
+        const saved = _ls(LSSEL, { cat: '\u53f0\u7063\u76f4\u64ad', idx: 0 });
+        cs.innerHTML = _cats().map(c => '<option value="' + c + '">' + c + '</option>').join('');
+        cs.value = _cats().includes(saved.cat) ? saved.cat : _cats()[0];
+        buildChanSel(cs.value, saved.cat === cs.value ? saved.idx : 0);
+      }
+      function buildChanSel(cat, selIdx) {
         const sel = document.getElementById('mpStreamSel'); if (!sel) return;
-        const list = streamList();
-        sel.innerHTML = list.map((o, i) => '<option value="' + i + '">' + _esc(o.name) + '</option>').join('') + '<option value="__custom">\u2795 \u81ea\u8a02\u7db2\u5740\u2026</option>';
-        const saved = _ls(LSSEL, 0);
-        if (saved >= 0 && saved < list.length) sel.value = String(saved);
+        const list = chanList(cat);
+        sel.innerHTML = list.map((o, i) => '<option value="' + i + '">' + _esc(o.name) + '</option>').join('')
+          + '<option value="__custom">\u2795 \u81ea\u8a02\u7db2\u5740\u2026</option>';
+        if (list.length && selIdx >= 0 && selIdx < list.length) sel.value = String(selIdx);
+        else if (!list.length) sel.value = '__custom';
       }
       const _ytId = u => { const m = String(u).match(/(?:youtu\.be\/|v=|\/live\/|\/embed\/)([A-Za-z0-9_-]{11})/); return m ? m[1] : null; };
-      function playStream(i) {
-        const list = streamList(); const o = list[i]; if (!o) return;
-        _cur = o; _lsSet(LSSEL, i);
+      function _embed(src, watch, name) {
         const box = document.getElementById('mpYtBox'); if (!box) return;
-        const sep = o.src.indexOf('?') >= 0 ? '&' : '?';
-        box.innerHTML = '<iframe src="' + o.src + sep + 'autoplay=1&mute=' + (_muted ? 1 : 0) + '" style="position:absolute;inset:0;width:100%;height:100%;border:0;" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
-        const now = document.getElementById('mpYtNow'); if (now) now.textContent = '\u25b6 ' + o.name;
+        const sep = src.indexOf('?') >= 0 ? '&' : '?';
+        box.innerHTML = '<iframe src="' + src + sep + 'autoplay=1&mute=' + (_muted ? 1 : 0) + '" style="position:absolute;inset:0;width:100%;height:100%;border:0;" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
+        _cur = { src, watch, name };
+        const now = document.getElementById('mpYtNow'); if (now) now.textContent = '\u25b6 ' + name;
+      }
+      function _msg(t) {
+        const box = document.getElementById('mpYtBox'); if (!box) return;
+        box.innerHTML = '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:11px;padding:0 14px;text-align:center;">' + t + '</div>';
+      }
+      async function playStream(cat, i) {
+        const o = chanList(cat)[i]; if (!o) return;
+        _lsSet(LSSEL, { cat, idx: i });
+        if (o.type === 'channel') { _embed('https://www.youtube.com/embed/live_stream?channel=' + o.id, o.watch, o.name); return; }
+        if (o.type === 'handle') {
+          _msg('\u89e3\u6790 ' + _esc(o.name) + ' \u76ee\u524d\u76f4\u64ad\u4e2d\u2026');
+          try {
+            const d = await _fetchJSON(WK + '/ytlive?h=' + encodeURIComponent(o.h));
+            if (d && d.live && d.videoId) { _embed('https://www.youtube.com/embed/' + d.videoId, 'https://www.youtube.com/watch?v=' + d.videoId, o.name); }
+            else _msg(_esc(o.name) + ' \u76ee\u524d\u6c92\u6709\u76f4\u64ad\u6216\u7121\u6cd5\u53d6\u5f97,\u63db\u500b\u983b\u9053\u8a66\u8a66');
+          } catch (e) { _msg('\u89e3\u6790\u5931\u6557,\u7a0d\u5f8c\u91cd\u8a66'); }
+          return;
+        }
+        _embed(o.src, o.watch, o.name);   // 自訂
       }
       function stopStream() { const box = document.getElementById('mpYtBox'); if (box) box.innerHTML = ''; const now = document.getElementById('mpYtNow'); if (now) now.textContent = '\u25b6 \u2014'; _cur = null; }
       function customStream() {
         const url = prompt('\u8cbc\u4e0a YouTube \u5f71\u7247/\u76f4\u64ad\u7db2\u5740:'); if (!url) { buildStreamSel(); return; }
         const id = _ytId(url);
         if (!id) { alert('\u770b\u4e0d\u61c2\u9019\u500b\u7db2\u5740'); buildStreamSel(); return; }
-        const name = prompt('\u5e6b\u9019\u500b\u76f4\u64ad\u53d6\u500b\u540d\u5b57:', 'My Stream ' + (streamList().length)) || ('Stream ' + id);
-        const customs = _ls(LSS, []); customs.push({ name, src: 'https://www.youtube.com/embed/' + id, watch: 'https://www.youtube.com/watch?v=' + id }); _lsSet(LSS, customs);
-        buildStreamSel();
-        const sel = document.getElementById('mpStreamSel'); sel.value = String(streamList().length - 1);
-        playStream(streamList().length - 1);
+        const name = prompt('\u5e6b\u9019\u500b\u76f4\u64ad\u53d6\u500b\u540d\u5b57:', 'My Stream') || ('Stream ' + id);
+        const customs = _ls(LSS, []); customs.push({ name, type: 'custom', src: 'https://www.youtube.com/embed/' + id, watch: 'https://www.youtube.com/watch?v=' + id }); _lsSet(LSS, customs);
+        const cs = document.getElementById('mpStreamCat'); if (cs) cs.value = '\u81ea\u8a02';
+        buildChanSel('\u81ea\u8a02', customs.length - 1);
+        playStream('\u81ea\u8a02', customs.length - 1);
       }
-
       // ── Telegram ──
       function renderTg() {
         const box = document.getElementById('mpTgList'); if (!box) return;
@@ -9116,10 +9167,11 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       };
 
       setTimeout(() => {
-        const sel = document.getElementById('mpStreamSel');
-        if (sel) sel.addEventListener('change', () => { if (sel.value === '__custom') customStream(); else playStream(parseInt(sel.value, 10)); });
+        const cs = document.getElementById('mpStreamCat'), sel = document.getElementById('mpStreamSel');
+        if (cs) cs.addEventListener('change', () => buildChanSel(cs.value, 0));
+        if (sel) sel.addEventListener('change', () => { if (sel.value === '__custom') customStream(); else playStream(cs.value, parseInt(sel.value, 10)); });
         const st = document.getElementById('mpYtStop'); if (st) st.addEventListener('click', stopStream);
-        const mu = document.getElementById('mpYtMute'); if (mu) mu.addEventListener('click', () => { _muted = !_muted; mu.textContent = _muted ? '\ud83d\udd07' : '\ud83d\udd0a'; if (_cur) { const i = parseInt((sel || {}).value, 10); if (!isNaN(i)) playStream(i); } });
+        const mu = document.getElementById('mpYtMute'); if (mu) mu.addEventListener('click', () => { _muted = !_muted; mu.textContent = _muted ? '\ud83d\udd07' : '\ud83d\udd0a'; if (_cur) { const i = parseInt((sel || {}).value, 10); if (!isNaN(i) && cs) playStream(cs.value, i); } });
         const pp = document.getElementById('mpYtPop'); if (pp) pp.addEventListener('click', () => { if (_cur) window.open(_cur.watch || _cur.src, '_blank'); });
         const rf = document.getElementById('mpTgRefresh'); if (rf) rf.addEventListener('click', loadTg);
         const ff = document.getElementById('mpTgFilter'); if (ff) ff.addEventListener('change', renderTg);
