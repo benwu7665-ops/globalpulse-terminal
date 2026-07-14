@@ -2658,6 +2658,8 @@ a.linkish:hover{color:var(--amber-bright);text-decoration:underline}
      We use Esri World Imagery tiles (free, no auth) as the satellite
      basemap, plus a vector overlay layer that we drive from OpenSky's
      live aircraft positions. -->
+<link rel="preconnect" href="https://www.youtube.com">
+<link rel="preconnect" href="https://i.ytimg.com">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
 <script>
 /* v184.3: 關閉 Leaflet 的 GPU 3D transform。
@@ -3201,7 +3203,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.9</b></div>
+        <div>BUILD <b>v184.10</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -9016,6 +9018,19 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         ],
         '\u81ea\u8a02': [],
       };
+      // v184.10: 直播解析的客戶端快取(4 分鐘)+ 開面板時批次預解析。
+      // 慢的來源是「切台才去問 Worker 解析(1~3 秒)」;預解析後切台 = 立即嵌入,零等待。
+      const _ytCache = {};   // '@handle' → { live, videoId, ts }
+      const _ytFresh = h => { const c = _ytCache[h]; return c && (Date.now() - c.ts) < 4 * 60 * 1000 ? c : null; };
+      async function prefetchLive() {
+        try {
+          const hs = [];
+          Object.keys(STREAM_DB).forEach(cat => STREAM_DB[cat].forEach(o => { if (o.type === 'handle' && !_ytFresh(o.h)) hs.push(o.h); }));
+          if (!hs.length) return;
+          const d = await _fetchJSON(WK + '/ytlive?h=' + encodeURIComponent(hs.join(',')));
+          if (d && d.results) Object.keys(d.results).forEach(h => { _ytCache[h] = Object.assign({ ts: Date.now() }, d.results[h]); });
+        } catch (e) {}
+      }
       const _esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const _fmtT = iso => { try { const d = new Date(iso); return String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0') + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); } catch (e) { return ''; } };
       const _fmtHMS = ep => { try { const d = new Date(ep * 1000); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ':' + String(d.getSeconds()).padStart(2, '0'); } catch (e) { return ''; } };
@@ -9074,9 +9089,16 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         _lsSet(LSSEL, { cat, idx: i });
         if (o.type === 'channel') { _embed('https://www.youtube.com/embed/live_stream?channel=' + o.id, o.watch, o.name); return; }
         if (o.type === 'handle') {
+          const hit = _ytFresh(o.h);
+          if (hit) {   // 預解析命中 → 零等待直接嵌入
+            if (hit.live && hit.videoId) _embed('https://www.youtube.com/embed/' + hit.videoId, 'https://www.youtube.com/watch?v=' + hit.videoId, o.name);
+            else _msg(_esc(o.name) + ' \u76ee\u524d\u6c92\u6709\u76f4\u64ad,\u63db\u500b\u983b\u9053\u8a66\u8a66');
+            return;
+          }
           _msg('\u89e3\u6790 ' + _esc(o.name) + ' \u76ee\u524d\u76f4\u64ad\u4e2d\u2026');
           try {
             const d = await _fetchJSON(WK + '/ytlive?h=' + encodeURIComponent(o.h));
+            if (d) _ytCache[o.h] = { live: !!d.live, videoId: d.videoId || null, ts: Date.now() };
             if (d && d.live && d.videoId) { _embed('https://www.youtube.com/embed/' + d.videoId, 'https://www.youtube.com/watch?v=' + d.videoId, o.name); }
             else _msg(_esc(o.name) + ' \u76ee\u524d\u6c92\u6709\u76f4\u64ad\u6216\u7121\u6cd5\u53d6\u5f97,\u63db\u500b\u983b\u9053\u8a66\u8a66');
           } catch (e) { _msg('\u89e3\u6790\u5931\u6557,\u7a0d\u5f8c\u91cd\u8a66'); }
@@ -9157,6 +9179,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         p.style.display = _open ? 'block' : 'none';
         if (_open) {
           applyWidgets(); buildStreamSel();
+          prefetchLive();   // v184.10: 批次預解析全部頻道,之後切台零等待
           // v184.9: 自動續播上次頻道 — 修正「單頻道分類的下拉選不出 change、永遠播不了」
           try {
             const cs0 = document.getElementById('mpStreamCat'), sel0 = document.getElementById('mpStreamSel');
