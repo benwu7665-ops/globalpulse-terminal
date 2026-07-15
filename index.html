@@ -3203,7 +3203,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.10</b></div>
+        <div>BUILD <b>v184.11</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -5081,6 +5081,13 @@ window.L_DISABLE_3D = true;
       .gp-mp-idxtbl td:first-child{text-align:left;color:#f5b81a;font-weight:700;}
       .gp-mp-ytwrap{position:relative;width:100%;padding-top:56.25%;background:#000;border:1px solid rgba(255,180,20,.2);border-radius:3px;overflow:hidden;}
       .gp-mp-ytbar{display:flex;justify-content:space-between;align-items:center;margin-top:7px;font-size:11.5px;}
+      .gp-mp-ctl{display:flex;align-items:center;gap:7px;}
+      .gp-mp-cbtn{width:34px;height:28px;display:inline-flex;align-items:center;justify-content:center;background:rgba(245,184,26,.07);border:1px solid rgba(245,184,26,.45);border-radius:5px;color:#f5b81a;font-size:12px;line-height:1;cursor:pointer;font-family:var(--font-mono);transition:background .15s,box-shadow .15s,transform .05s;padding:0;}
+      .gp-mp-cbtn:hover{background:rgba(245,184,26,.16);box-shadow:0 0 8px rgba(245,184,26,.35);}
+      .gp-mp-cbtn:active{transform:translateY(1px);}
+      .gp-mp-vol{-webkit-appearance:none;appearance:none;width:88px;height:3px;background:rgba(245,184,26,.28);border-radius:2px;outline:none;cursor:pointer;}
+      .gp-mp-vol::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:12px;height:12px;border-radius:50%;background:#f5b81a;box-shadow:0 0 6px rgba(245,184,26,.6);cursor:pointer;border:0;}
+      .gp-mp-vol::-moz-range-thumb{width:12px;height:12px;border:0;border-radius:50%;background:#f5b81a;}
       @media (max-width:760px){.gp-mp-grid{grid-template-columns:1fr;}.gp-mp-w[data-w="indices"]{grid-column:auto;}}
       </style>
       <div id="monPanel">
@@ -5096,7 +5103,7 @@ window.L_DISABLE_3D = true;
           <div class="gp-mp-w" data-w="streams">
             <div class="gp-mp-whead">
               <span class="gp-mp-wtitle">LIVE STREAMS</span>
-              <span class="gp-mp-icons"><span id="mpYtMute" title="靜音/取消靜音">🔊</span><span id="mpYtPop" title="在 YouTube 開啟">↗</span><span data-close="streams" title="關閉部件">✕</span></span>
+              <span class="gp-mp-icons"><span id="mpYtPop" title="在 YouTube 開啟">↗</span><span data-close="streams" title="關閉部件">✕</span></span>
             </div>
             <div class="gp-mp-body">
               <div class="gp-mp-row">
@@ -5105,8 +5112,13 @@ window.L_DISABLE_3D = true;
               </div>
               <div class="gp-mp-ytwrap" id="mpYtBox"></div>
               <div class="gp-mp-ytbar">
-                <span id="mpYtNow" style="color:#f5b81a;font-weight:700;">▶ —</span>
-                <span id="mpYtStop" style="color:var(--text);cursor:pointer;">■ 停止</span>
+                <div class="gp-mp-ctl">
+                  <button id="mpYtPP" class="gp-mp-cbtn" title="播放 / 暫停">▶</button>
+                  <button id="mpYtMuteB" class="gp-mp-cbtn" title="靜音 / 取消靜音">🔇</button>
+                  <input id="mpYtVol" class="gp-mp-vol" type="range" min="0" max="100" value="60" title="音量">
+                </div>
+                <span id="mpYtNow" style="color:#f5b81a;font-weight:700;flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 8px;">▶ —</span>
+                <span id="mpYtStop" style="color:var(--text);cursor:pointer;white-space:nowrap;">■ 停止</span>
               </div>
             </div>
           </div>
@@ -9000,7 +9012,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
           { name: 'EBC Financial News 24hr', type: 'channel', id: 'UCuzqko_GKcj9922M1gUo__w', watch: 'https://www.youtube.com/user/57ETFN/live' },
         ],
         '\u7f8e\u570b\u8ca1\u7d93': [
-          { name: 'Bloomberg TV', type: 'handle', h: '@markets' },
+          { name: 'Bloomberg TV', type: 'channel', id: 'UCIALMKvObZNtJ6AmdCLP7Lg', watch: 'https://www.youtube.com/channel/UCIALMKvObZNtJ6AmdCLP7Lg/live' },   // v184.11: 原 @markets 押錯會播到別台
           { name: 'Yahoo Finance', type: 'handle', h: '@YahooFinance' },
         ],
         '\u570b\u969b\u65b0\u805e': [
@@ -9036,7 +9048,29 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       const _fmtHMS = ep => { try { const d = new Date(ep * 1000); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ':' + String(d.getSeconds()).padStart(2, '0'); } catch (e) { return ''; } };
       const _ls = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } };
       const _lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
-      let _open = false, _tIdx = null, _tTg = null, _tgMsgs = [], _muted = true, _cur = null;
+      let _open = false, _tIdx = null, _tTg = null, _tgMsgs = [], _cur = null;
+      // ── v184.11: 播放器控制(YouTube postMessage API)──
+      // 播放/暫停/靜音/音量全走指令,不重載 iframe → 即時、無黑屏;
+      // 並監聽播放器回報 → 在播放器裡面按暫停,外面按鈕狀態也同步。音量/靜音記在 localStorage。
+      let _ytIfr = null, _ytPlaying = false, _volDragging = false;
+      const _av = _ls('gp-mp-av', { m: true, v: 60 });
+      const _cmd = (f, a) => { try { if (_ytIfr && _ytIfr.contentWindow) _ytIfr.contentWindow.postMessage(JSON.stringify({ event: 'command', func: f, args: a || [] }), 'https://www.youtube.com'); } catch (e) {} };
+      const _syncUI = () => {
+        const pb = document.getElementById('mpYtPP'); if (pb) pb.textContent = _ytPlaying ? '\u275a\u275a' : '\u25b6';
+        const mb = document.getElementById('mpYtMuteB'); if (mb) mb.textContent = _av.m ? '\ud83d\udd07' : '\ud83d\udd0a';
+        const vs = document.getElementById('mpYtVol'); if (vs && !_volDragging) vs.value = String(_av.v);
+      };
+      window.addEventListener('message', ev => {
+        if (ev.origin !== 'https://www.youtube.com') return;
+        try {
+          const d = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data;
+          const info = d && d.info; if (!info) return;
+          if (typeof info.playerState === 'number') _ytPlaying = (info.playerState === 1 || info.playerState === 3);
+          if (typeof info.muted === 'boolean') _av.m = info.muted;
+          if (typeof info.volume === 'number' && !_volDragging) _av.v = Math.round(info.volume);
+          _syncUI();
+        } catch (e) {}
+      });
 
       // ── 部件顯示/隱藏 ──
       function applyWidgets() {
@@ -9076,9 +9110,17 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       function _embed(src, watch, name) {
         const box = document.getElementById('mpYtBox'); if (!box) return;
         const sep = src.indexOf('?') >= 0 ? '&' : '?';
-        box.innerHTML = '<iframe src="' + src + sep + 'autoplay=1&mute=' + (_muted ? 1 : 0) + '" style="position:absolute;inset:0;width:100%;height:100%;border:0;" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
+        const full = src + sep + 'autoplay=1&playsinline=1&mute=' + (_av.m ? 1 : 0) + '&enablejsapi=1&origin=' + encodeURIComponent(location.origin);
+        box.innerHTML = '<iframe src="' + full + '" style="position:absolute;inset:0;width:100%;height:100%;border:0;" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
+        _ytIfr = box.querySelector('iframe');
+        _ytIfr.addEventListener('load', () => {
+          try { _ytIfr.contentWindow.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), 'https://www.youtube.com'); } catch (e) {}
+          setTimeout(() => { _cmd('setVolume', [_av.v]); _cmd(_av.m ? 'mute' : 'unMute'); }, 700);
+        });
+        _ytPlaying = true;
         _cur = { src, watch, name };
         const now = document.getElementById('mpYtNow'); if (now) now.textContent = '\u25b6 ' + name;
+        _syncUI();
       }
       function _msg(t) {
         const box = document.getElementById('mpYtBox'); if (!box) return;
@@ -9106,7 +9148,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         }
         _embed(o.src, o.watch, o.name);   // 自訂
       }
-      function stopStream() { const box = document.getElementById('mpYtBox'); if (box) box.innerHTML = ''; const now = document.getElementById('mpYtNow'); if (now) now.textContent = '\u25b6 \u2014'; _cur = null; }
+      function stopStream() { const box = document.getElementById('mpYtBox'); if (box) box.innerHTML = ''; const now = document.getElementById('mpYtNow'); if (now) now.textContent = '\u25b6 \u2014'; _cur = null; _ytIfr = null; _ytPlaying = false; _syncUI(); }
       function customStream() {
         const url = prompt('\u8cbc\u4e0a YouTube \u5f71\u7247/\u76f4\u64ad\u7db2\u5740:'); if (!url) { buildStreamSel(); return; }
         const id = _ytId(url);
@@ -9200,7 +9242,23 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         if (sel) sel.addEventListener('change', () => { if (sel.value === '__custom') customStream(); else playStream(cs.value, parseInt(sel.value, 10)); });
         const st = document.getElementById('mpYtStop'); if (st) st.addEventListener('click', stopStream);
         const nw = document.getElementById('mpYtNow'); if (nw) { nw.style.cursor = 'pointer'; nw.title = '\u9ede\u64ca\u64ad\u653e/\u91cd\u65b0\u64ad\u653e'; nw.addEventListener('click', () => { if (sel && sel.value !== '__custom' && cs) playStream(cs.value, parseInt(sel.value, 10) || 0); }); }
-        const mu = document.getElementById('mpYtMute'); if (mu) mu.addEventListener('click', () => { _muted = !_muted; mu.textContent = _muted ? '\ud83d\udd07' : '\ud83d\udd0a'; if (_cur) { const i = parseInt((sel || {}).value, 10); if (!isNaN(i) && cs) playStream(cs.value, i); } });
+        const ppBtn = document.getElementById('mpYtPP'); if (ppBtn) ppBtn.addEventListener('click', () => {
+          if (!_cur) { if (sel && sel.value !== '__custom' && cs) playStream(cs.value, parseInt(sel.value, 10) || 0); return; }
+          if (_ytPlaying) _cmd('pauseVideo'); else _cmd('playVideo');
+          _ytPlaying = !_ytPlaying; _syncUI();
+        });
+        const mb = document.getElementById('mpYtMuteB'); if (mb) mb.addEventListener('click', () => { _av.m = !_av.m; _cmd(_av.m ? 'mute' : 'unMute'); _lsSet('gp-mp-av', _av); _syncUI(); });
+        const vs = document.getElementById('mpYtVol'); if (vs) {
+          vs.addEventListener('pointerdown', () => { _volDragging = true; });
+          vs.addEventListener('pointerup', () => { _volDragging = false; });
+          vs.addEventListener('input', () => {
+            _av.v = parseInt(vs.value, 10) || 0;
+            _cmd('setVolume', [_av.v]);
+            if (_av.v > 0 && _av.m) { _av.m = false; _cmd('unMute'); }   // 拉音量 = 想聽,自動解除靜音
+            _lsSet('gp-mp-av', _av); _syncUI();
+          });
+        }
+        _syncUI();
         const pp = document.getElementById('mpYtPop'); if (pp) pp.addEventListener('click', () => { if (_cur) window.open(_cur.watch || _cur.src, '_blank'); });
         const rf = document.getElementById('mpTgRefresh'); if (rf) rf.addEventListener('click', loadTg);
         const ff = document.getElementById('mpTgFilter'); if (ff) ff.addEventListener('change', renderTg);
