@@ -3203,7 +3203,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.11</b></div>
+        <div>BUILD <b>v184.12</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -9002,7 +9002,14 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
     (function () {
       const WK = 'https://ais-proxy.2syzkjy2vq.workers.dev';
       const LSW = 'gp-mp-hidden', LSS = 'gp-mp-streams', LSSEL = 'gp-mp-stream-sel';
-      const CAT = { intelslava: '\u5730\u7de3\u653f\u6cbb', clashreport: '\u5730\u7de3\u653f\u6cbb' };
+      // v184.12: 頻道立場標籤透明化 — 讀者一眼知道消息來源的視角,交叉對照才是真實性的保證
+      const CAT = {
+        intelslava: '\u89aa\u4fc4\u5feb\u8a0a',            // 親俄快訊(極快,立場明顯)
+        clashreport: '\u571f\u7cfbOSINT',                   // 土系OSINT
+        disclosetv: '\u570b\u969b\u5feb\u8a0a',             // 國際快訊(中立速報)
+        insiderpaper: '\u570b\u969b\u5feb\u8a0a',           // 國際快訊(中立速報)
+        ukrainenowenglish: '\u70cf\u65b9\u5feb\u8a0a',      // 烏克蘭官方視角
+      };
       // 全球頻道庫。type:
       //   channel = 用頻道 ID 直嵌(live_stream?channel=,重開直播不失效)
       //   handle  = 用官方 @handle 經 Worker /ytlive 即時解析目前直播的 videoId
@@ -9166,21 +9173,28 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         const msgs = f ? _tgMsgs.filter(m => m.ch === f) : _tgMsgs;
         if (!msgs.length) { box.innerHTML = '<div style="color:var(--text-dim);font-size:11px;">\u6c92\u6709\u6d88\u606f</div>'; return; }
         box.innerHTML = msgs.map(m => {
-          const gt = 'https://translate.google.com/?sl=auto&tl=zh-TW&op=translate&text=' + encodeURIComponent(m.text.slice(0, 700));
+          const hasZh = !!m.zh;
+          const showOrig = !hasZh || m._orig;
+          const body = showOrig ? m.text : m.zh;
+          // 有譯文 → 按鈕切原文/譯文;翻譯失敗 → 退回外開 Google 翻譯
+          const btn = hasZh
+            ? '<span class="gp-mp-tr" data-mi="' + m._i + '" style="cursor:pointer;">' + (m._orig ? '\u8b6f\u6587' : '\u539f\u6587') + '</span>'
+            : '<a class="gp-mp-tr" href="https://translate.google.com/?sl=auto&tl=zh-TW&op=translate&text=' + encodeURIComponent(m.text.slice(0, 700)) + '" target="_blank" rel="noopener">\u7ffb\u8b6f</a>';
           return '<div class="gp-mp-card">'
             + '<div class="gp-mp-cardhead"><span class="gp-mp-cardsrc">' + _esc(m.chName) + ' - ' + (CAT[m.ch] || '\u60c5\u5831') + ' - ' + _fmtT(m.t) + '</span>'
-            + '<a class="gp-mp-tr" href="' + gt + '" target="_blank" rel="noopener">\u7ffb\u8b6f</a></div>'
-            + '<div class="gp-mp-cardtext">' + _esc(m.text) + '</div>'
+            + btn + '</div>'
+            + '<div class="gp-mp-cardtext">' + _esc(body) + '</div>'
             + '<div class="gp-mp-cardfoot">\u65e9\u671f\u8a0a\u865f \u00b7 ' + _esc(m.ch) + (m.url ? ' \u00b7 <a href="' + m.url + '" target="_blank" rel="noopener" style="color:var(--text-dim);">\u539f\u6587 \u2197</a>' : '') + '</div>'
             + '</div>';
         }).join('');
       }
       async function loadTg() {
         try {
-          const d = await _fetchJSON(WK + '/telegram?channels=intelslava,clashreport&limit=30');
+          const d = await _fetchJSON(WK + '/telegram?channels=intelslava,clashreport,disclosetv,insiderpaper,ukrainenowenglish&limit=30&tl=zh-TW');
           const meta = document.getElementById('mpTgMeta');
           if (!d || !d.ok || !d.messages) { const b = document.getElementById('mpTgList'); if (b) b.innerHTML = '<div style="color:var(--text-dim);font-size:11px;">\u62ff\u4e0d\u5230\u6d88\u606f(t.me \u53ef\u80fd\u66ab\u6642\u64cb\u4e86,\u7a0d\u5f8c\u91cd\u8a66)</div>'; return; }
           _tgMsgs = d.messages;
+          _tgMsgs.forEach((m, i) => { m._i = i; });
           if (meta) meta.textContent = '\u5373\u6642 - ' + d.count + ' \u5247\u6d88\u606f - ' + d.channels.length + ' \u500b\u983b\u9053 - ' + _fmtT(d.updated);
           // 頻道下拉(保留目前選擇)
           const fs = document.getElementById('mpTgFilter');
@@ -9261,6 +9275,11 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         _syncUI();
         const pp = document.getElementById('mpYtPop'); if (pp) pp.addEventListener('click', () => { if (_cur) window.open(_cur.watch || _cur.src, '_blank'); });
         const rf = document.getElementById('mpTgRefresh'); if (rf) rf.addEventListener('click', loadTg);
+        const tgBox = document.getElementById('mpTgList'); if (tgBox) tgBox.addEventListener('click', e => {
+          const b = e.target.closest('[data-mi]'); if (!b) return;
+          const m = _tgMsgs[+b.dataset.mi]; if (!m) return;
+          m._orig = !m._orig; renderTg();
+        });
         const ff = document.getElementById('mpTgFilter'); if (ff) ff.addEventListener('change', renderTg);
         const aw = document.getElementById('mpAddW'); if (aw) aw.addEventListener('click', addWidgetMenu);
         document.querySelectorAll('#monPanel [data-close]').forEach(x => x.addEventListener('click', () => hideWidget(x.dataset.close)));
