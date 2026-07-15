@@ -3203,7 +3203,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.12</b></div>
+        <div>BUILD <b>v184.13</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -5099,29 +5099,8 @@ window.L_DISABLE_3D = true;
           </span>
         </div>
         <div class="gp-mp-grid">
-          <!-- LIVE STREAMS -->
-          <div class="gp-mp-w" data-w="streams">
-            <div class="gp-mp-whead">
-              <span class="gp-mp-wtitle">LIVE STREAMS</span>
-              <span class="gp-mp-icons"><span id="mpYtPop" title="在 YouTube 開啟">↗</span><span data-close="streams" title="關閉部件">✕</span></span>
-            </div>
-            <div class="gp-mp-body">
-              <div class="gp-mp-row">
-                <select class="gp-mp-sel" id="mpStreamCat" style="width:112px;"></select>
-                <select class="gp-mp-sel" id="mpStreamSel" style="flex:1;"></select>
-              </div>
-              <div class="gp-mp-ytwrap" id="mpYtBox"></div>
-              <div class="gp-mp-ytbar">
-                <div class="gp-mp-ctl">
-                  <button id="mpYtPP" class="gp-mp-cbtn" title="播放 / 暫停">▶</button>
-                  <button id="mpYtMuteB" class="gp-mp-cbtn" title="靜音 / 取消靜音">🔇</button>
-                  <input id="mpYtVol" class="gp-mp-vol" type="range" min="0" max="100" value="60" title="音量">
-                </div>
-                <span id="mpYtNow" style="color:#f5b81a;font-weight:700;flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 8px;">▶ —</span>
-                <span id="mpYtStop" style="color:var(--text);cursor:pointer;white-space:nowrap;">■ 停止</span>
-              </div>
-            </div>
-          </div>
+          <!-- LIVE STREAMS(多實例,由 JS 生成)-->
+          <div id="mpStreamsWrap" style="display:contents"></div>
           <!-- Telegram -->
           <div class="gp-mp-w" data-w="telegram">
             <div class="gp-mp-whead">
@@ -9055,117 +9034,209 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       const _fmtHMS = ep => { try { const d = new Date(ep * 1000); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ':' + String(d.getSeconds()).padStart(2, '0'); } catch (e) { return ''; } };
       const _ls = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } };
       const _lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
-      let _open = false, _tIdx = null, _tTg = null, _tgMsgs = [], _cur = null;
-      // ── v184.11: 播放器控制(YouTube postMessage API)──
-      // 播放/暫停/靜音/音量全走指令,不重載 iframe → 即時、無黑屏;
-      // 並監聽播放器回報 → 在播放器裡面按暫停,外面按鈕狀態也同步。音量/靜音記在 localStorage。
-      let _ytIfr = null, _ytPlaying = false, _volDragging = false;
-      const _av = _ls('gp-mp-av', { m: true, v: 60 });
-      const _cmd = (f, a) => { try { if (_ytIfr && _ytIfr.contentWindow) _ytIfr.contentWindow.postMessage(JSON.stringify({ event: 'command', func: f, args: a || [] }), 'https://www.youtube.com'); } catch (e) {} };
-      const _syncUI = () => {
-        const pb = document.getElementById('mpYtPP'); if (pb) pb.textContent = _ytPlaying ? '\u275a\u275a' : '\u25b6';
-        const mb = document.getElementById('mpYtMuteB'); if (mb) mb.textContent = _av.m ? '\ud83d\udd07' : '\ud83d\udd0a';
-        const vs = document.getElementById('mpYtVol'); if (vs && !_volDragging) vs.value = String(_av.v);
+      let _open = false, _tIdx = null, _tTg = null, _tgMsgs = [];
+      // ── v184.13: 多螢幕直播實例 ──────────────────────────────────────────
+      // 每格獨立:自己的分類/頻道、播放狀態、靜音、音量。配置存 localStorage,
+      // postMessage 回報依 iframe 來源(ev.source)路由回正確的那一格。上限 4 格。
+      const SI_KEY = 'gp-mp-streams-inst', SI_MAX = 4;
+      let _insts = [], _siWired = false;
+      const _instsSave = () => _lsSet(SI_KEY, _insts.map(o => ({ cat: o.cat, idx: o.idx, m: o.m, v: o.v })));
+      function _instsLoad() {
+        let a = _ls(SI_KEY, null);
+        if (!a || !a.length) {
+          const legacy = _ls(LSSEL, null);   // 舊單畫面設定無痛遷移
+          a = [{ cat: (legacy && legacy.cat) || '台灣直播', idx: (legacy && legacy.idx) || 0, m: true, v: 60 }];
+        }
+        _insts = a.slice(0, SI_MAX).map((o, i) => ({ id: i, cat: o.cat, idx: o.idx || 0, m: o.m !== false, v: (o.v == null ? 60 : o.v), ifr: null, playing: false, cur: null, dragging: false, root: null }));
+      }
+      const _instOf = el => { const r = el && el.closest && el.closest('[data-si]'); if (!r) return null; return _insts.find(o => String(o.id) === r.dataset.si) || null; };
+      const _cmdI = (inst, f, a) => { try { if (inst.ifr && inst.ifr.contentWindow) inst.ifr.contentWindow.postMessage(JSON.stringify({ event: 'command', func: f, args: a || [] }), 'https://www.youtube.com'); } catch (e) {} };
+      const _syncInst = inst => {
+        if (!inst.root) return;
+        const pb = inst.root.querySelector('[data-sact="pp"]'); if (pb) pb.textContent = inst.playing ? '\u275a\u275a' : '\u25b6';
+        const mb = inst.root.querySelector('[data-sact="mute"]'); if (mb) mb.textContent = inst.m ? '\ud83d\udd07' : '\ud83d\udd0a';
+        const vs = inst.root.querySelector('[data-vol]'); if (vs && !inst.dragging) vs.value = String(inst.v);
       };
       window.addEventListener('message', ev => {
         if (ev.origin !== 'https://www.youtube.com') return;
         try {
           const d = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data;
           const info = d && d.info; if (!info) return;
-          if (typeof info.playerState === 'number') _ytPlaying = (info.playerState === 1 || info.playerState === 3);
-          if (typeof info.muted === 'boolean') _av.m = info.muted;
-          if (typeof info.volume === 'number' && !_volDragging) _av.v = Math.round(info.volume);
-          _syncUI();
+          const inst = _insts.find(o => o.ifr && o.ifr.contentWindow === ev.source); if (!inst) return;
+          if (typeof info.playerState === 'number') inst.playing = (info.playerState === 1 || info.playerState === 3);
+          if (typeof info.muted === 'boolean') inst.m = info.muted;
+          if (typeof info.volume === 'number' && !inst.dragging) inst.v = Math.round(info.volume);
+          _syncInst(inst);
         } catch (e) {}
       });
 
       // ── 部件顯示/隱藏 ──
       function applyWidgets() {
-        const hidden = _ls(LSW, []);
-        document.querySelectorAll('#monPanel .gp-mp-w').forEach(w => { w.style.display = hidden.includes(w.dataset.w) ? 'none' : ''; });
+        let hidden = _ls(LSW, []);
+        if (hidden.includes('streams')) { hidden = hidden.filter(x => x !== 'streams'); _lsSet(LSW, hidden); }   // 舊制遷移
+        document.querySelectorAll('#monPanel .gp-mp-w').forEach(w => { if (w.dataset.w !== 'streams') w.style.display = hidden.includes(w.dataset.w) ? 'none' : ''; });
       }
       function hideWidget(id) { const h = _ls(LSW, []); if (!h.includes(id)) h.push(id); _lsSet(LSW, h); applyWidgets(); }
       function addWidgetMenu() {
         const h = _ls(LSW, []);
-        if (!h.length) { alert('\u6240\u6709\u90e8\u4ef6\u90fd\u5df2\u986f\u793a'); return; }
-        const names = { streams: 'LIVE STREAMS', telegram: 'Telegram \u5373\u6642\u6d88\u606f\u93c8', indices: '\u5168\u7403\u6307\u6578' };
-        const pick = prompt('\u8f38\u5165\u8981\u52a0\u56de\u7684\u90e8\u4ef6\u7de8\u865f:\n' + h.map((x, i) => (i + 1) + '. ' + names[x]).join('\n'));
-        const idx = parseInt(pick, 10) - 1;
+        const names = { telegram: 'Telegram 即時消息鏈', indices: '全球指數' };
+        const opts = ['新增直播畫面 (LIVE STREAMS)'].concat(h.map(x => names[x] || x));
+        const pick = prompt('輸入要加入的部件編號:\n' + opts.map((x, i) => (i + 1) + '. ' + x).join('\n'));
+        const n = parseInt(pick, 10);
+        if (n === 1) { _addInst(null); return; }
+        const idx = n - 2;
         if (idx >= 0 && idx < h.length) { const id = h[idx]; _lsSet(LSW, h.filter(x => x !== id)); applyWidgets(); }
       }
 
       // ── LIVE STREAMS ──
       const _cats = () => Object.keys(STREAM_DB);
-      function chanList(cat) { return cat === '\u81ea\u8a02' ? _ls(LSS, []) : (STREAM_DB[cat] || []); }
-      function buildStreamSel() {
-        const cs = document.getElementById('mpStreamCat'), sel = document.getElementById('mpStreamSel');
-        if (!cs || !sel) return;
-        const saved = _ls(LSSEL, { cat: '\u53f0\u7063\u76f4\u64ad', idx: 0 });
-        cs.innerHTML = _cats().map(c => '<option value="' + c + '">' + c + '</option>').join('');
-        cs.value = _cats().includes(saved.cat) ? saved.cat : _cats()[0];
-        buildChanSel(cs.value, saved.cat === cs.value ? saved.idx : 0);
-      }
-      function buildChanSel(cat, selIdx) {
-        const sel = document.getElementById('mpStreamSel'); if (!sel) return;
-        const list = chanList(cat);
-        sel.innerHTML = list.map((o, i) => '<option value="' + i + '">' + _esc(o.name) + '</option>').join('')
-          + '<option value="__custom">\u2795 \u81ea\u8a02\u7db2\u5740\u2026</option>';
-        if (list.length && selIdx >= 0 && selIdx < list.length) sel.value = String(selIdx);
-        else if (!list.length) sel.value = '__custom';
-      }
+      function chanList(cat) { return cat === '自訂' ? _ls(LSS, []) : (STREAM_DB[cat] || []); }
       const _ytId = u => { const m = String(u).match(/(?:youtu\.be\/|v=|\/live\/|\/embed\/)([A-Za-z0-9_-]{11})/); return m ? m[1] : null; };
-      function _embed(src, watch, name) {
-        const box = document.getElementById('mpYtBox'); if (!box) return;
-        const sep = src.indexOf('?') >= 0 ? '&' : '?';
-        const full = src + sep + 'autoplay=1&playsinline=1&mute=' + (_av.m ? 1 : 0) + '&enablejsapi=1&origin=' + encodeURIComponent(location.origin);
-        box.innerHTML = '<iframe src="' + full + '" style="position:absolute;inset:0;width:100%;height:100%;border:0;" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
-        _ytIfr = box.querySelector('iframe');
-        _ytIfr.addEventListener('load', () => {
-          try { _ytIfr.contentWindow.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), 'https://www.youtube.com'); } catch (e) {}
-          setTimeout(() => { _cmd('setVolume', [_av.v]); _cmd(_av.m ? 'mute' : 'unMute'); }, 700);
-        });
-        _ytPlaying = true;
-        _cur = { src, watch, name };
-        const now = document.getElementById('mpYtNow'); if (now) now.textContent = '\u25b6 ' + name;
-        _syncUI();
+
+      function _instHTML(inst) {
+        return '<div class="gp-mp-w" data-w="streams" data-si="' + inst.id + '">'
+          + '<div class="gp-mp-whead"><span class="gp-mp-wtitle">LIVE STREAMS</span>'
+          + '<span class="gp-mp-icons"><span data-sact="add" title="新增一個畫面">＋</span><span data-sact="pop" title="在 YouTube 開啟">↗</span><span data-sact="close" title="關閉此畫面">✕</span></span></div>'
+          + '<div class="gp-mp-body">'
+          + '<div class="gp-mp-row"><select class="gp-mp-sel" data-sel="cat" style="width:112px;"></select><select class="gp-mp-sel" data-sel="chan" style="flex:1;"></select></div>'
+          + '<div class="gp-mp-ytwrap" data-box></div>'
+          + '<div class="gp-mp-ytbar">'
+          + '<div class="gp-mp-ctl"><button class="gp-mp-cbtn" data-sact="pp" title="播放 / 暫停">\u25b6</button><button class="gp-mp-cbtn" data-sact="mute" title="靜音 / 取消靜音">\ud83d\udd07</button><input class="gp-mp-vol" data-vol type="range" min="0" max="100"></div>'
+          + '<span data-now style="color:#f5b81a;font-weight:700;flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 8px;">\u25b6 \u2014</span>'
+          + '<span data-sact="stop" style="color:var(--text);cursor:pointer;white-space:nowrap;">\u25a0 停止</span>'
+          + '</div></div></div>';
       }
-      function _msg(t) {
-        const box = document.getElementById('mpYtBox'); if (!box) return;
+      function _fillChan(inst) {
+        const sel = inst.root.querySelector('[data-sel="chan"]'); if (!sel) return;
+        const list = chanList(inst.cat);
+        sel.innerHTML = list.map((o, i) => '<option value="' + i + '">' + _esc(o.name) + '</option>').join('') + '<option value="__custom">\u2795 自訂網址…</option>';
+        if (list.length && inst.idx >= 0 && inst.idx < list.length) sel.value = String(inst.idx); else sel.value = list.length ? '0' : '__custom';
+      }
+      function _msgI(inst, t) {
+        const box = inst.root && inst.root.querySelector('[data-box]'); if (!box) return;
         box.innerHTML = '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:11px;padding:0 14px;text-align:center;">' + t + '</div>';
+        inst.ifr = null;
       }
-      async function playStream(cat, i) {
-        const o = chanList(cat)[i]; if (!o) return;
-        _lsSet(LSSEL, { cat, idx: i });
-        if (o.type === 'channel') { _embed('https://www.youtube.com/embed/live_stream?channel=' + o.id, o.watch, o.name); return; }
+      function _embedI(inst, src, watch, name) {
+        const box = inst.root && inst.root.querySelector('[data-box]'); if (!box) return;
+        const sep = src.indexOf('?') >= 0 ? '&' : '?';
+        const full = src + sep + 'autoplay=1&playsinline=1&mute=' + (inst.m ? 1 : 0) + '&enablejsapi=1&origin=' + encodeURIComponent(location.origin);
+        box.innerHTML = '<iframe src="' + full + '" style="position:absolute;inset:0;width:100%;height:100%;border:0;" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
+        inst.ifr = box.querySelector('iframe');
+        inst.ifr.addEventListener('load', () => {
+          try { inst.ifr.contentWindow.postMessage(JSON.stringify({ event: 'listening', id: inst.id + 1, channel: 'widget' }), 'https://www.youtube.com'); } catch (e) {}
+          setTimeout(() => { _cmdI(inst, 'setVolume', [inst.v]); _cmdI(inst, inst.m ? 'mute' : 'unMute'); }, 700);
+        });
+        inst.playing = true;
+        inst.cur = { src, watch, name };
+        const now = inst.root.querySelector('[data-now]'); if (now) now.textContent = '\u25b6 ' + name;
+        _syncInst(inst);
+      }
+      function _stopInst(inst) {
+        const box = inst.root && inst.root.querySelector('[data-box]'); if (box) box.innerHTML = '';
+        const now = inst.root && inst.root.querySelector('[data-now]'); if (now) now.textContent = '\u25b6 \u2014';
+        inst.cur = null; inst.ifr = null; inst.playing = false; _syncInst(inst);
+      }
+      function stopAllStreams() { _insts.forEach(_stopInst); }
+      async function _playInst(inst) {
+        const o = chanList(inst.cat)[inst.idx];
+        if (!o) { _stopInst(inst); return; }
+        if (o.type === 'channel') { _embedI(inst, 'https://www.youtube.com/embed/live_stream?channel=' + o.id, o.watch, o.name); return; }
         if (o.type === 'handle') {
           const hit = _ytFresh(o.h);
-          if (hit) {   // 預解析命中 → 零等待直接嵌入
-            if (hit.live && hit.videoId) _embed('https://www.youtube.com/embed/' + hit.videoId, 'https://www.youtube.com/watch?v=' + hit.videoId, o.name);
-            else _msg(_esc(o.name) + ' \u76ee\u524d\u6c92\u6709\u76f4\u64ad,\u63db\u500b\u983b\u9053\u8a66\u8a66');
+          if (hit) {
+            if (hit.live && hit.videoId) _embedI(inst, 'https://www.youtube.com/embed/' + hit.videoId, 'https://www.youtube.com/watch?v=' + hit.videoId, o.name);
+            else _msgI(inst, _esc(o.name) + ' 目前沒有直播,換個頻道試試');
             return;
           }
-          _msg('\u89e3\u6790 ' + _esc(o.name) + ' \u76ee\u524d\u76f4\u64ad\u4e2d\u2026');
+          _msgI(inst, '解析 ' + _esc(o.name) + ' 目前直播中…');
           try {
             const d = await _fetchJSON(WK + '/ytlive?h=' + encodeURIComponent(o.h));
             if (d) _ytCache[o.h] = { live: !!d.live, videoId: d.videoId || null, ts: Date.now() };
-            if (d && d.live && d.videoId) { _embed('https://www.youtube.com/embed/' + d.videoId, 'https://www.youtube.com/watch?v=' + d.videoId, o.name); }
-            else _msg(_esc(o.name) + ' \u76ee\u524d\u6c92\u6709\u76f4\u64ad\u6216\u7121\u6cd5\u53d6\u5f97,\u63db\u500b\u983b\u9053\u8a66\u8a66');
-          } catch (e) { _msg('\u89e3\u6790\u5931\u6557,\u7a0d\u5f8c\u91cd\u8a66'); }
+            if (d && d.live && d.videoId) _embedI(inst, 'https://www.youtube.com/embed/' + d.videoId, 'https://www.youtube.com/watch?v=' + d.videoId, o.name);
+            else _msgI(inst, _esc(o.name) + ' 目前沒有直播或無法取得,換個頻道試試');
+          } catch (e) { _msgI(inst, '解析失敗,稍後重試'); }
           return;
         }
-        _embed(o.src, o.watch, o.name);   // 自訂
+        _embedI(inst, o.src, o.watch, o.name);   // 自訂
       }
-      function stopStream() { const box = document.getElementById('mpYtBox'); if (box) box.innerHTML = ''; const now = document.getElementById('mpYtNow'); if (now) now.textContent = '\u25b6 \u2014'; _cur = null; _ytIfr = null; _ytPlaying = false; _syncUI(); }
-      function customStream() {
-        const url = prompt('\u8cbc\u4e0a YouTube \u5f71\u7247/\u76f4\u64ad\u7db2\u5740:'); if (!url) { buildStreamSel(); return; }
+      function _addInst(afterInst) {
+        if (_insts.length >= SI_MAX) { alert('最多 ' + SI_MAX + ' 個畫面'); return; }
+        const nu = { id: Math.max(-1, ..._insts.map(o => o.id)) + 1, cat: '國際新聞', idx: 0, m: true, v: 60, ifr: null, playing: false, cur: null, dragging: false, root: null };
+        const at = afterInst ? _insts.indexOf(afterInst) + 1 : _insts.length;
+        _insts.splice(at, 0, nu);
+        _instsSave(); renderStreamInstances();
+      }
+      function _closeInst(inst) {
+        _insts = _insts.filter(o => o !== inst);
+        _instsSave(); renderStreamInstances();
+      }
+      function _customInst(inst) {
+        const url = prompt('貼上 YouTube 影片/直播網址:'); if (!url) { _fillChan(inst); return; }
         const id = _ytId(url);
-        if (!id) { alert('\u770b\u4e0d\u61c2\u9019\u500b\u7db2\u5740'); buildStreamSel(); return; }
-        const name = prompt('\u5e6b\u9019\u500b\u76f4\u64ad\u53d6\u500b\u540d\u5b57:', 'My Stream') || ('Stream ' + id);
+        if (!id) { alert('看不懂這個網址'); _fillChan(inst); return; }
+        const name = prompt('幫這個直播取個名字:', 'My Stream') || ('Stream ' + id);
         const customs = _ls(LSS, []); customs.push({ name, type: 'custom', src: 'https://www.youtube.com/embed/' + id, watch: 'https://www.youtube.com/watch?v=' + id }); _lsSet(LSS, customs);
-        const cs = document.getElementById('mpStreamCat'); if (cs) cs.value = '\u81ea\u8a02';
-        buildChanSel('\u81ea\u8a02', customs.length - 1);
-        playStream('\u81ea\u8a02', customs.length - 1);
+        inst.cat = '自訂'; inst.idx = customs.length - 1;
+        const cs = inst.root.querySelector('[data-sel="cat"]'); if (cs) cs.value = '自訂';
+        _fillChan(inst); _instsSave(); _playInst(inst);
       }
+      function renderStreamInstances() {
+        const wrap = document.getElementById('mpStreamsWrap'); if (!wrap) return;
+        if (!_insts.length) _instsLoad();
+        wrap.innerHTML = _insts.map(_instHTML).join('');
+        _insts.forEach(inst => {
+          inst.root = wrap.querySelector('[data-si="' + inst.id + '"]');
+          const cs = inst.root.querySelector('[data-sel="cat"]');
+          cs.innerHTML = _cats().map(c => '<option>' + c + '</option>').join('');
+          if (!_cats().includes(inst.cat)) inst.cat = _cats()[0];
+          cs.value = inst.cat;
+          _fillChan(inst);
+          const vs = inst.root.querySelector('[data-vol]'); if (vs) vs.value = String(inst.v);
+          _syncInst(inst);
+          _playInst(inst);   // 各格自動(靜音)開播 = 多螢幕同播
+        });
+        if (!_siWired) {
+          _siWired = true;
+          wrap.addEventListener('click', e => {
+            const el = e.target.closest('[data-sact]'); if (!el) return;
+            const inst = _instOf(el); if (!inst) return;
+            const act = el.dataset.sact;
+            if (act === 'add') _addInst(inst);
+            else if (act === 'close') _closeInst(inst);
+            else if (act === 'pop') { if (inst.cur) window.open(inst.cur.watch || inst.cur.src, '_blank'); }
+            else if (act === 'stop') _stopInst(inst);
+            else if (act === 'pp') {
+              if (!inst.cur) { _playInst(inst); return; }
+              if (inst.playing) _cmdI(inst, 'pauseVideo'); else _cmdI(inst, 'playVideo');
+              inst.playing = !inst.playing; _syncInst(inst);
+            }
+            else if (act === 'mute') { inst.m = !inst.m; _cmdI(inst, inst.m ? 'mute' : 'unMute'); _instsSave(); _syncInst(inst); }
+          });
+          wrap.addEventListener('change', e => {
+            const inst = _instOf(e.target); if (!inst) return;
+            if (e.target.dataset.sel === 'cat') {
+              inst.cat = e.target.value; inst.idx = 0; _fillChan(inst); _instsSave();
+              if (chanList(inst.cat).length) _playInst(inst); else _stopInst(inst);
+            } else if (e.target.dataset.sel === 'chan') {
+              const v = e.target.value;
+              if (v === '__custom') _customInst(inst);
+              else { inst.idx = parseInt(v, 10) || 0; _instsSave(); _playInst(inst); }
+            }
+          });
+          wrap.addEventListener('input', e => {
+            if (!e.target.matches('[data-vol]')) return;
+            const inst = _instOf(e.target); if (!inst) return;
+            inst.v = parseInt(e.target.value, 10) || 0;
+            _cmdI(inst, 'setVolume', [inst.v]);
+            if (inst.v > 0 && inst.m) { inst.m = false; _cmdI(inst, 'unMute'); }
+            _instsSave(); _syncInst(inst);
+          });
+          wrap.addEventListener('pointerdown', e => { if (e.target.matches('[data-vol]')) { const i = _instOf(e.target); if (i) i.dragging = true; } });
+          wrap.addEventListener('pointerup', e => { if (e.target.matches('[data-vol]')) { const i = _instOf(e.target); if (i) i.dragging = false; } });
+        }
+      }
+
       // ── Telegram ──
       function renderTg() {
         const box = document.getElementById('mpTgList'); if (!box) return;
@@ -9234,46 +9305,20 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         _open = (p.style.display === 'none' || !p.style.display);
         p.style.display = _open ? 'block' : 'none';
         if (_open) {
-          applyWidgets(); buildStreamSel();
-          prefetchLive();   // v184.10: 批次預解析全部頻道,之後切台零等待
-          // v184.9: 自動續播上次頻道 — 修正「單頻道分類的下拉選不出 change、永遠播不了」
-          try {
-            const cs0 = document.getElementById('mpStreamCat'), sel0 = document.getElementById('mpStreamSel');
-            if (cs0 && sel0 && sel0.value !== '__custom' && chanList(cs0.value).length) playStream(cs0.value, parseInt(sel0.value, 10) || 0);
-          } catch (e) {}
+          applyWidgets();
+          prefetchLive();   // 批次預解析,各格切台零等待
+          renderStreamInstances();   // v184.13: 多螢幕各自開播
           loadIdx(); loadTg();
           _tIdx = setInterval(loadIdx, 60 * 1000);
           _tTg = setInterval(loadTg, 120 * 1000);
         } else {
           clearInterval(_tIdx); clearInterval(_tTg);
-          stopStream();   // 關面板停直播,不留背景流量
+          stopAllStreams();   // 關面板停所有畫面,不留背景流量
         }
       };
 
       setTimeout(() => {
-        const cs = document.getElementById('mpStreamCat'), sel = document.getElementById('mpStreamSel');
-        if (cs) cs.addEventListener('change', () => { buildChanSel(cs.value, 0); if (chanList(cs.value).length) playStream(cs.value, 0); else stopStream(); });
-        if (sel) sel.addEventListener('change', () => { if (sel.value === '__custom') customStream(); else playStream(cs.value, parseInt(sel.value, 10)); });
-        const st = document.getElementById('mpYtStop'); if (st) st.addEventListener('click', stopStream);
-        const nw = document.getElementById('mpYtNow'); if (nw) { nw.style.cursor = 'pointer'; nw.title = '\u9ede\u64ca\u64ad\u653e/\u91cd\u65b0\u64ad\u653e'; nw.addEventListener('click', () => { if (sel && sel.value !== '__custom' && cs) playStream(cs.value, parseInt(sel.value, 10) || 0); }); }
-        const ppBtn = document.getElementById('mpYtPP'); if (ppBtn) ppBtn.addEventListener('click', () => {
-          if (!_cur) { if (sel && sel.value !== '__custom' && cs) playStream(cs.value, parseInt(sel.value, 10) || 0); return; }
-          if (_ytPlaying) _cmd('pauseVideo'); else _cmd('playVideo');
-          _ytPlaying = !_ytPlaying; _syncUI();
-        });
-        const mb = document.getElementById('mpYtMuteB'); if (mb) mb.addEventListener('click', () => { _av.m = !_av.m; _cmd(_av.m ? 'mute' : 'unMute'); _lsSet('gp-mp-av', _av); _syncUI(); });
-        const vs = document.getElementById('mpYtVol'); if (vs) {
-          vs.addEventListener('pointerdown', () => { _volDragging = true; });
-          vs.addEventListener('pointerup', () => { _volDragging = false; });
-          vs.addEventListener('input', () => {
-            _av.v = parseInt(vs.value, 10) || 0;
-            _cmd('setVolume', [_av.v]);
-            if (_av.v > 0 && _av.m) { _av.m = false; _cmd('unMute'); }   // 拉音量 = 想聽,自動解除靜音
-            _lsSet('gp-mp-av', _av); _syncUI();
-          });
-        }
-        _syncUI();
-        const pp = document.getElementById('mpYtPop'); if (pp) pp.addEventListener('click', () => { if (_cur) window.open(_cur.watch || _cur.src, '_blank'); });
+        // v184.13: 直播改多實例,控制項在 renderStreamInstances 內委派接線
         const rf = document.getElementById('mpTgRefresh'); if (rf) rf.addEventListener('click', loadTg);
         const tgBox = document.getElementById('mpTgList'); if (tgBox) tgBox.addEventListener('click', e => {
           const b = e.target.closest('[data-mi]'); if (!b) return;
