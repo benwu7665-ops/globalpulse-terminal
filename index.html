@@ -3203,7 +3203,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.13</b></div>
+        <div>BUILD <b>v184.14</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -5081,6 +5081,8 @@ window.L_DISABLE_3D = true;
       .gp-mp-idxtbl td:first-child{text-align:left;color:#f5b81a;font-weight:700;}
       .gp-mp-ytwrap{position:relative;width:100%;padding-top:56.25%;background:#000;border:1px solid rgba(255,180,20,.2);border-radius:3px;overflow:hidden;}
       .gp-mp-ytbar{display:flex;justify-content:space-between;align-items:center;margin-top:7px;font-size:11.5px;}
+      .gp-mp-addtile{display:flex;align-items:center;justify-content:center;min-height:120px;border:1px dashed rgba(245,184,26,.45);color:rgba(245,184,26,.8);cursor:pointer;font-size:14px;letter-spacing:.12em;background:rgba(245,184,26,.03);transition:background .15s,color .15s;}
+      .gp-mp-addtile:hover{background:rgba(245,184,26,.1);color:#f5b81a;}
       .gp-mp-ctl{display:flex;align-items:center;gap:7px;}
       .gp-mp-cbtn{width:34px;height:28px;display:inline-flex;align-items:center;justify-content:center;background:rgba(245,184,26,.07);border:1px solid rgba(245,184,26,.45);border-radius:5px;color:#f5b81a;font-size:12px;line-height:1;cursor:pointer;font-family:var(--font-mono);transition:background .15s,box-shadow .15s,transform .05s;padding:0;}
       .gp-mp-cbtn:hover{background:rgba(245,184,26,.16);box-shadow:0 0 8px rgba(245,184,26,.35);}
@@ -9038,14 +9040,17 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       // ── v184.13: 多螢幕直播實例 ──────────────────────────────────────────
       // 每格獨立:自己的分類/頻道、播放狀態、靜音、音量。配置存 localStorage,
       // postMessage 回報依 iframe 來源(ev.source)路由回正確的那一格。上限 4 格。
-      const SI_KEY = 'gp-mp-streams-inst', SI_MAX = 4;
+      const SI_KEY = 'gp-mp-streams-inst-v2', SI_MAX = 4;   // v184.14: 換鍵 → 預設升級成雙畫面
       let _insts = [], _siWired = false;
       const _instsSave = () => _lsSet(SI_KEY, _insts.map(o => ({ cat: o.cat, idx: o.idx, m: o.m, v: o.v })));
       function _instsLoad() {
         let a = _ls(SI_KEY, null);
         if (!a || !a.length) {
-          const legacy = _ls(LSSEL, null);   // 舊單畫面設定無痛遷移
-          a = [{ cat: (legacy && legacy.cat) || '台灣直播', idx: (legacy && legacy.idx) || 0, m: true, v: 60 }];
+          // v184.14: 開箱即雙畫面(比照參考版)。舊設定(v1/單畫面)自動當第一格。
+          const v1 = _ls('gp-mp-streams-inst', null);
+          const legacy = _ls(LSSEL, null);
+          const first = (v1 && v1[0]) || { cat: (legacy && legacy.cat) || '台灣直播', idx: (legacy && legacy.idx) || 0, m: true, v: 60 };
+          a = [first, { cat: '國際新聞', idx: 0, m: true, v: 60 }];
         }
         _insts = a.slice(0, SI_MAX).map((o, i) => ({ id: i, cat: o.cat, idx: o.idx || 0, m: o.m !== false, v: (o.v == null ? 60 : o.v), ifr: null, playing: false, cur: null, dragging: false, root: null }));
       }
@@ -9074,7 +9079,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       function applyWidgets() {
         let hidden = _ls(LSW, []);
         if (hidden.includes('streams')) { hidden = hidden.filter(x => x !== 'streams'); _lsSet(LSW, hidden); }   // 舊制遷移
-        document.querySelectorAll('#monPanel .gp-mp-w').forEach(w => { if (w.dataset.w !== 'streams') w.style.display = hidden.includes(w.dataset.w) ? 'none' : ''; });
+        document.querySelectorAll('#monPanel .gp-mp-w').forEach(w => { if (!String(w.dataset.w || '').startsWith('streams')) w.style.display = hidden.includes(w.dataset.w) ? 'none' : ''; });
       }
       function hideWidget(id) { const h = _ls(LSW, []); if (!h.includes(id)) h.push(id); _lsSet(LSW, h); applyWidgets(); }
       function addWidgetMenu() {
@@ -9184,7 +9189,8 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       function renderStreamInstances() {
         const wrap = document.getElementById('mpStreamsWrap'); if (!wrap) return;
         if (!_insts.length) _instsLoad();
-        wrap.innerHTML = _insts.map(_instHTML).join('');
+        wrap.innerHTML = _insts.map(_instHTML).join('')
+          + (_insts.length < SI_MAX ? '<div class="gp-mp-w gp-mp-addtile" data-w="streams-add" title="再開一個直播畫面">＋ 新增畫面</div>' : '');
         _insts.forEach(inst => {
           inst.root = wrap.querySelector('[data-si="' + inst.id + '"]');
           const cs = inst.root.querySelector('[data-sel="cat"]');
@@ -9199,6 +9205,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         if (!_siWired) {
           _siWired = true;
           wrap.addEventListener('click', e => {
+            if (e.target.closest('.gp-mp-addtile')) { _addInst(null); return; }
             const el = e.target.closest('[data-sact]'); if (!el) return;
             const inst = _instOf(el); if (!inst) return;
             const act = el.dataset.sact;
