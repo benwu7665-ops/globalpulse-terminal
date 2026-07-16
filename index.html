@@ -3203,7 +3203,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.16</b></div>
+        <div>BUILD <b>v184.17</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -9012,8 +9012,8 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         ],
         '\u570b\u969b\u65b0\u805e': [
           // v184.16: 大台改頻道ID直嵌 — 不經 Worker 爬蟲、YouTube 不會擋(這是被擋時的保命路)。
-          { name: 'Sky News', type: 'channel', id: 'UCoMdktPbSTixAyNGwb-UYkQ', watch: 'https://www.youtube.com/@SkyNews/live' },
-          { name: 'Al Jazeera English', type: 'channel', id: 'UCNye-wNBqNL5ZzHSJj3l8Bg', watch: 'https://www.youtube.com/@aljazeeraenglish/live' },
+          { name: 'Sky News', type: 'handle', h: '@SkyNews' },
+          { name: 'Al Jazeera English', type: 'handle', h: '@aljazeeraenglish' },
           { name: 'France 24 English', type: 'handle', h: '@France24_en' },
           { name: 'DW News', type: 'handle', h: '@dwnews' },
           { name: 'TRT World', type: 'handle', h: '@trtworld' },
@@ -9022,7 +9022,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
           { name: 'Euronews', type: 'handle', h: '@euronews' },
         ],
         '\u592a\u7a7a': [
-          { name: 'NASA TV', type: 'channel', id: 'UCLA_DiR1FfKNvjuUpBHmylQ', watch: 'https://www.youtube.com/@NASA/live' },
+          { name: 'NASA TV', type: 'handle', h: '@NASA' },
         ],
         '\u81ea\u8a02': [],
       };
