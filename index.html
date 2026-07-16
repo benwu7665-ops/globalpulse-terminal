@@ -3203,7 +3203,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.17</b></div>
+        <div>BUILD <b>v184.18</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -23277,6 +23277,39 @@ document.addEventListener('keydown', e => {
         terms: [p.route.toLowerCase(), ...p.terms.map(t => t.toLowerCase())],
         action: () => { if (typeof setRoute === 'function') setRoute(p.route); }
       });
+    }
+    // ---- v184.18: 動作 / 圖層 / 快捷指令(補齊「召喚不出來」的缺口)
+    // 這些是「做一件事」而非「跳一頁」:切地圖圖層、開監控面板、跳加密市場等。
+    const _go = r => { if (typeof setRoute === 'function') setRoute(r); };
+    // 地圖圖層:跳到監控頁 + 勾選對應圖層開關(monShow*)
+    const _layer = id => () => {
+      _go('monitor');
+      setTimeout(() => {
+        const cb = document.getElementById(id);
+        if (cb && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change', { bubbles: true })); }
+      }, 300);
+    };
+    const ACTIONS = [
+      // 地圖圖層
+      { name: '颱風圖層',     sub: '地圖 · 開啟颱風', terms: ['颱風','台风','typhoon','cyclone','tc','風暴','巴威'], act: _layer('monShowCyclone') },
+      { name: '地震圖層',     sub: '地圖 · 開啟地震', terms: ['地震','earthquake','quake','eq','規模'], act: _layer('monShowQuakes') },
+      { name: '武裝衝突圖層', sub: '地圖 · ACLED',    terms: ['武裝衝突','衝突','conflict','acled','戰鬥','battle'], act: _layer('monShowAcled') },
+      { name: '洪水圖層',     sub: '地圖 · 開啟洪水', terms: ['洪水','flood','淹水'], act: _layer('monShowFlood') },
+      { name: '天氣警報圖層', sub: '地圖 · 開啟警報', terms: ['天氣警報','警報','alert','weather','特報'], act: _layer('monShowAlerts') },
+      { name: '軍機圖層',     sub: '地圖 · ADS-B',    terms: ['軍機','military','aircraft','飛機','adsb','opensky'], act: _layer('monShowMil') },
+      { name: '船舶圖層',     sub: '地圖 · AIS',      terms: ['船舶','船','ship','vessel','ais','貨輪'], act: _layer('monShowShips') },
+      { name: '火箭發射圖層', sub: '地圖 · 開啟發射', terms: ['火箭','發射','rocket','launch','太空'], act: _layer('monShowLaunch') },
+      { name: '極光圖層',     sub: '地圖 · Kp',       terms: ['極光','aurora','kp','太空天氣'], act: _layer('monShowAurora') },
+      { name: '核設施圖層',   sub: '地圖 · 開啟核設施', terms: ['核設施','核電','nuclear','反應爐','核'], act: _layer('monShowNuclear') },
+      { name: '軍事基地圖層', sub: '地圖 · 開啟軍事基地', terms: ['軍事基地','基地','base','military base','軍事'], act: _layer('monShowBases') },
+      // 功能面板 / 分頁
+      { name: '監控面板',     sub: '直播 · 情報 · 指數', terms: ['監控','monitor','面板','直播','livestream','telegram','情報'], act: () => { _go('monitor'); setTimeout(() => { if (typeof window.toggleMonPanel === 'function') { const p = document.getElementById('monPanel'); if (!p || p.style.display === 'none' || !p.style.display) window.toggleMonPanel(); } }, 300); } },
+      { name: '加密市場',     sub: '跳轉 · 加密',     terms: ['加密','crypto','btc','比特幣','eth','以太','虛擬貨幣','bitcoin'], act: () => _go('fin-crypto') },
+      { name: '3D 地球',      sub: '地圖 · 3D 視圖',  terms: ['3d','地球','globe','立體'], act: () => { _go('monitor'); setTimeout(() => { const b = Array.from(document.querySelectorAll('button,div,span')).find(e => (e.textContent || '').trim() === '[3D]' || (e.textContent || '').trim() === '3D 地球'); if (b) b.click(); }, 300); } },
+      { name: 'AI 對話',      sub: '跳轉 · AI',       terms: ['ai','對話','chat','gpt','助理','問'], act: () => _go('ai-chat') },
+    ];
+    for (const a of ACTIONS) {
+      list.push({ kind: 'action', kindLabel: '動作', name: a.name, sub: a.sub, terms: a.terms.map(t => String(t).toLowerCase()), action: a.act });
     }
     return list;
   }
