@@ -3203,7 +3203,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.18</b></div>
+        <div>BUILD <b>v184.20</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -5483,7 +5483,7 @@ window.L_DISABLE_3D = true;
   <div class="cmdk-panel" role="dialog" aria-labelledby="cmdkInput">
     <div class="cmdk-input-wrap">
       <span class="cmdk-icon">⌕</span>
-      <input class="cmdk-input" id="cmdkInput" type="text" placeholder="搜尋國家 / 衝突 / 海峽 / 股票 / 頁面 (try: iran, tsm, hormuz...)" autocomplete="off" spellcheck="false">
+      <input class="cmdk-input" id="cmdkInput" type="text" placeholder="問任何問題或搜尋國家/股票/圖層 (例:霍爾木茲最近怎樣、開颱風、tsm)" autocomplete="off" spellcheck="false">
       <span class="cmdk-hint">ESC</span>
     </div>
     <div class="cmdk-results" id="cmdkResults">
@@ -6288,6 +6288,10 @@ function onResize() {
 
 function animate() {
   requestAnimationFrame(animate);
+  // v184.20: 分頁切走 或 3D 地球不在畫面上時,跳過整個渲染 —— 看不見的東西不該燒 CPU/GPU。
+  // 這是「整個網站頓住」的頭號主因:背景那顆看不見的地球一直以 60fps 自轉+bloom 後製。
+  if (document.hidden) return;
+  try { const _w = renderer && renderer.domElement; if (_w) { const r = _w.getBoundingClientRect(); if (r.width === 0 || r.height === 0 || r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth) return; } } catch (e) {}
   if (autoRotate) targetRotY += 0.0015;
   currentRotY += (targetRotY - currentRotY) * 0.08;
   currentRotX += (targetRotX - currentRotX) * 0.08;
@@ -12336,6 +12340,9 @@ document.querySelectorAll('.dock-btn[data-dock]').forEach(btn => {
     }
   }
   function animateArcs() {
+    // v184.20: 分頁切走 或 弧線地圖不在畫面上時暫停(這些是裝飾動畫,看不見沒必要跑)。
+    if (document.hidden) { requestAnimationFrame(animateArcs); return; }
+    try { const r = (gArcs.ownerSVGElement || gArcs).getBoundingClientRect(); if (r.width === 0 || r.bottom < 0 || r.top > innerHeight) { requestAnimationFrame(animateArcs); return; } } catch (e) {}
     const t = performance.now() / 1000;
     arcs.forEach((arc, i) => {
       const age = t - arc.born;
@@ -23350,7 +23357,21 @@ document.addEventListener('keydown', e => {
       if (b.score !== a.score) return b.score - a.score;
       return a.entry.name.length - b.entry.name.length;
     });
-    return scored.slice(0, MAX_RESULTS).map(x => x.entry);
+    const out = scored.slice(0, MAX_RESULTS).map(x => x.entry);
+    // v184.19: 「打什麼都能問」— 任何輸入都在最下面追加「用 AI 回答」。
+    // 沒有其他結果時它就是唯一選項(直接 Enter 問 AI);有結果時它墊底當 fallback。
+    const raw = (query || '').trim();
+    if (raw) {
+      out.push({
+        kind: 'ai',
+        kindLabel: 'AI 問答',
+        name: '⚡ 用 AI 回答：' + (raw.length > 40 ? raw.slice(0, 40) + '…' : raw),
+        sub: 'Groq · 按 Enter 送出',
+        terms: [],
+        action: () => { if (typeof window.__aiAsk === 'function') window.__aiAsk(raw); }
+      });
+    }
+    return out;
   }
 
   // ---- State for the popup (selected index for keyboard nav)
@@ -35885,6 +35906,16 @@ setRoute((location.hash.replace('#/', '') || 'geo'));
   }
 
   window.__initAiChat = initAiChat;
+  // v184.19: 供指令列(或任何地方)直接向 AI 提問 — 跳到 AI 頁、填入問題、自動送出。
+  window.__aiAsk = function (text) {
+    if (!text || !text.trim()) return;
+    try { if (typeof setRoute === 'function') setRoute('ai-chat'); } catch (e) {}
+    setTimeout(() => {
+      const inp = document.getElementById('aiInput');
+      if (inp) { inp.value = text.trim(); inp.dispatchEvent(new Event('input', { bubbles: true })); }
+      try { sendMessage(); } catch (e) {}
+    }, 350);
+  };
 })();
 
 // =============================================================================
