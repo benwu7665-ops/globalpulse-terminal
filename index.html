@@ -3203,7 +3203,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.14</b></div>
+        <div>BUILD <b>v184.15</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -8997,7 +8997,14 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       // @handle 比影片 ID 穩定得多(影片 ID 在頻道重開直播時會換,handle 永遠不變)。
       const STREAM_DB = {
         '\u53f0\u7063\u76f4\u64ad': [
-          { name: 'EBC Financial News 24hr', type: 'channel', id: 'UCuzqko_GKcj9922M1gUo__w', watch: 'https://www.youtube.com/user/57ETFN/live' },
+          // v184.15: EBC 財經直播間歇性關台 → 改走 @handle 解析(找當下真正在播的那場);
+          // 並補東森新聞51台(真24hr不斷)、台視/中天等當備選。
+          { name: 'EBC \u6771\u68ee\u8ca1\u7d93 24hr', type: 'handle', h: '@57ETFN' },
+          { name: '\u6771\u68ee\u65b0\u805e 51\u53f0 24hr', type: 'handle', h: '@newsebc' },
+          { name: '\u4e2d\u5929\u65b0\u805e 24hr', type: 'handle', h: '@CtiNews' },
+          { name: '\u53f0\u8996\u65b0\u805e 24hr', type: 'handle', h: '@ttvnewsofficial' },
+          { name: '\u6c11\u8996\u65b0\u805e 24hr', type: 'handle', h: '@FTVNEWS_LIVE' },
+          { name: '\u4e09\u7acb LIVE \u65b0\u805e', type: 'handle', h: '@setnnews' },
         ],
         '\u7f8e\u570b\u8ca1\u7d93': [
           { name: 'Bloomberg TV', type: 'channel', id: 'UCIALMKvObZNtJ6AmdCLP7Lg', watch: 'https://www.youtube.com/channel/UCIALMKvObZNtJ6AmdCLP7Lg/live' },   // v184.11: 原 @markets 押錯會播到別台
