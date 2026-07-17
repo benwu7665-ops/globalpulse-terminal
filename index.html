@@ -3203,7 +3203,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.22</b></div>
+        <div>BUILD <b>v184.23</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -5408,12 +5408,27 @@ window.L_DISABLE_3D = true;
             </div>
           </div>
 
+          <!-- ============ v184.23: 通知中心 ============ -->
+          <div id="notifCenter" style="margin-top:24px;padding-top:14px;border-top:1px dashed var(--amber-dim);font-family:var(--font-mono);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <span style="color:var(--amber);font-size:13px;font-weight:700;">🔔 <span class="t-zh">通知中心</span><span class="t-en">NOTIFICATIONS</span></span>
+              <span id="notifPermBadge" style="font-size:10px;padding:2px 8px;border-radius:3px;"></span>
+            </div>
+            <div style="font-size:10px;color:var(--text-dim);line-height:1.6;margin-bottom:12px;">
+              <span class="t-zh">統一管理所有通知。開啟的項目在觸發時會跳桌面通知(需先允許瀏覽器通知)。</span><span class="t-en">Manage all alerts. Enabled items fire desktop notifications.</span>
+            </div>
+            <div id="notifList" style="display:flex;flex-direction:column;gap:2px;"></div>
+            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn" id="notifPermBtn" style="font-size:10px;padding:3px 10px;color:var(--amber);border:1px solid var(--amber);background:transparent;cursor:pointer;">允許瀏覽器通知</button>
+              <button class="btn" id="notifTestBtn" style="font-size:10px;padding:3px 10px;color:var(--text);border:1px solid var(--amber-faint);background:transparent;cursor:pointer;">▶ 測試通知</button>
+            </div>
+          </div>
+
           <!-- ============ 其他設定區（佔位）============ -->
           <div style="margin-top:24px;padding-top:14px;border-top:1px dashed var(--amber-dim);color:var(--text-dim);font-size:11px;font-family:var(--font-mono);">
             <div style="color:var(--amber);margin-bottom:4px;">[OTHER_MODULES]</div>
             → 資料來源:請至「金融市場 → API 設定」<br>
-            → 介面語言/主題:建構中<br>
-            → 通知設定:建構中
+            → 介面語言/主題:建構中
           </div>
         </div>
       </section>
@@ -20630,6 +20645,7 @@ function _playChimeNoThrottle(freq, duration, waveType) {
 // 1000Hz with sawtooth waveform — distinctly more urgent than the soft
 // sine chimes used for normal items.
 function _playAlertSiren() {
+  if (window.__notifOn && !window.__notifOn('news')) return;   // v184.23: 通知中心開關
   if (!_isNewsSoundOn()) return;
   const ctx = _ensureAudio();
   if (!ctx) return;
@@ -34988,6 +35004,7 @@ setRoute((location.hash.replace('#/', '') || 'geo'));
 
     // ----- System notification -----
     function fireNotification(carrier, vessel) {
+      if (window.__notifOn && !window.__notifOn('carrier')) return;   // v184.23: 通知中心開關
       if (!SETTINGS.notify) return;
       if (typeof Notification === 'undefined') return;
       if (Notification.permission !== 'granted') return;
@@ -35636,6 +35653,7 @@ setRoute((location.hash.replace('#/', '') || 'geo'));
   // 同一節點觸發後不再重複轟炸,直到條件解除又再次成立才會再通知(edge-trigger)。
   function nodeNotify(n, cur) {
     try {
+      if (window.__notifOn && !window.__notifOn('node')) return;   // v184.23: 通知中心開關
       if (!('Notification' in window) || Notification.permission !== 'granted') return;
       const curStr = fmtVal(cur, n.ifSource, n.ifField);
       new Notification('⚡ ' + (n.title || '節點觸發'), {
@@ -36245,8 +36263,7 @@ window.fmtHHMM = function(date) {
 })();
 </script>
 
-  <!-- v184.22: 全站財經快訊欄(fixed,每頁都在) -->
-    <div class="news-resize hidden" id="newsResize" title="拖曳調整新聞欄寬度"></div>
+  <!-- v184.22: 全站財經快訊欄(fixed,每頁都在) -->    <div class="news-resize hidden" id="newsResize" title="拖曳調整新聞欄寬度"></div>
     <div class="news-panel collapsed" id="newsPanel">
       <!-- Jin10-style flash news feed. Content is rendered dynamically by
            renderNewsFlashFeed() from state.flashes (real Finnhub news +
@@ -36273,5 +36290,70 @@ window.fmtHHMM = function(date) {
       <span class="arrow">‹</span>
       財經快訊
     </button>
+
+  <script>
+  // ===== v184.23: 通知中心 — 統一管理所有通知開關 =====
+  (function () {
+    const KEY = 'gp-notif-prefs-v1';
+    // 所有可通知的來源(id 對應各通知源檢查用)
+    const ITEMS = [
+      { id: 'node',    icon: '⚡', zh: '節點警報',   en: 'Alert nodes',  desc: 'IF/THEN 規則觸發' },
+      { id: 'carrier', icon: '★', zh: '航母現身',   en: 'Carriers',     desc: '航母進入地圖視野' },
+      { id: 'news',    icon: '📰', zh: '財經快訊音效', en: 'News chime',  desc: '重要財經新聞提示音' },
+      { id: 'quake',   icon: '🌐', zh: '強震快報',   en: 'Big quakes',   desc: '規模 6 以上地震(需開地震圖層)' },
+      { id: 'cyclone', icon: '🌀', zh: '颱風接近台灣', en: 'Typhoon TW', desc: '颱風進入台灣近海' },
+    ];
+    const DEFAULTS = { node: true, carrier: true, news: false, quake: true, cyclone: true };
+    function load() { try { return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { return Object.assign({}, DEFAULTS); } }
+    function save(p) { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch (e) {} }
+    let prefs = load();
+    // 全站通知源都查這個:某類是否該通知
+    window.__notifOn = function (id) { return prefs[id] !== false; };
+    window.__notifPrefs = prefs;
+
+    function permBadge() {
+      const b = document.getElementById('notifPermBadge'); if (!b) return;
+      const perm = (typeof Notification !== 'undefined') ? Notification.permission : 'unsupported';
+      const map = { granted: ['已允許', '#00d26a', 'rgba(0,210,106,.12)'], denied: ['已拒絕(去瀏覽器設定開)', '#ff5555', 'rgba(255,85,85,.12)'], default: ['未設定', '#ffd23f', 'rgba(255,210,63,.12)'], unsupported: ['不支援', '#888', 'rgba(136,136,136,.12)'] };
+      const [txt, col, bg] = map[perm] || map.unsupported;
+      b.textContent = txt; b.style.color = col; b.style.background = bg;
+    }
+    function render() {
+      const list = document.getElementById('notifList'); if (!list) return;
+      const isZh = !document.body.classList.contains('lang-en');
+      list.innerHTML = ITEMS.map(it => {
+        const on = prefs[it.id] !== false;
+        return '<label style="display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid ' + (on ? 'rgba(255,140,0,.35)' : 'rgba(255,255,255,.06)') + ';border-radius:5px;cursor:pointer;background:' + (on ? 'rgba(255,140,0,.04)' : 'transparent') + ';">'
+          + '<span style="font-size:15px;width:22px;text-align:center;">' + it.icon + '</span>'
+          + '<span style="flex:1;"><span style="color:' + (on ? 'var(--amber)' : 'var(--text)') + ';font-size:12px;font-weight:' + (on ? '700' : '400') + ';">' + (isZh ? it.zh : it.en) + '</span>'
+          + '<span style="display:block;color:var(--text-dim);font-size:9.5px;margin-top:1px;">' + it.desc + '</span></span>'
+          + '<input type="checkbox" data-nid="' + it.id + '" ' + (on ? 'checked' : '') + ' style="width:16px;height:16px;cursor:pointer;">'
+          + '</label>';
+      }).join('');
+      list.querySelectorAll('input[data-nid]').forEach(cb => cb.addEventListener('change', () => {
+        prefs[cb.dataset.nid] = cb.checked; window.__notifPrefs = prefs; save(prefs); render();
+        if (cb.checked && typeof Notification !== 'undefined' && Notification.permission === 'default') Notification.requestPermission().then(permBadge);
+      }));
+      permBadge();
+    }
+    // 當設定頁被打開時渲染(監聽分頁切換 + 首次)
+    function tryRender() { if (document.getElementById('notifList')) render(); }
+    document.addEventListener('click', e => { if (e.target.closest('[data-page-link],[data-nav],.nav-item')) setTimeout(tryRender, 200); });
+    setTimeout(tryRender, 1500);
+    window.__renderNotifCenter = render;
+
+    // 按鈕
+    document.addEventListener('click', e => {
+      if (e.target.id === 'notifPermBtn') {
+        if (typeof Notification === 'undefined') { alert('此瀏覽器不支援桌面通知'); return; }
+        Notification.requestPermission().then(p => { permBadge(); if (p === 'granted') new Notification('GLOBALPULSE', { body: '通知已開啟' }); });
+      }
+      if (e.target.id === 'notifTestBtn') {
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') new Notification('⚡ 測試通知', { body: '如果你看到這則,通知運作正常 ✅' });
+        else alert('請先按「允許瀏覽器通知」');
+      }
+    });
+  })();
+  </script>
 </body>
 </html>
