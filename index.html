@@ -1249,16 +1249,16 @@ input,textarea,select,
 .threat-bar{height:6px;background:var(--amber-faint);overflow:hidden}
 .threat-bar-fill{height:100%;background:linear-gradient(90deg,var(--up),var(--warn) 50%,var(--down));width:33%}
 
-.news-panel{position:absolute;top:14px;right:14px;width:460px;min-width:280px;max-width:80vw;max-height:calc(100% - 28px);overflow-y:auto;background:rgba(0,0,0,.55);backdrop-filter:blur(10px);padding-bottom:14px;z-index:15;transition:transform .28s ease,opacity .2s ease}
+.news-panel{position:fixed;top:14px;right:14px;width:460px;min-width:280px;max-width:80vw;max-height:calc(100% - 28px);overflow-y:auto;background:rgba(0,0,0,.55);backdrop-filter:blur(10px);padding-bottom:14px;z-index:15;transition:transform .28s ease,opacity .2s ease}
 .news-panel.collapsed{transform:translateX(calc(100% + 30px));opacity:0;pointer-events:none}
-.news-resize{position:absolute;top:14px;width:6px;max-height:calc(100% - 28px);height:calc(100% - 28px);cursor:ew-resize;z-index:16;background:transparent;transition:background .15s,opacity .2s ease}
+.news-resize{position:fixed;top:14px;width:6px;max-height:calc(100% - 28px);height:calc(100% - 28px);cursor:ew-resize;z-index:16;background:transparent;transition:background .15s,opacity .2s ease}
 .news-resize.hidden{opacity:0;pointer-events:none}
 .news-resize::before{content:'';position:absolute;top:50%;left:1px;transform:translateY(-50%);width:2px;height:32px;background:var(--amber-dim);border-radius:1px;opacity:.4;transition:opacity .15s,background .15s}
 .news-resize:hover::before,.news-resize.dragging::before{background:var(--amber);opacity:1}
 .news-resize:hover{background:rgba(255,140,0,.08)}
 .news-resize.dragging{background:rgba(255,140,0,.15)}
 
-.news-tab{position:absolute;top:50%;right:0;transform:translateY(-50%);z-index:17;background:var(--bg-panel);border:1px solid var(--amber-dim);border-right:none;color:var(--amber);padding:14px 6px;cursor:pointer;font-family:var(--font-mono);font-size:11px;writing-mode:vertical-rl;letter-spacing:.15em;font-weight:700;display:flex;align-items:center;gap:6px;transition:all .2s;backdrop-filter:blur(6px);user-select:none}
+.news-tab{position:fixed;top:50%;right:0;transform:translateY(-50%);z-index:17;background:var(--bg-panel);border:1px solid var(--amber-dim);border-right:none;color:var(--amber);padding:14px 6px;cursor:pointer;font-family:var(--font-mono);font-size:11px;writing-mode:vertical-rl;letter-spacing:.15em;font-weight:700;display:flex;align-items:center;gap:6px;transition:all .2s;backdrop-filter:blur(6px);user-select:none}
 .news-tab:hover{background:rgba(255,140,0,.15);border-color:var(--amber);box-shadow:-2px 0 12px rgba(255,140,0,.25)}
 .news-tab .arrow{font-family:var(--font-mono);font-size:14px;color:var(--amber);writing-mode:horizontal-tb;transition:transform .25s}
 .news-tab.open .arrow{transform:rotate(180deg)}
@@ -3203,7 +3203,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.21</b></div>
+        <div>BUILD <b>v184.22</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -3597,30 +3597,7 @@ window.L_DISABLE_3D = true;
       </div>
     </div>
 
-    <div class="news-resize hidden" id="newsResize" title="拖曳調整新聞欄寬度"></div>
-    <div class="news-panel collapsed" id="newsPanel">
-      <!-- Jin10-style flash news feed. Content is rendered dynamically by
-           renderNewsFlashFeed() from state.flashes (real Finnhub news +
-           classifier). Two sections: macro/policy + market chatter. -->
-      <div class="news-flash-head">
-        <span class="t-zh">即時快訊</span><span class="t-en">FLASH_NEWS</span>
-        <span class="news-flash-live"><span class="news-dot new"></span><span class="t-zh">LIVE</span><span class="t-en">LIVE</span></span>
-        <button id="newsSoundToggle" class="news-sound-toggle" title="聲音提示已關閉,點擊開啟"><span style="font-size:13px;opacity:.5;">🔕</span></button>
-      </div>
-      <div class="news-flash-section" id="newsFlashImportant">
-        <div class="news-flash-section-head"><span class="t-zh">★ 重要訊號</span><span class="t-en">★ KEY SIGNALS</span></div>
-        <div class="news-flash-list" id="newsFlashImportantList"></div>
-      </div>
-      <div class="news-flash-section" id="newsFlashAll">
-        <div class="news-flash-section-head"><span class="t-zh">全部快訊</span><span class="t-en">ALL FLASH</span></div>
-        <div class="news-flash-list" id="newsFlashAllList"></div>
-      </div>
-    </div>
-
-    <button class="news-tab" id="newsTab" title="點擊展開/收起新聞欄">
-      <span class="arrow">‹</span>
-      即時快訊
-    </button>
+    <!-- v184.22: 財經快訊欄已移至 body 層級,全站常駐(見檔尾) -->
 
     <button class="layer-fab" onclick="toggleLayerPopup()">≡ 圖層</button>
     <!-- v172: Layer toggle popup — controls which 2D-map overlays are visible -->
@@ -5106,10 +5083,13 @@ window.L_DISABLE_3D = true;
           <!-- Telegram -->
           <div class="gp-mp-w" data-w="telegram">
             <div class="gp-mp-whead">
-              <span class="gp-mp-wtitle">Telegram <span class="t-zh">即時消息鏈</span><span class="t-en">INTEL FEED</span></span>
+              <span class="gp-mp-wtitle">⚡ <span class="t-zh">地緣情報</span><span class="t-en">OSINT FEED</span></span>
               <span class="gp-mp-icons"><span data-close="telegram" title="關閉部件">✕</span></span>
             </div>
             <div class="gp-mp-body" style="max-height:430px;">
+              <div style="font-family:var(--font-mono);font-size:9.5px;color:var(--text-dim);line-height:1.5;margin-bottom:6px;">
+                <span class="t-zh">Telegram OSINT 聚合 · 極快但未證實 · 需交叉查證(比媒體快數倍)</span><span class="t-en">Telegram OSINT · fastest but unverified</span>
+              </div>
               <div class="gp-mp-row">
                 <select class="gp-mp-sel" id="mpTgFilter" style="flex:1;"><option value="">全部</option></select>
                 <button class="gp-mp-btn" id="mpTgRefresh">重新整理</button>
@@ -36265,5 +36245,33 @@ window.fmtHHMM = function(date) {
 })();
 </script>
 
+  <!-- v184.22: 全站財經快訊欄(fixed,每頁都在) -->
+    <div class="news-resize hidden" id="newsResize" title="拖曳調整新聞欄寬度"></div>
+    <div class="news-panel collapsed" id="newsPanel">
+      <!-- Jin10-style flash news feed. Content is rendered dynamically by
+           renderNewsFlashFeed() from state.flashes (real Finnhub news +
+           classifier). Two sections: macro/policy + market chatter. -->
+      <div class="news-flash-head">
+        <span class="t-zh">財經新聞快訊</span><span class="t-en">MARKET WIRE</span>
+        <span class="news-flash-live"><span class="news-dot new"></span><span class="t-zh">LIVE</span><span class="t-en">LIVE</span></span>
+        <button id="newsSoundToggle" class="news-sound-toggle" title="聲音提示已關閉,點擊開啟"><span style="font-size:13px;opacity:.5;">🔕</span></button>
+      </div>
+      <div style="padding:2px 14px 8px;font-family:var(--font-mono);font-size:9.5px;color:var(--text-dim);line-height:1.5;border-bottom:1px solid var(--amber-faint);">
+        <span class="t-zh">路透 · 日經 · Finnhub · 官方數據 — 正規媒體,經查證(比 Telegram 慢但可信)</span><span class="t-en">Reuters · Nikkei · Finnhub · official — vetted media</span>
+      </div>
+      <div class="news-flash-section" id="newsFlashImportant">
+        <div class="news-flash-section-head"><span class="t-zh">★ 重要訊號</span><span class="t-en">★ KEY SIGNALS</span></div>
+        <div class="news-flash-list" id="newsFlashImportantList"></div>
+      </div>
+      <div class="news-flash-section" id="newsFlashAll">
+        <div class="news-flash-section-head"><span class="t-zh">全部快訊</span><span class="t-en">ALL FLASH</span></div>
+        <div class="news-flash-list" id="newsFlashAllList"></div>
+      </div>
+    </div>
+
+    <button class="news-tab" id="newsTab" title="點擊展開/收起新聞欄">
+      <span class="arrow">‹</span>
+      財經快訊
+    </button>
 </body>
 </html>
