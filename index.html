@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.27</b></div>
+        <div>BUILD <b>v184.28</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -3349,81 +3349,9 @@ window.L_DISABLE_3D = true;
   </div>
 </header>
 
-<aside class="sidebar" id="sidebar">
-  <!-- v180.5 — Geopolitics nav: "衝突詳情" is a single sub-item that
-       opens a popup listing all 6 conflicts. Picking one opens the
-       conflict modal (and closes the popup). Keeps sidebar clean —
-       no 6-row dump under the nav. Popup is rendered + handled by
-       conflictTrackerModule (formerly the inline-list version). -->
-  <div class="nav-group">
-    <div class="nav-item" data-toggle="geo">
-      <div class="nav-icon">⊕</div>
-      <div class="nav-text"><div class="t">地緣政治</div><div class="s">地緣政治動態</div></div>
-      <div class="nav-caret">▾</div>
-    </div>
-    <div class="sub-list">
-      <div class="sub-item" data-route="geo"><span class="ic">◉</span>地緣動態主頁</div>
-      <div class="sub-item" id="conflictPickerEntry"><span class="ic">⊕</span>衝突詳情<span class="ct-entry-warn" id="conflictPickerEntryWarn" title="近 24h 內出現高風險新聞"></span></div>
-    </div>
-  </div>
-  <div class="nav-group open">
-    <div class="nav-item" data-toggle="finance">
-      <div class="nav-icon">⤴</div>
-      <div class="nav-text"><div class="t">金融市場</div><div class="s">金融市場追蹤</div></div>
-      <div class="nav-caret">▾</div>
-    </div>
-    <div class="sub-list">
-      <div class="sub-item" data-route="fin-home"><span class="ic">◉</span>市場儀表板</div>
-      <div class="sub-item" data-route="fin-stock"><span class="ic">⊞</span>個股詳情</div>
-      <div class="sub-item" data-route="fin-macro"><span class="ic">⊜</span>總經面板</div>
-      <!-- v180.11 — Taiwan market page. Data flows via worker
-           /tw-quote + /tw-candles (Yahoo Finance v8/chart endpoint). -->
-      <div class="sub-item" data-route="tw-market"><span class="ic">⊞</span>台股市場</div>
-      <div class="sub-item" data-route="fin-config"><span class="ic">⚙</span>Worker 狀態</div>
-    </div>
-  </div>
-  <div class="nav-group">
-    <div class="nav-item" data-toggle="invest">
-      <div class="nav-icon">⛁</div>
-      <div class="nav-text"><div class="t">投資中心</div><div class="s">智慧投資引擎</div></div>
-      <div class="nav-caret">▾</div>
-    </div>
-    <div class="sub-list">
-      <div class="sub-head">儀表板</div>
-      <div class="sub-item" data-route="inv-macro"><span class="ic">⤴</span>宏觀分析</div>
-      <div class="sub-item" data-route="inv-track"><span class="ic">⊟</span>賽道分析</div>
-      <!-- v180.10 — 「個股分析」(inv-stock) removed. It overlapped with
-           fin-stock (個股詳情) which already shows quote/K-line/news/AI
-           brief. The intended differentiation was fundamentals analysis,
-           but without a real fundamentals API the page would be all mock
-           data — pointless to maintain. Cmd+K still jumps to fin-stock
-           for any stock search; inv-screen's symbol clicks also route
-           to fin-stock now (was inv-stock). -->
-      <div class="sub-item" data-route="inv-screen"><span class="ic">○</span>全市場篩選</div>
-      <div class="sub-item" data-route="inv-portfolio"><span class="ic">⌖</span>投資組合</div>
-    </div>
-  </div>
-  <div class="nav-group">
-    <div class="nav-item" data-toggle="report">
-      <div class="nav-icon">▤</div>
-      <div class="nav-text"><div class="t">報告中心</div><div class="s">情勢分析報告</div></div>
-      <div class="nav-caret">▾</div>
-    </div>
-    <div class="sub-list">
-      <div class="sub-item" data-route="rep-geo"><span class="ic">⊕</span>地緣政治報告</div>
-      <div class="sub-item" data-route="rep-fin"><span class="ic">⤴</span>金融市場報告</div>
-      <div class="sub-item" data-route="rep-inv"><span class="ic">⛁</span>投資中心報告</div>
-    </div>
-  </div>
-  <div class="nav-group">
-    <div class="nav-item" data-route="settings">
-      <div class="nav-icon">⚙</div>
-      <div class="nav-text"><div class="t">設定</div><div class="s">Worker 狀態</div></div>
-    </div>
-  </div>
-</aside>
+<!-- v184.28: 左側欄已移除,導覽全整合至上排下拉 -->
 
-<div class="edge-trigger" id="edgeTrigger" title="移到此處展開導覽列"></div>
+
 
 <div class="main">
 
