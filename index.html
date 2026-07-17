@@ -3203,7 +3203,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.20</b></div>
+        <div>BUILD <b>v184.21</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -5234,12 +5234,13 @@ window.L_DISABLE_3D = true;
           <span><span class="t-zh">節點規劃 / 投資決策工具</span><span class="t-en">DECISION_NODES</span></span>
           <span class="box-meta">
             <span id="nodeStats" style="color:var(--text-dim);">— 個節點 · — 觸發</span>
+            <button id="nodeNotifyBtn" class="btn" onclick="window.__nodeAskNotify&&window.__nodeAskNotify()" style="margin-left:8px;background:transparent;color:var(--amber);border:1px solid var(--amber);padding:3px 10px;font-family:var(--font-mono);font-size:11px;cursor:pointer;">🔔 開啟警報通知</button>
             <button id="nodeAddBtn" class="btn" style="margin-left:8px;background:var(--amber);color:var(--bg);border:1px solid var(--amber);padding:3px 10px;font-family:var(--font-mono);font-size:11px;cursor:pointer;">[+ 新增節點]</button>
           </span>
         </div>
         <div class="box-body" style="padding:0;">
           <div id="nodeIntro" style="padding:14px 20px;border-bottom:1px solid var(--amber-faint);color:var(--text-dim);font-family:var(--font-mono);font-size:11px;line-height:1.6;">
-            <span class="t-zh">用 IF/THEN 規則設計你的投資警報系統。每 15 秒以即時市場數據自動評估,觸發節點會顯示 ✅。</span>
+            <span class="t-zh">用 IF/THEN 規則設計你的投資警報系統。背景每 20 秒以即時市場數據自動評估,觸發時跳桌面通知叫你(需按 🔔 開啟),就算切到別的分頁/App 也會通知。</span>
             <span class="t-en">Design your investment alert rules with IF/THEN. Auto-evaluated every 15s with live market data. Triggered nodes show ✅.</span>
           </div>
           <div id="nodeGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;padding:18px;"></div>
@@ -35650,11 +35651,56 @@ setRoute((location.hash.replace('#/', '') || 'geo'));
   // Expose for setRoute()
   window.__renderNodes = renderNodes;
 
+  // v184.21: 桌面通知 —— 讓警報「真的會叫你」。這是節點規劃從擺設變實用的關鍵:
+  // 觸發時就算你在別的分頁/別的 App,也會跳系統通知。狀態記在節點的 lastTriggered,
+  // 同一節點觸發後不再重複轟炸,直到條件解除又再次成立才會再通知(edge-trigger)。
+  function nodeNotify(n, cur) {
+    try {
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+      const curStr = fmtVal(cur, n.ifSource, n.ifField);
+      new Notification('⚡ ' + (n.title || '節點觸發'), {
+        body: 'IF ' + n.ifKey + ' ' + n.ifOp + ' ' + fmtVal(n.ifValue, n.ifSource, n.ifField)
+          + '(現值 ' + curStr + ')\n' + (n.thenAction || ''),
+        tag: 'gpnode-' + n.id,   // 同節點只保留最新一則
+        icon: '/favicon.ico',
+      });
+    } catch (e) {}
+  }
+  // 背景評估:不管在哪一頁都跑,每 20 秒掃一次所有啟用的節點
+  function nodeBackgroundScan() {
+    let changed = false;
+    NODES.forEach(n => {
+      if (!n.enabled) return;
+      const ev = evaluateNode(n);
+      const was = !!n._wasTriggered;
+      if (ev.triggered && !was) {          // 由「未觸發 → 觸發」的瞬間才通知
+        n._wasTriggered = true; n.lastTriggered = Date.now();
+        nodeNotify(n, ev.currentValue); changed = true;
+      } else if (!ev.triggered && was) {    // 條件解除,重置以便下次再觸發
+        n._wasTriggered = false; changed = true;
+      }
+    });
+    if (changed) saveNodes();
+  }
+  // 要求通知權限(第一次進節點頁時問一次)
+  window.__nodeAskNotify = function () {
+    try {
+      if (!('Notification' in window)) { alert('這個瀏覽器不支援桌面通知'); return; }
+      if (Notification.permission === 'granted') { alert('桌面通知已開啟 ✅'); return; }
+      Notification.requestPermission().then(p => {
+        if (p === 'granted') new Notification('GLOBALPULSE', { body: '警報通知已開啟 — 節點觸發時會通知你' });
+      });
+    } catch (e) {}
+  };
+
   // Auto-evaluate every 15s when the page is visible
   setInterval(() => {
     const page = document.querySelector('.page[data-page="node"]');
     if (page && page.classList.contains('active')) renderNodes();
   }, 15000);
+  // v184.21: 背景掃描 — 無論在哪一頁都跑(頁面被切到背景分頁時瀏覽器會自動降頻,不吃資源)
+  setInterval(nodeBackgroundScan, 20000);
+  setTimeout(nodeBackgroundScan, 5000);
 
   // v180.62b — Fast retry: when page is open AND any node shows "資料載入中",
   // re-render every 1s until all data sources are available, then back off.
