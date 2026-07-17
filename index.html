@@ -3203,7 +3203,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.23</b></div>
+        <div>BUILD <b>v184.24</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -5411,7 +5411,7 @@ window.L_DISABLE_3D = true;
           <!-- ============ v184.23: 通知中心 ============ -->
           <div id="notifCenter" style="margin-top:24px;padding-top:14px;border-top:1px dashed var(--amber-dim);font-family:var(--font-mono);">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-              <span style="color:var(--amber);font-size:13px;font-weight:700;">🔔 <span class="t-zh">通知中心</span><span class="t-en">NOTIFICATIONS</span></span>
+              <span style="color:var(--amber);font-size:13px;font-weight:700;">◈ <span class="t-zh">通知中心</span><span class="t-en">NOTIFICATIONS</span></span>
               <span id="notifPermBadge" style="font-size:10px;padding:2px 8px;border-radius:3px;"></span>
             </div>
             <div style="font-size:10px;color:var(--text-dim);line-height:1.6;margin-bottom:12px;">
@@ -35004,7 +35004,7 @@ setRoute((location.hash.replace('#/', '') || 'geo'));
 
     // ----- System notification -----
     function fireNotification(carrier, vessel) {
-      if (window.__notifOn && !window.__notifOn('carrier')) return;   // v184.23: 通知中心開關
+      return;   // v184.24: 航母通知已移除(通知中心不再列此項)
       if (!SETTINGS.notify) return;
       if (typeof Notification === 'undefined') return;
       if (Notification.permission !== 'granted') return;
@@ -36297,13 +36297,12 @@ window.fmtHHMM = function(date) {
     const KEY = 'gp-notif-prefs-v1';
     // 所有可通知的來源(id 對應各通知源檢查用)
     const ITEMS = [
-      { id: 'node',    icon: '⚡', zh: '節點警報',   en: 'Alert nodes',  desc: 'IF/THEN 規則觸發' },
-      { id: 'carrier', icon: '★', zh: '航母現身',   en: 'Carriers',     desc: '航母進入地圖視野' },
-      { id: 'news',    icon: '📰', zh: '財經快訊音效', en: 'News chime',  desc: '重要財經新聞提示音' },
-      { id: 'quake',   icon: '🌐', zh: '強震快報',   en: 'Big quakes',   desc: '規模 6 以上地震(需開地震圖層)' },
-      { id: 'cyclone', icon: '🌀', zh: '颱風接近台灣', en: 'Typhoon TW', desc: '颱風進入台灣近海' },
+      { id: 'telegram', icon: '◆', zh: '地緣情報快訊', en: 'OSINT feed',  desc: 'Telegram 前線情報,新訊息即時通知' },
+      { id: 'node',    icon: '▲', zh: '節點警報',     en: 'Alert nodes',  desc: 'IF/THEN 規則觸發' },
+      { id: 'news',    icon: '■', zh: '財經快訊音效', en: 'News chime',    desc: '重要財經新聞提示音' },
+      { id: 'quake',   icon: '⬡', zh: '強震快報',     en: 'Big quakes',    desc: '規模 6 以上地震(需開地震圖層)' },
     ];
-    const DEFAULTS = { node: true, carrier: true, news: false, quake: true, cyclone: true };
+    const DEFAULTS = { telegram: true, node: true, news: false, quake: true };
     function load() { try { return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { return Object.assign({}, DEFAULTS); } }
     function save(p) { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch (e) {} }
     let prefs = load();
@@ -36324,7 +36323,7 @@ window.fmtHHMM = function(date) {
       list.innerHTML = ITEMS.map(it => {
         const on = prefs[it.id] !== false;
         return '<label style="display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid ' + (on ? 'rgba(255,140,0,.35)' : 'rgba(255,255,255,.06)') + ';border-radius:5px;cursor:pointer;background:' + (on ? 'rgba(255,140,0,.04)' : 'transparent') + ';">'
-          + '<span style="font-size:15px;width:22px;text-align:center;">' + it.icon + '</span>'
+          + '<span style="font-size:13px;width:22px;text-align:center;color:' + (on ? 'var(--amber)' : 'var(--text-dim)') + ';font-family:var(--font-mono);">' + it.icon + '</span>'
           + '<span style="flex:1;"><span style="color:' + (on ? 'var(--amber)' : 'var(--text)') + ';font-size:12px;font-weight:' + (on ? '700' : '400') + ';">' + (isZh ? it.zh : it.en) + '</span>'
           + '<span style="display:block;color:var(--text-dim);font-size:9.5px;margin-top:1px;">' + it.desc + '</span></span>'
           + '<input type="checkbox" data-nid="' + it.id + '" ' + (on ? 'checked' : '') + ' style="width:16px;height:16px;cursor:pointer;">'
@@ -36349,10 +36348,39 @@ window.fmtHHMM = function(date) {
         Notification.requestPermission().then(p => { permBadge(); if (p === 'granted') new Notification('GLOBALPULSE', { body: '通知已開啟' }); });
       }
       if (e.target.id === 'notifTestBtn') {
-        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') new Notification('⚡ 測試通知', { body: '如果你看到這則,通知運作正常 ✅' });
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') new Notification('◆ 測試通知', { body: '如果你看到這則,通知運作正常 ✅' });
         else alert('請先按「允許瀏覽器通知」');
       }
     });
+
+    // ===== v184.24: Telegram 地緣情報「背景通知」 =====
+    // 不依賴監控面板是否開啟 — 每 90 秒背景抓一次,偵測到新訊息就跳桌面通知。
+    // 首次載入只記基準(不通知歷史訊息),之後只通知「真正新到」的。
+    const WK_TG = 'https://ais-proxy.2syzkjy2vq.workers.dev';
+    let _tgSeen = null;
+    const _tgKey = m => (m.ch || '') + '|' + (m.t || '') + '|' + (m.text || '').slice(0, 40);
+    async function tgBackgroundPoll() {
+      try {
+        if (!window.__notifOn || !window.__notifOn('telegram')) return;
+        if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+        const r = await fetch(WK_TG + '/telegram?channels=intelslava,clashreport,disclosetv,insiderpaper,ukrainenowenglish&limit=15&tl=zh-TW');
+        if (!r.ok) return;
+        const d = await r.json();
+        if (!d || !d.ok || !Array.isArray(d.messages)) return;
+        if (_tgSeen === null) { _tgSeen = new Set(d.messages.map(_tgKey)); return; }
+        const fresh = d.messages.filter(m => !_tgSeen.has(_tgKey(m)));
+        fresh.forEach(m => _tgSeen.add(_tgKey(m)));
+        if (_tgSeen.size > 300) _tgSeen = new Set(d.messages.map(_tgKey));
+        fresh.slice(0, 3).reverse().forEach(m => {
+          try {
+            const body = (m.zh || m.text || '').slice(0, 140);
+            new Notification('◆ ' + (m.chName || '地緣情報'), { body: body, tag: 'gptg-' + _tgKey(m), icon: '/favicon.ico' });
+          } catch (e) {}
+        });
+      } catch (e) {}
+    }
+    setInterval(tgBackgroundPoll, 90 * 1000);
+    setTimeout(tgBackgroundPoll, 8000);
   })();
   </script>
 </body>
