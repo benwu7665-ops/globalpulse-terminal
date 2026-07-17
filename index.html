@@ -76,6 +76,14 @@ input,textarea,select,
 .top-actions span:hover{color:var(--amber);background:rgba(255,140,0,.06)}
 #clockTime{color:var(--amber);font-weight:500;letter-spacing:.08em}
 .topbar-row2{height:48px;display:flex;flex-direction:column;padding:0;font-family:var(--font-cn);font-size:13px;background:var(--bg);position:relative}
+/* v184.25 — 方案A:上排分組下拉 */
+.tabgrp{position:relative;display:inline-block}
+.tabgrp-btn{cursor:pointer}
+.tabgrp-caret{font-size:9px;opacity:.6;margin-left:2px}
+.tabgrp-menu{display:none;position:absolute;top:100%;left:0;min-width:150px;background:rgba(10,12,16,.98);border:1px solid var(--amber-dim);border-top:2px solid var(--amber);z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.6);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);padding:4px 0}
+.tabgrp:hover .tabgrp-menu{display:block}
+.tabgrp-item{padding:8px 16px;font-size:12.5px;color:var(--text-dim);cursor:pointer;white-space:nowrap;font-family:var(--font-cn);transition:background .12s,color .12s}
+.tabgrp-item:hover{background:rgba(255,140,0,.1);color:var(--amber)}
 
 .tabbar-main{display:flex;align-items:stretch;gap:0;padding:0 16px;height:28px;border-bottom:1px solid var(--amber-faint);overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
 .tabbar-main::-webkit-scrollbar{display:none}
@@ -3203,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.24</b></div>
+        <div>BUILD <b>v184.25</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -5657,6 +5665,42 @@ const TABS = [
   { id: 'settings',   label: '設定' },
 ];
 
+// v184.25 — 方案A:上排下拉分組。把左側欄的所有功能收進上排大分類的下拉選單,
+// 側邊欄退場,一層直達不用切來切去。children 的 route 直接對應現有頁面 data-page。
+const TAB_GROUPS = [
+  { id: 'g-dash',   label: '儀錶板',   route: 'geo' },
+  { id: 'g-geo',    label: '地緣政治', children: [
+      { label: '地緣動態主頁', route: 'geo' },
+      { label: '衝突詳情',     action: 'conflict' },
+  ] },
+  { id: 'g-fin',    label: '金融市場', children: [
+      { label: '市場儀表板', route: 'fin-home' },
+      { label: '個股詳情',   route: 'fin-stock' },
+      { label: '總經面板',   route: 'fin-macro' },
+      { label: '美股市場',   route: 'us-market' },
+      { label: '台股市場',   route: 'tw-market' },
+      { label: '加密市場',   route: 'crypto' },
+      { label: 'Worker 狀態', route: 'fin-config' },
+  ] },
+  { id: 'g-inv',    label: '投資中心', children: [
+      { label: '宏觀分析',   route: 'inv-macro' },
+      { label: '賽道分析',   route: 'inv-track' },
+      { label: '全市場篩選', route: 'inv-screen' },
+      { label: '投資組合',   route: 'inv-portfolio' },
+      { label: '節點規劃',   route: 'node' },
+  ] },
+  { id: 'g-news',   label: '新聞情報', children: [
+      { label: '新聞中心',   route: 'news' },
+      { label: 'AI 對話',    route: 'ai' },
+  ] },
+  { id: 'g-report', label: '報告中心', children: [
+      { label: '地緣政治報告', route: 'rep-geo' },
+      { label: '金融市場報告', route: 'rep-fin' },
+      { label: '投資中心報告', route: 'rep-inv' },
+  ] },
+  { id: 'g-set',    label: '設定',     route: 'settings' },
+];
+
 /* ========== TOP TAB BAR ========== */
 const tabState = {
   active: 'dashboard',
@@ -5664,6 +5708,35 @@ const tabState = {
 };
 
 function renderMainTabs() {
+  const el = document.getElementById('tabbarMain');
+  // v184.25 — 方案A:分組下拉。大分類 hover 展開子項,子項點擊直接路由。
+  el.innerHTML = TAB_GROUPS.map(g => {
+    if (!g.children) {
+      return '<div class="tabgrp"><button class="tab-main" data-grp-route="' + (g.route || '') + '">' + g.label + '</button></div>';
+    }
+    const items = g.children.map(c =>
+      '<div class="tabgrp-item" ' + (c.route ? 'data-grp-route="' + c.route + '"' : ('data-grp-action="' + (c.action || '') + '"')) + '>' + c.label + '</div>'
+    ).join('');
+    return '<div class="tabgrp"><button class="tab-main tabgrp-btn">' + g.label + ' <span class="tabgrp-caret">▾</span></button>'
+      + '<div class="tabgrp-menu">' + items + '</div></div>';
+  }).join('');
+
+  // 路由:route 走 setRoute,action 走特殊處理(如衝突彈窗)
+  el.querySelectorAll('[data-grp-route]').forEach(node => {
+    node.addEventListener('click', () => {
+      const r = node.getAttribute('data-grp-route');
+      if (r && typeof setRoute === 'function') setRoute(r);
+    });
+  });
+  el.querySelectorAll('[data-grp-action]').forEach(node => {
+    node.addEventListener('click', () => {
+      const a = node.getAttribute('data-grp-action');
+      if (a === 'conflict') { const e = document.getElementById('conflictPickerEntry'); if (e) e.click(); }
+    });
+  });
+  if (typeof window.__applyLang === 'function') window.__applyLang();
+}
+function renderMainTabs_OLD() {
   const el = document.getElementById('tabbarMain');
   el.innerHTML = TABS.map(t =>
     '<button class="tab-main' + (t.id === tabState.active ? ' active' : '') + '" data-tab="' + t.id + '">' + t.label + '</button>'
