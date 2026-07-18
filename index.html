@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.28</b></div>
+        <div>BUILD <b>v184.29</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -5354,9 +5354,18 @@ window.L_DISABLE_3D = true;
               <span class="t-zh">統一管理所有通知。開啟的項目在觸發時會跳桌面通知(需先允許瀏覽器通知)。</span><span class="t-en">Manage all alerts. Enabled items fire desktop notifications.</span>
             </div>
             <div id="notifList" style="display:flex;flex-direction:column;gap:2px;"></div>
+            <div style="margin-top:12px;display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid var(--amber-faint);border-radius:5px;">
+              <span style="color:var(--amber);font-family:var(--font-mono);font-size:11px;white-space:nowrap;">音量</span>
+              <input type="range" id="notifVol" min="0" max="100" value="50" style="flex:1;accent-color:var(--amber);cursor:pointer;">
+              <span id="notifVolVal" style="color:var(--text-dim);font-family:var(--font-mono);font-size:10px;width:34px;text-align:right;">50%</span>
+            </div>
             <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
               <button class="btn" id="notifPermBtn" style="font-size:10px;padding:3px 10px;color:var(--amber);border:1px solid var(--amber);background:transparent;cursor:pointer;">允許瀏覽器通知</button>
               <button class="btn" id="notifTestBtn" style="font-size:10px;padding:3px 10px;color:var(--text);border:1px solid var(--amber-faint);background:transparent;cursor:pointer;">▶ 測試通知</button>
+            </div>
+            <div style="margin-top:8px;font-size:9.5px;color:var(--text-dim);line-height:1.6;">
+              → 想關閉瀏覽器通知權限:Safari 選單 → 設定 → 網站 → 通知 → 找到本站改為「拒絕」<br>
+              → 音效由瀏覽器合成,不需音檔;分頁靜音時不會播放
             </div>
           </div>
 
@@ -35682,7 +35691,8 @@ setRoute((location.hash.replace('#/', '') || 'geo'));
       if (window.__notifOn && !window.__notifOn('node')) return;   // v184.23: 通知中心開關
       if (!('Notification' in window) || Notification.permission !== 'granted') return;
       const curStr = fmtVal(cur, n.ifSource, n.ifField);
-      new Notification('⚡ ' + (n.title || '節點觸發'), {
+      if (window.__notifSound) window.__notifSound('node');   // v184.29: 播放使用者選的音效
+      new Notification('▲ ' + (n.title || '節點觸發'), {
         body: 'IF ' + n.ifKey + ' ' + n.ifOp + ' ' + fmtVal(n.ifValue, n.ifSource, n.ifField)
           + '(現值 ' + curStr + ')\n' + (n.thenAction || ''),
         tag: 'gpnode-' + n.id,   // 同節點只保留最新一則
@@ -36321,6 +36331,41 @@ window.fmtHHMM = function(date) {
   // ===== v184.23: 通知中心 — 統一管理所有通知開關 =====
   (function () {
     const KEY = 'gp-notif-prefs-v1';
+    const SKEY = 'gp-notif-sound-v1';
+    // v184.29: 音效庫 — 用 Web Audio 即時合成,不需音檔。每項通知可各自選音效。
+    const SOUNDS = {
+      none:   { label: '無聲', seq: [] },
+      chime:  { label: '單音提示', seq: [[880, 0, 0.18, 'sine']] },
+      double: { label: '雙音提示', seq: [[784, 0, 0.12, 'sine'], [1046, 0.14, 0.16, 'sine']] },
+      alert:  { label: '警報', seq: [[660, 0, 0.14, 'sawtooth'], [520, 0.16, 0.14, 'sawtooth'], [660, 0.32, 0.14, 'sawtooth']] },
+      bell:   { label: '鐘聲', seq: [[1318, 0, 0.5, 'triangle'], [1975, 0.02, 0.4, 'sine']] },
+      pulse:  { label: '脈衝', seq: [[440, 0, 0.08, 'square'], [440, 0.12, 0.08, 'square'], [440, 0.24, 0.08, 'square']] },
+      deep:   { label: '低頻警示', seq: [[220, 0, 0.3, 'triangle'], [165, 0.28, 0.35, 'triangle']] },
+    };
+    const SOUND_DEFAULTS = { telegram: 'chime', node: 'alert', news: 'double', quake: 'deep' };
+    let sPrefs = (() => { try { return Object.assign({ _vol: 0.5 }, SOUND_DEFAULTS, JSON.parse(localStorage.getItem(SKEY) || '{}')); } catch (e) { return Object.assign({ _vol: 0.5 }, SOUND_DEFAULTS); } })();
+    const sSave = () => { try { localStorage.setItem(SKEY, JSON.stringify(sPrefs)); } catch (e) {} };
+    let _ac = null;
+    function playSound(key, volOverride) {
+      const def = SOUNDS[key]; if (!def || !def.seq.length) return;
+      try {
+        if (!_ac) { const C = window.AudioContext || window.webkitAudioContext; if (!C) return; _ac = new C(); }
+        if (_ac.state === 'suspended') _ac.resume();
+        const vol = (volOverride != null ? volOverride : sPrefs._vol);
+        def.seq.forEach(([freq, off, dur, wave]) => {
+          const osc = _ac.createOscillator(), g = _ac.createGain();
+          osc.type = wave || 'sine'; osc.frequency.value = freq;
+          const t0 = _ac.currentTime + off;
+          g.gain.setValueAtTime(0, t0);
+          g.gain.linearRampToValueAtTime(Math.max(0.001, 0.35 * vol), t0 + 0.01);
+          g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+          osc.connect(g).connect(_ac.destination);
+          osc.start(t0); osc.stop(t0 + dur + 0.03);
+        });
+      } catch (e) {}
+    }
+    // 供各通知源呼叫:發通知時一併播該類音效
+    window.__notifSound = id => { if (window.__notifOn && window.__notifOn(id)) playSound(sPrefs[id] || 'none'); };
     // 所有可通知的來源(id 對應各通知源檢查用)
     const ITEMS = [
       { id: 'telegram', icon: '◆', zh: '地緣情報快訊', en: 'OSINT feed',  desc: 'Telegram 前線情報,新訊息即時通知' },
@@ -36348,17 +36393,42 @@ window.fmtHHMM = function(date) {
       const isZh = !document.body.classList.contains('lang-en');
       list.innerHTML = ITEMS.map(it => {
         const on = prefs[it.id] !== false;
+        const cur = sPrefs[it.id] || 'none';
+        const opts = Object.keys(SOUNDS).map(k => '<option value="' + k + '"' + (k === cur ? ' selected' : '') + '>' + SOUNDS[k].label + '</option>').join('');
         return '<label style="display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid ' + (on ? 'rgba(255,140,0,.35)' : 'rgba(255,255,255,.06)') + ';border-radius:5px;cursor:pointer;background:' + (on ? 'rgba(255,140,0,.04)' : 'transparent') + ';">'
           + '<span style="font-size:13px;width:22px;text-align:center;color:' + (on ? 'var(--amber)' : 'var(--text-dim)') + ';font-family:var(--font-mono);">' + it.icon + '</span>'
-          + '<span style="flex:1;"><span style="color:' + (on ? 'var(--amber)' : 'var(--text)') + ';font-size:12px;font-weight:' + (on ? '700' : '400') + ';">' + (isZh ? it.zh : it.en) + '</span>'
+          + '<span style="flex:1;min-width:0;"><span style="color:' + (on ? 'var(--amber)' : 'var(--text)') + ';font-size:12px;font-weight:' + (on ? '700' : '400') + ';">' + (isZh ? it.zh : it.en) + '</span>'
           + '<span style="display:block;color:var(--text-dim);font-size:9.5px;margin-top:1px;">' + it.desc + '</span></span>'
+          + '<select data-snd="' + it.id + '" onclick="event.preventDefault();event.stopPropagation();" style="background:rgba(0,0,0,.5);color:var(--text);border:1px solid var(--amber-faint);border-radius:3px;font-family:var(--font-mono);font-size:10px;padding:3px 5px;cursor:pointer;">' + opts + '</select>'
+          + '<span data-prev="' + it.id + '" title="試聽" style="color:var(--amber);border:1px solid var(--amber-faint);border-radius:3px;padding:2px 7px;font-size:10px;cursor:pointer;font-family:var(--font-mono);">▶</span>'
           + '<input type="checkbox" data-nid="' + it.id + '" ' + (on ? 'checked' : '') + ' style="width:16px;height:16px;cursor:pointer;">'
           + '</label>';
       }).join('');
+      // 音效選擇
+      list.querySelectorAll('select[data-snd]').forEach(sel => {
+        sel.addEventListener('click', e => e.preventDefault());
+        sel.addEventListener('change', e => {
+          e.preventDefault(); e.stopPropagation();
+          sPrefs[sel.dataset.snd] = sel.value; sSave(); playSound(sel.value);
+        });
+      });
+      // 試聽
+      list.querySelectorAll('[data-prev]').forEach(b => b.addEventListener('click', e => {
+        e.preventDefault(); e.stopPropagation();
+        playSound(sPrefs[b.dataset.prev] || 'none');
+      }));
       list.querySelectorAll('input[data-nid]').forEach(cb => cb.addEventListener('change', () => {
         prefs[cb.dataset.nid] = cb.checked; window.__notifPrefs = prefs; save(prefs); render();
         if (cb.checked && typeof Notification !== 'undefined' && Notification.permission === 'default') Notification.requestPermission().then(permBadge);
       }));
+      // 音量滑桿
+      const vs = document.getElementById('notifVol'), vv = document.getElementById('notifVolVal');
+      if (vs) {
+        vs.value = String(Math.round((sPrefs._vol != null ? sPrefs._vol : 0.5) * 100));
+        if (vv) vv.textContent = vs.value + '%';
+        vs.oninput = () => { sPrefs._vol = (parseInt(vs.value, 10) || 0) / 100; if (vv) vv.textContent = vs.value + '%'; sSave(); };
+        vs.onchange = () => playSound('chime');
+      }
       permBadge();
     }
     // 當設定頁被打開時渲染(監聽分頁切換 + 首次)
@@ -36374,7 +36444,7 @@ window.fmtHHMM = function(date) {
         Notification.requestPermission().then(p => { permBadge(); if (p === 'granted') new Notification('GLOBALPULSE', { body: '通知已開啟' }); });
       }
       if (e.target.id === 'notifTestBtn') {
-        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') new Notification('◆ 測試通知', { body: '如果你看到這則,通知運作正常 ✅' });
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') { new Notification('◆ 測試通知', { body: '如果你看到這則,通知運作正常 ✅' }); playSound(sPrefs.telegram || 'chime'); }
         else alert('請先按「允許瀏覽器通知」');
       }
     });
@@ -36401,6 +36471,7 @@ window.fmtHHMM = function(date) {
           try {
             const body = (m.zh || m.text || '').slice(0, 140);
             new Notification('◆ ' + (m.chName || '地緣情報'), { body: body, tag: 'gptg-' + _tgKey(m), icon: '/favicon.ico' });
+            playSound(sPrefs.telegram || 'none');
           } catch (e) {}
         });
       } catch (e) {}
