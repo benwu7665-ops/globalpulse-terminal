@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.33</b></div>
+        <div>BUILD <b>v184.34</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -5643,6 +5643,36 @@ const tabState = {
   open: ['dashboard'],   // start with dashboard pinned/open
 };
 
+// v184.34: 動態分頁 — 上排下拉開啟的頁面也會變成分頁(像瀏覽器那樣可切換/關閉),
+// 並存進 localStorage,重開網站會記得你上次開了哪些分頁。
+const DYN_TABS = {};
+const DTKEY = 'gp-open-tabs-v1';
+function _dtSave() {
+  try {
+    localStorage.setItem(DTKEY, JSON.stringify({
+      open: tabState.open, active: tabState.active,
+      dyn: Object.values(DYN_TABS).map(t => ({ id: t.id, label: t.label, route: t.route })),
+    }));
+  } catch (e) {}
+}
+function _dtRestore() {
+  try {
+    const d = JSON.parse(localStorage.getItem(DTKEY) || 'null');
+    if (!d || !Array.isArray(d.open)) return;
+    (d.dyn || []).forEach(t => { DYN_TABS[t.id] = t; });
+    const valid = d.open.filter(id => id === 'dashboard' || DYN_TABS[id] || TABS.find(x => x.id === id));
+    if (valid.length) tabState.open = valid.includes('dashboard') ? valid : ['dashboard'].concat(valid);
+    if (d.active && tabState.open.includes(d.active)) tabState.active = d.active;
+  } catch (e) {}
+}
+// 由下拉選單開啟一個頁面 → 建立/切換到對應分頁
+function openRouteTab(route, label) {
+  const id = 'r:' + route;
+  DYN_TABS[id] = { id, label: label || route, route };
+  if (!tabState.open.includes(id)) tabState.open.push(id);
+  switchTab(id);
+}
+
 function renderMainTabs() {
   const el = document.getElementById('tabbarMain');
   // v184.25 — 方案A:分組下拉。大分類 hover 展開子項,子項點擊直接路由。
@@ -5661,7 +5691,11 @@ function renderMainTabs() {
   el.querySelectorAll('[data-grp-route]').forEach(node => {
     node.addEventListener('click', () => {
       const r = node.getAttribute('data-grp-route');
-      if (r && typeof setRoute === 'function') setRoute(r);
+      const label = (node.textContent || '').replace(/▾/g, '').trim();
+      if (!r) return;
+      // v184.34: 儀錶板走原本的固定分頁,其餘開成可關閉的動態分頁
+      if (r === 'geo') { openTab('dashboard'); }
+      else { openRouteTab(r, label); }
       document.querySelectorAll('.tabgrp-menu.show').forEach(m => m.classList.remove('show'));
     });
   });
@@ -5692,7 +5726,10 @@ function renderMainTabs() {
     menu.addEventListener('mouseleave', closeSoon);
     // 沒有子選單的(儀錶板/設定)點擊直接跳
     if (btn.hasAttribute('data-grp-route')) btn.addEventListener('click', () => {
-      const r = btn.getAttribute('data-grp-route'); if (r && typeof setRoute === 'function') setRoute(r);
+      const r = btn.getAttribute('data-grp-route');
+      const label = (btn.textContent || '').replace(/▾/g, '').trim();
+      if (!r) return;
+      if (r === 'geo') openTab('dashboard'); else openRouteTab(r, label);
     });
   });
   if (typeof window.__applyLang === 'function') window.__applyLang();
@@ -5711,7 +5748,7 @@ function renderMainTabs_OLD() {
 function renderOpenTabs() {
   const el = document.getElementById('tabbarOpen');
   el.innerHTML = tabState.open.map(id => {
-    const t = TABS.find(x => x.id === id);
+    const t = TABS.find(x => x.id === id) || DYN_TABS[id];
     if (!t) return '';
     const isActive = id === tabState.active;
     const isPinned = !!t.pinned;
@@ -5742,6 +5779,13 @@ function openTab(id) {
 
 function switchTab(id) {
   tabState.active = id;
+  // v184.34: 動態分頁 → 直接切到它記錄的頁面
+  if (DYN_TABS[id]) {
+    renderOpenTabs();
+    try { if (typeof setRoute === 'function') setRoute(DYN_TABS[id].route); } catch (e) {}
+    _dtSave();
+    return;
+  }
   renderMainTabs();
   renderOpenTabs();
   // Map tab IDs to actual page data-page values.
@@ -5767,6 +5811,17 @@ function switchTab(id) {
 }
 
 function closeTab(id) {
+  if (DYN_TABS[id]) {   // v184.34: 動態分頁的關閉
+    const i = tabState.open.indexOf(id);
+    if (i >= 0) tabState.open.splice(i, 1);
+    delete DYN_TABS[id];
+    if (tabState.active === id) {
+      const next = tabState.open[Math.max(0, i - 1)] || 'dashboard';
+      switchTab(next);
+    } else { renderOpenTabs(); }
+    _dtSave();
+    return;
+  }
   const idx = tabState.open.indexOf(id);
   if (idx < 0) return;
   tabState.open.splice(idx, 1);
@@ -5782,8 +5837,11 @@ function closeTab(id) {
   renderOpenTabs();
 }
 
+_dtRestore();   // v184.34: 還原上次開啟的分頁
 renderMainTabs();
 renderOpenTabs();
+// 還原後切回上次所在的分頁
+try { if (tabState.active && tabState.active !== 'dashboard') setTimeout(() => switchTab(tabState.active), 300); } catch (e) {}
 
 /* ========== TOAST ========== */
 function toast(msg) {
