@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.31</b></div>
+        <div>BUILD <b>v184.32</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -36399,7 +36399,9 @@ window.fmtHHMM = function(date) {
     function save(p) { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch (e) {} }
     let prefs = load();
     // 全站通知源都查這個:某類是否該通知
-    window.__notifOn = function (id) { return prefs[id] !== false; };
+    // v184.32: 通知總開關 — 網頁無法撤銷瀏覽器授權(安全限制),
+    // 但可以用 App 層級的總開關達成同樣效果:關掉就完全不發任何通知。
+    window.__notifOn = function (id) { return prefs._master !== false && prefs[id] !== false; };
     window.__notifPrefs = prefs;
 
     function permBadge() {
@@ -36413,9 +36415,12 @@ window.fmtHHMM = function(date) {
       const tip = document.getElementById('notifPermTip');
       if (btn) {
         if (perm === 'granted') {
-          btn.textContent = '✓ 通知已允許';
-          btn.style.color = '#00d26a'; btn.style.borderColor = 'rgba(0,210,106,.5)';
-          btn.style.background = 'rgba(0,210,106,.08)'; btn.style.cursor = 'default'; btn.disabled = true;
+          const on = prefs._master !== false;
+          btn.textContent = on ? '🔔 通知開啟中 — 點擊關閉' : '🔕 通知已關閉 — 點擊開啟';
+          btn.style.color = on ? '#00d26a' : 'var(--text-dim)';
+          btn.style.borderColor = on ? 'rgba(0,210,106,.5)' : 'rgba(255,255,255,.18)';
+          btn.style.background = on ? 'rgba(0,210,106,.08)' : 'transparent';
+          btn.style.cursor = 'pointer'; btn.disabled = false;
         } else if (perm === 'denied') {
           btn.textContent = '✕ 已被拒絕 — 需到系統設定開啟';
           btn.style.color = '#ff5555'; btn.style.borderColor = 'rgba(255,85,85,.5)';
@@ -36428,7 +36433,7 @@ window.fmtHHMM = function(date) {
       }
       if (tip) {
         tip.textContent = perm === 'granted'
-          ? '通知已就緒,可按「測試通知」確認'
+          ? (prefs._master !== false ? '通知已就緒,可按「測試通知」確認' : '總開關已關閉 — 目前不會收到任何通知')
           : (perm === 'denied'
             ? '系統設定 → 通知 → GLOBALPULSE → 打開「允許通知」'
             : '按下後系統會跳出詢問視窗,請按「允許」');
@@ -36498,7 +36503,12 @@ window.fmtHHMM = function(date) {
     document.addEventListener('click', e => {
       if (e.target.id === 'notifPermBtn') {
         if (typeof Notification === 'undefined') { alert('此瀏覽器不支援桌面通知'); return; }
-        if (Notification.permission === 'granted') { permBadge(); return; }
+        if (Notification.permission === 'granted') {
+          prefs._master = (prefs._master === false);   // 切換總開關
+          window.__notifPrefs = prefs; save(prefs); permBadge(); render();
+          if (prefs._master) { window.__gpNotify('GLOBALPULSE', '通知已重新開啟 ✅', 'gp-master'); playSound(sPrefs.telegram || 'chime'); }
+          return;
+        }
         if (Notification.permission === 'denied') {
           alert('通知已被拒絕。\n\n電腦:系統設定 → 通知 → 找到 GLOBALPULSE(或 Safari)→ 允許通知\n手機:設定 → 通知 → GLOBALPULSE → 允許通知');
           return;
@@ -36511,7 +36521,10 @@ window.fmtHHMM = function(date) {
         }).catch(() => permBadge());
       }
       if (e.target.id === 'notifTestBtn') {
-        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') { window.__gpNotify('◆ 測試通知', '如果你看到這則,通知運作正常 ✅', 'gp-test'); playSound(sPrefs.telegram || 'chime'); }
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          if (prefs._master === false) { alert('通知總開關目前是關閉的,請先點擊「🔕 通知已關閉」開啟'); return; }
+          window.__gpNotify('◆ 測試通知', '如果你看到這則,通知運作正常 ✅', 'gp-test'); playSound(sPrefs.telegram || 'chime');
+        }
         else if (typeof Notification !== 'undefined' && Notification.permission === 'denied') alert('通知已被拒絕,請到系統設定開啟後再試');
         else alert('請先按左邊的「① 點此允許通知」,並在系統跳出的視窗按「允許」');
       }
