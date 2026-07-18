@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.29</b></div>
+        <div>BUILD <b>v184.30</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -35692,12 +35692,10 @@ setRoute((location.hash.replace('#/', '') || 'geo'));
       if (!('Notification' in window) || Notification.permission !== 'granted') return;
       const curStr = fmtVal(cur, n.ifSource, n.ifField);
       if (window.__notifSound) window.__notifSound('node');   // v184.29: 播放使用者選的音效
-      new Notification('▲ ' + (n.title || '節點觸發'), {
-        body: 'IF ' + n.ifKey + ' ' + n.ifOp + ' ' + fmtVal(n.ifValue, n.ifSource, n.ifField)
-          + '(現值 ' + curStr + ')\n' + (n.thenAction || ''),
-        tag: 'gpnode-' + n.id,   // 同節點只保留最新一則
-        icon: '/favicon.ico',
-      });
+      // v184.30: 走 SW 發送 → 手機顯示 GLOBALPULSE 名稱+圖標
+      const _b = 'IF ' + n.ifKey + ' ' + n.ifOp + ' ' + fmtVal(n.ifValue, n.ifSource, n.ifField)
+        + '(現值 ' + curStr + ')\n' + (n.thenAction || '');
+      if (window.__gpNotify) window.__gpNotify('▲ ' + (n.title || '節點觸發'), _b, 'gpnode-' + n.id);
     } catch (e) {}
   }
   // 背景評估:不管在哪一頁都跑,每 20 秒掃一次所有啟用的節點
@@ -36346,6 +36344,28 @@ window.fmtHHMM = function(date) {
     let sPrefs = (() => { try { return Object.assign({ _vol: 0.5 }, SOUND_DEFAULTS, JSON.parse(localStorage.getItem(SKEY) || '{}')); } catch (e) { return Object.assign({ _vol: 0.5 }, SOUND_DEFAULTS); } })();
     const sSave = () => { try { localStorage.setItem(SKEY, JSON.stringify(sPrefs)); } catch (e) {} };
     let _ac = null;
+    // ===== v184.30: PWA 推播 — 讓手機通知顯示「GLOBALPULSE + 網站圖標」=====
+    // 一般 new Notification() 在手機上會顯示瀏覽器名稱;必須透過 Service Worker
+    // 的 showNotification() 才會帶 App 身分(名稱/圖標)。iOS 需先「加入主畫面」。
+    let _swReg = null;
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then(r => { _swReg = r; })
+        .catch(e => console.warn('[PWA] SW 註冊失敗', e));
+    }
+    // 統一的通知發送:優先走 SW(帶品牌),退回一般 Notification
+    window.__gpNotify = function (title, body, tag) {
+      try {
+        if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+        if (_swReg && _swReg.showNotification) {
+          _swReg.showNotification(title, {
+            body: body || '', icon: '/icon-192.png', badge: '/icon-192.png',
+            tag: tag || 'gp', renotify: true, data: { url: '/' },
+          });
+          return;
+        }
+        new Notification(title, { body: body || '', icon: '/icon-192.png', tag: tag || 'gp' });
+      } catch (e) {}
+    };
     function playSound(key, volOverride) {
       const def = SOUNDS[key]; if (!def || !def.seq.length) return;
       try {
@@ -36441,10 +36461,10 @@ window.fmtHHMM = function(date) {
     document.addEventListener('click', e => {
       if (e.target.id === 'notifPermBtn') {
         if (typeof Notification === 'undefined') { alert('此瀏覽器不支援桌面通知'); return; }
-        Notification.requestPermission().then(p => { permBadge(); if (p === 'granted') new Notification('GLOBALPULSE', { body: '通知已開啟' }); });
+        Notification.requestPermission().then(p => { permBadge(); if (p === 'granted') window.__gpNotify('GLOBALPULSE', '通知已開啟', 'gp-perm'); });
       }
       if (e.target.id === 'notifTestBtn') {
-        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') { new Notification('◆ 測試通知', { body: '如果你看到這則,通知運作正常 ✅' }); playSound(sPrefs.telegram || 'chime'); }
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') { window.__gpNotify('◆ 測試通知', '如果你看到這則,通知運作正常 ✅', 'gp-test'); playSound(sPrefs.telegram || 'chime'); }
         else alert('請先按「允許瀏覽器通知」');
       }
     });
@@ -36470,7 +36490,7 @@ window.fmtHHMM = function(date) {
         fresh.slice(0, 3).reverse().forEach(m => {
           try {
             const body = (m.zh || m.text || '').slice(0, 140);
-            new Notification('◆ ' + (m.chName || '地緣情報'), { body: body, tag: 'gptg-' + _tgKey(m), icon: '/favicon.ico' });
+            window.__gpNotify('◆ ' + (m.chName || '地緣情報'), body, 'gptg-' + _tgKey(m));
             playSound(sPrefs.telegram || 'none');
           } catch (e) {}
         });
