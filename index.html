@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.34</b></div>
+        <div>BUILD <b>v184.37</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -9089,14 +9089,17 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       // @handle 比影片 ID 穩定得多(影片 ID 在頻道重開直播時會換,handle 永遠不變)。
       const STREAM_DB = {
         '\u53f0\u7063\u76f4\u64ad': [
-          // v184.15: EBC 財經直播間歇性關台 → 改走 @handle 解析(找當下真正在播的那場);
-          // 並補東森新聞51台(真24hr不斷)、台視/中天等當備選。
-          { name: 'EBC \u6771\u68ee\u8ca1\u7d93 24hr', type: 'handle', h: '@57ETFN' },
-          { name: '\u6771\u68ee\u65b0\u805e 51\u53f0 24hr', type: 'handle', h: '@newsebc' },
-          { name: '\u4e2d\u5929\u65b0\u805e 24hr', type: 'handle', h: '@CtiNews' },
-          { name: '\u53f0\u8996\u65b0\u805e 24hr', type: 'handle', h: '@ttvnewsofficial' },
-          { name: '\u6c11\u8996\u65b0\u805e 24hr', type: 'handle', h: '@FTVNEWS_LIVE' },
-          { name: '\u4e09\u7acb LIVE \u65b0\u805e', type: 'handle', h: '@setnnews' },
+          // v184.37: 台灣頻道全面查證重建(舊版 handle 是猜的,只有東森財經正確)。
+          // 有頻道 ID 的一律用 type:'channel' 直嵌 —— 不經 API、不消耗額度、不會被擋。
+          { name: 'EBC \u6771\u68ee\u8ca1\u7d93 24hr', type: 'channel', id: 'UCuzqko_GKcj9922M1gUo__w', watch: 'https://www.youtube.com/@57ETFN/live' },
+          { name: '\u6771\u68ee\u65b0\u805e 51\u53f0 24hr', type: 'channel', id: 'UCR3asjvr_WAaxwJYEDV_Bfw', watch: 'https://www.youtube.com/channel/UCR3asjvr_WAaxwJYEDV_Bfw/live' },
+          { name: 'TVBS \u65b0\u805e 55\u53f0', type: 'channel', id: 'UC5nwNW4KdC0SzrhF9BXEYOQ', watch: 'https://www.youtube.com/channel/UC5nwNW4KdC0SzrhF9BXEYOQ/live' },
+          { name: '\u4e2d\u5929\u65b0\u805e 24hr', type: 'channel', id: 'UC5l1Yto5oOIgRXlI4p4VKbw', watch: 'https://www.youtube.com/channel/UC5l1Yto5oOIgRXlI4p4VKbw/live' },
+          { name: '\u4e09\u7acb\u65b0\u805e LIVE', type: 'handle', h: '@setnews-ch54' },
+          { name: '\u6c11\u8996\u65b0\u805e 24hr', type: 'handle', h: '@FTV_News' },
+          { name: '\u5bf0\u5b87\u65b0\u805e\u53f0\u7063\u53f0', type: 'handle', h: '@globalnewstw' },
+          { name: '\u53f0\u8996\u65b0\u805e 24hr', type: 'handle', h: '@twlivenews' },
+          { name: 'TVBS Network', type: 'handle', h: '@tvbsnews24live' },
         ],
         '\u7f8e\u570b\u8ca1\u7d93': [
           { name: 'Bloomberg TV', type: 'channel', id: 'UCIALMKvObZNtJ6AmdCLP7Lg', watch: 'https://www.youtube.com/channel/UCIALMKvObZNtJ6AmdCLP7Lg/live' },   // v184.11: 原 @markets 押錯會播到別台
@@ -9121,11 +9124,16 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       // v184.10: 直播解析的客戶端快取(4 分鐘)+ 開面板時批次預解析。
       // 慢的來源是「切台才去問 Worker 解析(1~3 秒)」;預解析後切台 = 立即嵌入,零等待。
       const _ytCache = {};   // '@handle' → { live, videoId, ts }
-      const _ytFresh = h => { const c = _ytCache[h]; return c && (Date.now() - c.ts) < 4 * 60 * 1000 ? c : null; };
+      const _ytFresh = h => { const c = _ytCache[h]; return c && (Date.now() - c.ts) < 30 * 60 * 1000 ? c : null; };   // v184.35: 4分→30分,省 API 額度
       async function prefetchLive() {
         try {
+          // v184.35: 只預解析【目前各格實際選到的頻道】,不再掃整個頻道庫。
+          // 舊版每開一次面板就解析 15 個頻道 = 1500 API 單位,免費額度一天只夠開 7 次。
           const hs = [];
-          Object.keys(STREAM_DB).forEach(cat => STREAM_DB[cat].forEach(o => { if (o.type === 'handle' && !_ytFresh(o.h)) hs.push(o.h); }));
+          _insts.forEach(inst => {
+            const o = (chanList(inst.cat) || [])[inst.idx];
+            if (o && o.type === 'handle' && !_ytFresh(o.h) && hs.indexOf(o.h) < 0) hs.push(o.h);
+          });
           if (!hs.length) return;
           const d = await _fetchJSON(WK + '/ytlive?h=' + encodeURIComponent(hs.join(',')));
           if (d && d.results) Object.keys(d.results).forEach(h => { _ytCache[h] = Object.assign({ ts: Date.now() }, d.results[h]); });
@@ -9225,12 +9233,19 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       function _embedI(inst, src, watch, name) {
         const box = inst.root && inst.root.querySelector('[data-box]'); if (!box) return;
         const sep = src.indexOf('?') >= 0 ? '&' : '?';
-        const full = src + sep + 'autoplay=1&playsinline=1&mute=' + (inst.m ? 1 : 0) + '&enablejsapi=1&origin=' + encodeURIComponent(location.origin);
+        // v184.36: 【一律靜音啟動】。Safari 禁止「有聲音」的影片自動播放 —— 若使用者上次
+        // 解除了靜音,舊版會用 mute=0 啟動 → Safari 直接封鎖 → 黑屏不播。
+        // 現在固定 mute=1 讓它先播起來,載入後再依使用者偏好自動解除靜音。
+        const full = src + sep + 'autoplay=1&playsinline=1&mute=1&enablejsapi=1&origin=' + encodeURIComponent(location.origin);
         box.innerHTML = '<iframe src="' + full + '" style="position:absolute;inset:0;width:100%;height:100%;border:0;" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
         inst.ifr = box.querySelector('iframe');
         inst.ifr.addEventListener('load', () => {
           try { inst.ifr.contentWindow.postMessage(JSON.stringify({ event: 'listening', id: inst.id + 1, channel: 'widget' }), 'https://www.youtube.com'); } catch (e) {}
-          setTimeout(() => { _cmdI(inst, 'setVolume', [inst.v]); _cmdI(inst, inst.m ? 'mute' : 'unMute'); }, 700);
+          setTimeout(() => {
+            _cmdI(inst, 'playVideo');                    // 保險:確保真的在播
+            _cmdI(inst, 'setVolume', [inst.v]);
+            if (!inst.m) _cmdI(inst, 'unMute');           // 播起來後才解除靜音(繞過自動播放封鎖)
+          }, 900);
         });
         inst.playing = true;
         inst.cur = { src, watch, name };
@@ -9259,6 +9274,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
             const d = await _fetchJSON(WK + '/ytlive?h=' + encodeURIComponent(o.h));
             if (d) _ytCache[o.h] = { live: !!d.live, videoId: d.videoId || null, ts: Date.now() };
             if (d && d.live && d.videoId) _embedI(inst, 'https://www.youtube.com/embed/' + d.videoId, 'https://www.youtube.com/watch?v=' + d.videoId, o.name);
+            else if (d && d.quota) _msgI(inst, '⚠ YouTube API 今日額度已用完<br>明天太平洋時間午夜重置');
             else _msgI(inst, _esc(o.name) + ' 目前沒有直播或無法取得,換個頻道試試');
           } catch (e) { _msgI(inst, '解析失敗,稍後重試'); }
           return;
