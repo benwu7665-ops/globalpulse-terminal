@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.37</b></div>
+        <div>BUILD <b>v184.38</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -9089,17 +9089,18 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       // @handle 比影片 ID 穩定得多(影片 ID 在頻道重開直播時會換,handle 永遠不變)。
       const STREAM_DB = {
         '\u53f0\u7063\u76f4\u64ad': [
-          // v184.37: 台灣頻道全面查證重建(舊版 handle 是猜的,只有東森財經正確)。
-          // 有頻道 ID 的一律用 type:'channel' 直嵌 —— 不經 API、不消耗額度、不會被擋。
-          { name: 'EBC \u6771\u68ee\u8ca1\u7d93 24hr', type: 'channel', id: 'UCuzqko_GKcj9922M1gUo__w', watch: 'https://www.youtube.com/@57ETFN/live' },
-          { name: '\u6771\u68ee\u65b0\u805e 51\u53f0 24hr', type: 'channel', id: 'UCR3asjvr_WAaxwJYEDV_Bfw', watch: 'https://www.youtube.com/channel/UCR3asjvr_WAaxwJYEDV_Bfw/live' },
-          { name: 'TVBS \u65b0\u805e 55\u53f0', type: 'channel', id: 'UC5nwNW4KdC0SzrhF9BXEYOQ', watch: 'https://www.youtube.com/channel/UC5nwNW4KdC0SzrhF9BXEYOQ/live' },
-          { name: '\u4e2d\u5929\u65b0\u805e 24hr', type: 'channel', id: 'UC5l1Yto5oOIgRXlI4p4VKbw', watch: 'https://www.youtube.com/channel/UC5l1Yto5oOIgRXlI4p4VKbw/live' },
+          // v184.38: 全部改用 handle + 官方 API 解析。
+          // 頻道 ID 直嵌雖然免額度,但頻道沒開播時會丟 YouTube 的「無法播放這部影片」醜框,
+          // 且跨網域無法偵測。改用 API 後能明確判斷有無直播,顯示我們自己的提示。
+          // 對應的頻道 ID 已寫進 Worker 的 HANDLE_TO_ID,省下查頻道那一步。
+          { name: 'EBC \u6771\u68ee\u8ca1\u7d93 24hr', type: 'handle', h: '@57ETFN' },
+          { name: '\u6771\u68ee\u65b0\u805e 51\u53f0 24hr', type: 'handle', h: '@newsebc' },
+          { name: 'TVBS \u65b0\u805e 55\u53f0', type: 'handle', h: '@tvbsnews24live' },
+          { name: '\u4e2d\u5929\u65b0\u805e 24hr', type: 'handle', h: '@ctinews' },
           { name: '\u4e09\u7acb\u65b0\u805e LIVE', type: 'handle', h: '@setnews-ch54' },
           { name: '\u6c11\u8996\u65b0\u805e 24hr', type: 'handle', h: '@FTV_News' },
           { name: '\u5bf0\u5b87\u65b0\u805e\u53f0\u7063\u53f0', type: 'handle', h: '@globalnewstw' },
           { name: '\u53f0\u8996\u65b0\u805e 24hr', type: 'handle', h: '@twlivenews' },
-          { name: 'TVBS Network', type: 'handle', h: '@tvbsnews24live' },
         ],
         '\u7f8e\u570b\u8ca1\u7d93': [
           { name: 'Bloomberg TV', type: 'channel', id: 'UCIALMKvObZNtJ6AmdCLP7Lg', watch: 'https://www.youtube.com/channel/UCIALMKvObZNtJ6AmdCLP7Lg/live' },   // v184.11: 原 @markets 押錯會播到別台
