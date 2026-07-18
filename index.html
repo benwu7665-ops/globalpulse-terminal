@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.32</b></div>
+        <div>BUILD <b>v184.33</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -5607,10 +5607,8 @@ const TABS = [
 // 側邊欄退場,一層直達不用切來切去。children 的 route 直接對應現有頁面 data-page。
 const TAB_GROUPS = [
   { id: 'g-dash',   label: '儀錶板',   route: 'geo' },
-  { id: 'g-geo',    label: '地緣政治', children: [
-      { label: '地緣動態主頁', route: 'geo' },
-      { label: '衝突詳情',     action: 'conflict' },
-  ] },
+  // v184.33: 移除「地緣政治」分組 — 兩個子項都重複:
+  //   「地緣動態主頁」= 儀錶板同一頁;「衝突詳情」地圖上方工具列已有入口。
   { id: 'g-fin',    label: '金融市場', children: [
       { label: '市場儀表板', route: 'fin-home' },
       { label: '個股詳情',   route: 'fin-stock' },
