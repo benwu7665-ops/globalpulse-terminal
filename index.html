@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.30</b></div>
+        <div>BUILD <b>v184.31</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -5359,12 +5359,13 @@ window.L_DISABLE_3D = true;
               <input type="range" id="notifVol" min="0" max="100" value="50" style="flex:1;accent-color:var(--amber);cursor:pointer;">
               <span id="notifVolVal" style="color:var(--text-dim);font-family:var(--font-mono);font-size:10px;width:34px;text-align:right;">50%</span>
             </div>
-            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
-              <button class="btn" id="notifPermBtn" style="font-size:10px;padding:3px 10px;color:var(--amber);border:1px solid var(--amber);background:transparent;cursor:pointer;">允許瀏覽器通知</button>
-              <button class="btn" id="notifTestBtn" style="font-size:10px;padding:3px 10px;color:var(--text);border:1px solid var(--amber-faint);background:transparent;cursor:pointer;">▶ 測試通知</button>
+            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <button class="btn" id="notifPermBtn" style="font-size:11px;padding:5px 12px;font-weight:700;border-radius:4px;color:var(--amber);border:1px solid var(--amber);background:rgba(255,140,0,.12);cursor:pointer;">① 點此允許通知</button>
+              <button class="btn" id="notifTestBtn" style="font-size:11px;padding:5px 12px;border-radius:4px;color:var(--text);border:1px solid var(--amber-faint);background:transparent;cursor:pointer;">② ▶ 測試通知</button>
             </div>
+            <div id="notifPermTip" style="margin-top:6px;font-size:10px;color:var(--text-dim);"></div>
             <div style="margin-top:8px;font-size:9.5px;color:var(--text-dim);line-height:1.6;">
-              → 想關閉瀏覽器通知權限:Safari 選單 → 設定 → 網站 → 通知 → 找到本站改為「拒絕」<br>
+              → 手機要收通知:Safari 開本站 → 分享 → 加入主畫面 → 從主畫面開啟(iOS 硬性規定)<br>
               → 音效由瀏覽器合成,不需音檔;分頁靜音時不會播放
             </div>
           </div>
@@ -36402,12 +36403,48 @@ window.fmtHHMM = function(date) {
     window.__notifPrefs = prefs;
 
     function permBadge() {
-      const b = document.getElementById('notifPermBadge'); if (!b) return;
       const perm = (typeof Notification !== 'undefined') ? Notification.permission : 'unsupported';
-      const map = { granted: ['已允許', '#00d26a', 'rgba(0,210,106,.12)'], denied: ['已拒絕(去瀏覽器設定開)', '#ff5555', 'rgba(255,85,85,.12)'], default: ['未設定', '#ffd23f', 'rgba(255,210,63,.12)'], unsupported: ['不支援', '#888', 'rgba(136,136,136,.12)'] };
+      const b = document.getElementById('notifPermBadge');
+      const map = { granted: ['已允許', '#00d26a', 'rgba(0,210,106,.12)'], denied: ['已拒絕', '#ff5555', 'rgba(255,85,85,.12)'], default: ['未設定', '#ffd23f', 'rgba(255,210,63,.12)'], unsupported: ['不支援', '#888', 'rgba(136,136,136,.12)'] };
       const [txt, col, bg] = map[perm] || map.unsupported;
-      b.textContent = txt; b.style.color = col; b.style.background = bg;
+      if (b) { b.textContent = txt; b.style.color = col; b.style.background = bg; }
+      // v184.31: 按鈕外觀跟著權限狀態走(之前不管什麼狀態都長一樣,看不出有沒有按成功)
+      const btn = document.getElementById('notifPermBtn');
+      const tip = document.getElementById('notifPermTip');
+      if (btn) {
+        if (perm === 'granted') {
+          btn.textContent = '✓ 通知已允許';
+          btn.style.color = '#00d26a'; btn.style.borderColor = 'rgba(0,210,106,.5)';
+          btn.style.background = 'rgba(0,210,106,.08)'; btn.style.cursor = 'default'; btn.disabled = true;
+        } else if (perm === 'denied') {
+          btn.textContent = '✕ 已被拒絕 — 需到系統設定開啟';
+          btn.style.color = '#ff5555'; btn.style.borderColor = 'rgba(255,85,85,.5)';
+          btn.style.background = 'rgba(255,85,85,.08)'; btn.style.cursor = 'default'; btn.disabled = true;
+        } else {
+          btn.textContent = '① 點此允許通知';
+          btn.style.color = 'var(--amber)'; btn.style.borderColor = 'var(--amber)';
+          btn.style.background = 'rgba(255,140,0,.12)'; btn.style.cursor = 'pointer'; btn.disabled = false;
+        }
+      }
+      if (tip) {
+        tip.textContent = perm === 'granted'
+          ? '通知已就緒,可按「測試通知」確認'
+          : (perm === 'denied'
+            ? '系統設定 → 通知 → GLOBALPULSE → 打開「允許通知」'
+            : '按下後系統會跳出詢問視窗,請按「允許」');
+        tip.style.color = perm === 'granted' ? '#00d26a' : 'var(--text-dim)';
+      }
+      return perm;
     }
+    // v184.31: 持續偵測權限變化 — 使用者在系統提示按「允許」後,畫面立刻更新(不用重整)
+    let _lastPerm = (typeof Notification !== 'undefined') ? Notification.permission : null;
+    setInterval(() => {
+      if (typeof Notification === 'undefined') return;
+      if (Notification.permission !== _lastPerm) {
+        _lastPerm = Notification.permission;
+        if (document.getElementById('notifPermBtn')) permBadge();
+      }
+    }, 1200);
     function render() {
       const list = document.getElementById('notifList'); if (!list) return;
       const isZh = !document.body.classList.contains('lang-en');
@@ -36461,11 +36498,22 @@ window.fmtHHMM = function(date) {
     document.addEventListener('click', e => {
       if (e.target.id === 'notifPermBtn') {
         if (typeof Notification === 'undefined') { alert('此瀏覽器不支援桌面通知'); return; }
-        Notification.requestPermission().then(p => { permBadge(); if (p === 'granted') window.__gpNotify('GLOBALPULSE', '通知已開啟', 'gp-perm'); });
+        if (Notification.permission === 'granted') { permBadge(); return; }
+        if (Notification.permission === 'denied') {
+          alert('通知已被拒絕。\n\n電腦:系統設定 → 通知 → 找到 GLOBALPULSE(或 Safari)→ 允許通知\n手機:設定 → 通知 → GLOBALPULSE → 允許通知');
+          return;
+        }
+        const tip = document.getElementById('notifPermTip');
+        if (tip) { tip.textContent = '⏳ 等待你在系統提示視窗按「允許」…'; tip.style.color = 'var(--amber)'; }
+        Notification.requestPermission().then(p => {
+          permBadge();
+          if (p === 'granted') { window.__gpNotify('GLOBALPULSE', '通知已開啟 ✅', 'gp-perm'); playSound(sPrefs.telegram || 'chime'); }
+        }).catch(() => permBadge());
       }
       if (e.target.id === 'notifTestBtn') {
         if (typeof Notification !== 'undefined' && Notification.permission === 'granted') { window.__gpNotify('◆ 測試通知', '如果你看到這則,通知運作正常 ✅', 'gp-test'); playSound(sPrefs.telegram || 'chime'); }
-        else alert('請先按「允許瀏覽器通知」');
+        else if (typeof Notification !== 'undefined' && Notification.permission === 'denied') alert('通知已被拒絕,請到系統設定開啟後再試');
+        else alert('請先按左邊的「① 點此允許通知」,並在系統跳出的視窗按「允許」');
       }
     });
 
