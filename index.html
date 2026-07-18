@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.38</b></div>
+        <div>BUILD <b>v184.40</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -9125,7 +9125,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       // v184.10: 直播解析的客戶端快取(4 分鐘)+ 開面板時批次預解析。
       // 慢的來源是「切台才去問 Worker 解析(1~3 秒)」;預解析後切台 = 立即嵌入,零等待。
       const _ytCache = {};   // '@handle' → { live, videoId, ts }
-      const _ytFresh = h => { const c = _ytCache[h]; return c && (Date.now() - c.ts) < 30 * 60 * 1000 ? c : null; };   // v184.35: 4分→30分,省 API 額度
+      const _ytFresh = h => { const c = _ytCache[h]; return c && (Date.now() - c.ts) < 7 * 60 * 1000 ? c : null; };   // v184.39: 30分→7分,避免直播結束後拿到失效 ID
       async function prefetchLive() {
         try {
           // v184.35: 只預解析【目前各格實際選到的頻道】,不再掃整個頻道庫。
@@ -9264,17 +9264,24 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         if (!o) { _stopInst(inst); return; }
         if (o.type === 'channel') { _embedI(inst, 'https://www.youtube.com/embed/live_stream?channel=' + o.id, o.watch, o.name); return; }
         if (o.type === 'handle') {
+          // v184.40: 混合式 — API 判斷有無直播(避免 YouTube 醜錯誤框),
+          // 實際嵌入優先用「頻道式」(部分頻道如東森財經的影片 ID 拒絕外站嵌入,頻道式卻可播)。
+          const _emb = (r) => {
+            const src = r.channelId ? ('https://www.youtube.com/embed/live_stream?channel=' + r.channelId)
+                                    : ('https://www.youtube.com/embed/' + r.videoId);
+            _embedI(inst, src, r.videoId ? ('https://www.youtube.com/watch?v=' + r.videoId) : null, o.name);
+          };
           const hit = _ytFresh(o.h);
           if (hit) {
-            if (hit.live && hit.videoId) _embedI(inst, 'https://www.youtube.com/embed/' + hit.videoId, 'https://www.youtube.com/watch?v=' + hit.videoId, o.name);
+            if (hit.live && (hit.videoId || hit.channelId)) _emb(hit);
             else _msgI(inst, _esc(o.name) + ' 目前沒有直播,換個頻道試試');
             return;
           }
           _msgI(inst, '解析 ' + _esc(o.name) + ' 目前直播中…');
           try {
             const d = await _fetchJSON(WK + '/ytlive?h=' + encodeURIComponent(o.h));
-            if (d) _ytCache[o.h] = { live: !!d.live, videoId: d.videoId || null, ts: Date.now() };
-            if (d && d.live && d.videoId) _embedI(inst, 'https://www.youtube.com/embed/' + d.videoId, 'https://www.youtube.com/watch?v=' + d.videoId, o.name);
+            if (d) _ytCache[o.h] = { live: !!d.live, videoId: d.videoId || null, channelId: d.channelId || null, ts: Date.now() };
+            if (d && d.live && (d.videoId || d.channelId)) _emb(d);
             else if (d && d.quota) _msgI(inst, '⚠ YouTube API 今日額度已用完<br>明天太平洋時間午夜重置');
             else _msgI(inst, _esc(o.name) + ' 目前沒有直播或無法取得,換個頻道試試');
           } catch (e) { _msgI(inst, '解析失敗,稍後重試'); }
