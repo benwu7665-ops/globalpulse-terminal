@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.44</b></div>
+        <div>BUILD <b>v184.45</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -36732,13 +36732,23 @@ window.fmtHHMM = function(date) {
         const fresh = d.messages.filter(m => !_tgSeen.has(_tgKey(m)));
         fresh.forEach(m => _tgSeen.add(_tgKey(m)));
         if (_tgSeen.size > 300) _tgSeen = new Set(d.messages.map(_tgKey));
-        fresh.slice(0, 3).reverse().forEach(m => {
+        for (const m of fresh.slice(0, 3).reverse()) {
           try {
-            const body = (m.zh || m.text || '').slice(0, 140);
+            // v184.45: Worker 的 /telegram 用 gtx 逐則翻,被限流時會漏翻(m.zh 空)。
+            // 通知端在 m.zh 空時,補打更可靠的 /translate 端點(MyMemory→Libre 備援)。
+            let body = (m.zh || '').trim();
+            if (!body) {
+              try {
+                const _tr = await fetch(WK_TG + '/translate?q=' + encodeURIComponent((m.text || '').slice(0, 450)));
+                if (_tr.ok) { const _tj = await _tr.json(); if (_tj && _tj.zh) body = String(_tj.zh).trim(); }
+              } catch (e) {}
+            }
+            if (!body) body = (m.text || '');   // 補翻也失敗,才退回原文
+            body = body.slice(0, 140);
             window.__gpNotify('◆ ' + (m.chName || '地緣情報'), body, 'gptg-' + _tgKey(m), 'telegram');
             playSound(sPrefs.telegram || 'none');
           } catch (e) {}
-        });
+        }
       } catch (e) {}
     }
     setInterval(tgBackgroundPoll, 90 * 1000);
