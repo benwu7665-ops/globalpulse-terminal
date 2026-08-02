@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.43</b></div>
+        <div>BUILD <b>v184.44</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -9456,15 +9456,19 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
           const IMP = { high: ['#ff4d4d', '高'], medium: ['#f5b81a', '中'], low: ['#888', '低'] };
           const FLAG = { US: '🇺🇸', EU: '🇪🇺', GB: '🇬🇧', JP: '🇯🇵', CN: '🇨🇳', CA: '🇨🇦', AU: '🇦🇺', NZ: '🇳🇿', CH: '🇨🇭' };
           const DOW = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+          // v184.44: Safari 不吃 "2026-08-04 12:30:00 UTC" 這種空格格式(會回 NaN),
+          // 必須轉成 ISO "2026-08-04T12:30:00Z" 才能跨瀏覽器解析。
+          const _pd = (t) => { if (!t) return null; const d = new Date(String(t).replace(' ', 'T').replace(/\s*UTC$/i, '') + 'Z'); return isNaN(d.getTime()) ? null : d; };
           const filt = evs.filter(e => e.impact === 'high' || e.impact === 'medium');
           let lastDay = null;
           const rows = filt.map(e => {
             let hdr = '';
             let dstr = '';
-            try { const dt = new Date((e.time || '') + ' UTC'); dstr = (dt.getMonth() + 1) + '/' + dt.getDate(); } catch (x) {}
-            if (dstr && dstr !== lastDay) { lastDay = dstr; hdr = '<div style="color:var(--amber);font-size:10.5px;font-weight:700;margin:8px 0 4px;border-bottom:1px solid rgba(255,180,20,.2);padding-bottom:3px;">' + dstr + (e.dayOfWeek != null ? ' ' + DOW[e.dayOfWeek] : '') + '</div>'; }
+            const _d = _pd(e.time);
+            if (_d) dstr = (_d.getMonth() + 1) + '/' + _d.getDate();
+            if (dstr && dstr !== lastDay) { lastDay = dstr; const dw = _d ? DOW[_d.getDay()] : (e.dayOfWeek != null ? DOW[e.dayOfWeek] : ''); hdr = '<div style="color:var(--amber);font-size:10.5px;font-weight:700;margin:8px 0 4px;border-bottom:1px solid rgba(255,180,20,.2);padding-bottom:3px;">' + dstr + ' ' + dw + '</div>'; }
             let tm = '';
-            try { const dt = new Date((e.time || '') + ' UTC'); if (!isNaN(dt.getTime())) tm = String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0'); } catch (x) {}
+            if (_d) tm = String(_d.getHours()).padStart(2, '0') + ':' + String(_d.getMinutes()).padStart(2, '0');
             const [col, lbl] = IMP[e.impact] || IMP.low;
             const name = e.event_zh || e.event || '';
             const act = e.actual != null ? e.actual : '—';
