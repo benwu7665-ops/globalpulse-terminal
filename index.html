@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.40</b></div>
+        <div>BUILD <b>v184.42</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -4971,6 +4971,7 @@ window.L_DISABLE_3D = true;
       .gp-mp-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px;}
       .gp-mp-w{border:1px solid rgba(255,180,20,.35);border-radius:4px;background:rgba(0,0,0,.35);display:flex;flex-direction:column;min-height:0;}
       .gp-mp-w[data-w="indices"]{grid-column:1 / -1;}
+      .gp-mp-w[data-w="calendar"]{grid-column:1 / -1;}
       .gp-mp-whead{display:flex;align-items:center;justify-content:space-between;padding:8px 11px;border-bottom:1px solid rgba(255,180,20,.22);}
       .gp-mp-wtitle{color:#f5b81a;font-size:12.5px;font-weight:700;letter-spacing:.05em;}
       .gp-mp-icons{display:flex;gap:9px;align-items:center;color:var(--text-dim);}
@@ -5048,9 +5049,19 @@ window.L_DISABLE_3D = true;
               </table>
             </div>
           </div>
+          <!-- v184.42: 經濟事件曆 -->
+          <div class="gp-mp-w" data-w="calendar">
+            <div class="gp-mp-whead">
+              <span class="gp-mp-wtitle"><span class="t-zh">經濟事件曆</span><span class="t-en">ECON CALENDAR</span></span>
+              <span class="gp-mp-icons"><span data-close="calendar" title="關閉部件">✕</span></span>
+            </div>
+            <div class="gp-mp-body" style="max-height:360px;">
+              <div class="gp-mp-meta" id="mpCalMeta"></div>
+              <div id="mpCalBody"><div style="color:var(--text-dim);font-size:11px;">載入中…</div></div>
+            </div>
+          </div>
         </div>
       </div>
-      <div id="monLayerPanel" style="position:absolute;left:12px;bottom:54px;z-index:600;display:none;width:212px;max-height:calc(100% - 84px);overflow-y:auto;background:rgba(15,15,18,.95);border:1px solid rgba(255,140,0,.35);border-radius:8px;padding:10px 12px;font-family:var(--font-mono);font-size:11.5px;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 6px 24px rgba(0,0,0,.6);">
         <div style="color:var(--amber);font-weight:700;letter-spacing:.08em;font-size:11px;margin-bottom:2px;">◧ <span class="t-zh">圖層控制</span><span class="t-en">LAYERS</span></div>
         <div class="mlp-sec"><span class="t-zh">監控</span><span class="t-en">SURVEILLANCE</span></div>
         <label style="color:#ccc;cursor:pointer;display:flex;align-items:center;gap:6px;">
@@ -9145,7 +9156,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       const _fmtHMS = ep => { try { const d = new Date(ep * 1000); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ':' + String(d.getSeconds()).padStart(2, '0'); } catch (e) { return ''; } };
       const _ls = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } };
       const _lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
-      let _open = false, _tIdx = null, _tTg = null, _tgMsgs = [];
+      let _open = false, _tIdx = null, _tTg = null, _tCal = null, _tgMsgs = [];
       // ── v184.13: 多螢幕直播實例 ──────────────────────────────────────────
       // 每格獨立:自己的分類/頻道、播放狀態、靜音、音量。配置存 localStorage,
       // postMessage 回報依 iframe 來源(ev.source)路由回正確的那一格。上限 4 格。
@@ -9193,7 +9204,7 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
       function hideWidget(id) { const h = _ls(LSW, []); if (!h.includes(id)) h.push(id); _lsSet(LSW, h); applyWidgets(); }
       function addWidgetMenu() {
         const h = _ls(LSW, []);
-        const names = { telegram: 'Telegram 即時消息鏈', indices: '全球指數' };
+        const names = { telegram: 'Telegram 即時消息鏈', indices: '全球指數', calendar: '經濟事件曆' };
         const opts = ['新增直播畫面 (LIVE STREAMS)'].concat(h.map(x => names[x] || x));
         const pick = prompt('輸入要加入的部件編號:\n' + opts.map((x, i) => (i + 1) + '. ' + x).join('\n'));
         const n = parseInt(pick, 10);
@@ -9431,6 +9442,47 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
         } catch (e) {}
       }
 
+      // ── v184.42: 經濟事件曆(重用 /calendar 端點,ForexFactory 資料)──
+      async function loadCal() {
+        try {
+          const box = document.getElementById('mpCalBody'); if (!box) return;
+          const d = await _fetchJSON(WK + '/calendar');
+          const evs = (d && (d.events || d.calendar)) || [];
+          if (!evs.length) { box.innerHTML = '<div style="color:var(--text-dim);font-size:11px;">本週暫無事件資料</div>'; return; }
+          const meta = document.getElementById('mpCalMeta');
+          if (meta) meta.textContent = evs.length + ' 個事件 · 本週 · 高/中影響';
+          // 只顯示高、中影響;依日期分組
+          const IMP = { high: ['#ff4d4d', '高'], medium: ['#f5b81a', '中'], low: ['#888', '低'] };
+          const FLAG = { US: '🇺🇸', EU: '🇪🇺', GB: '🇬🇧', JP: '🇯🇵', CN: '🇨🇳', CA: '🇨🇦', AU: '🇦🇺', NZ: '🇳🇿', CH: '🇨🇭' };
+          const DOW = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+          const filt = evs.filter(e => e.impact === 'high' || e.impact === 'medium');
+          let lastDay = null;
+          const rows = filt.map(e => {
+            let hdr = '';
+            let dstr = '';
+            try { const dt = new Date((e.time || '') + ' UTC'); dstr = (dt.getMonth() + 1) + '/' + dt.getDate(); } catch (x) {}
+            if (dstr && dstr !== lastDay) { lastDay = dstr; hdr = '<div style="color:var(--amber);font-size:10.5px;font-weight:700;margin:8px 0 4px;border-bottom:1px solid rgba(255,180,20,.2);padding-bottom:3px;">' + dstr + (e.dayOfWeek != null ? ' ' + DOW[e.dayOfWeek] : '') + '</div>'; }
+            let tm = '';
+            try { const dt = new Date((e.time || '') + ' UTC'); if (!isNaN(dt.getTime())) tm = String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0'); } catch (x) {}
+            const [col, lbl] = IMP[e.impact] || IMP.low;
+            const name = e.event_zh || e.event || '';
+            const act = e.actual != null ? e.actual : '—';
+            const est = e.estimate != null ? e.estimate : '—';
+            return hdr + '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:11px;">'
+              + '<span style="color:var(--text-dim);width:38px;flex-shrink:0;">' + tm + '</span>'
+              + '<span style="width:18px;flex-shrink:0;">' + (FLAG[e.country] || e.country || '') + '</span>'
+              + '<span style="color:' + col + ';width:20px;flex-shrink:0;font-size:9px;">●' + lbl + '</span>'
+              + '<span style="flex:1;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(name) + '</span>'
+              + '<span style="color:var(--text-dim);font-size:10px;flex-shrink:0;">預 ' + _esc(String(est)) + '</span>'
+              + '<span style="color:' + (e.actual != null ? 'var(--amber)' : 'var(--text-dim)') + ';font-size:10px;width:52px;text-align:right;flex-shrink:0;">實 ' + _esc(String(act)) + '</span>'
+              + '</div>';
+          });
+          box.innerHTML = rows.join('') || '<div style="color:var(--text-dim);font-size:11px;">本週無高/中影響事件</div>';
+        } catch (e) {
+          const box = document.getElementById('mpCalBody'); if (box) box.innerHTML = '<div style="color:var(--text-dim);font-size:11px;">事件曆暫時拿不到</div>';
+        }
+      }
+
       window.toggleMonPanel = function () {
         const p = document.getElementById('monPanel'); if (!p) return;
         _open = (p.style.display === 'none' || !p.style.display);
@@ -9439,11 +9491,12 @@ document.querySelectorAll('[data-toggle]').forEach(el => {
           applyWidgets();
           prefetchLive();   // 批次預解析,各格切台零等待
           renderStreamInstances();   // v184.13: 多螢幕各自開播
-          loadIdx(); loadTg();
+          loadIdx(); loadTg(); loadCal();
           _tIdx = setInterval(loadIdx, 60 * 1000);
           _tTg = setInterval(loadTg, 120 * 1000);
+          _tCal = setInterval(loadCal, 10 * 60 * 1000);   // v184.42: 事件曆 10 分鐘更新一次(資料本來就 1h 邊快取)
         } else {
-          clearInterval(_tIdx); clearInterval(_tTg);
+          clearInterval(_tIdx); clearInterval(_tTg); clearInterval(_tCal);
           stopAllStreams();   // 關面板停所有畫面,不留背景流量
         }
       };
@@ -35776,7 +35829,7 @@ setRoute((location.hash.replace('#/', '') || 'geo'));
       // v184.30: 走 SW 發送 → 手機顯示 GLOBALPULSE 名稱+圖標
       const _b = 'IF ' + n.ifKey + ' ' + n.ifOp + ' ' + fmtVal(n.ifValue, n.ifSource, n.ifField)
         + '(現值 ' + curStr + ')\n' + (n.thenAction || '');
-      if (window.__gpNotify) window.__gpNotify('▲ ' + (n.title || '節點觸發'), _b, 'gpnode-' + n.id);
+      if (window.__gpNotify) window.__gpNotify('▲ ' + (n.title || '節點觸發'), _b, 'gpnode-' + n.id, 'node');
     } catch (e) {}
   }
   // 背景評估:不管在哪一頁都跑,每 20 秒掃一次所有啟用的節點
@@ -36430,23 +36483,69 @@ window.fmtHHMM = function(date) {
     // 的 showNotification() 才會帶 App 身分(名稱/圖標)。iOS 需先「加入主畫面」。
     let _swReg = null;
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').then(r => { _swReg = r; })
-        .catch(e => console.warn('[PWA] SW 註冊失敗', e));
+      navigator.serviceWorker.register('/sw.js').then(r => {
+        _swReg = r;
+        // v184.41: 主動檢查 SW 更新 — 瀏覽器會快取 Service Worker,
+        // 不主動 update() 的話,部署了新版通知邏輯也可能還在跑舊的。
+        try { r.update(); } catch (e) {}
+        setInterval(() => { try { r.update(); } catch (e) {} }, 60 * 60 * 1000);
+      }).catch(e => console.warn('[PWA] SW 註冊失敗', e));
     }
     // 統一的通知發送:優先走 SW(帶品牌),退回一般 Notification
-    window.__gpNotify = function (title, body, tag) {
+    window.__gpNotify = function (title, body, tag, target) {
       try {
         if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
         if (_swReg && _swReg.showNotification) {
           _swReg.showNotification(title, {
             body: body || '', icon: '/icon-192.png', badge: '/icon-192.png',
-            tag: tag || 'gp', renotify: true, data: { url: '/' },
+            tag: tag || 'gp', renotify: true, data: { url: '/', target: target || '' },
           });
           return;
         }
-        new Notification(title, { body: body || '', icon: '/icon-192.png', tag: tag || 'gp' });
+        const n = new Notification(title, { body: body || '', icon: '/icon-192.png', tag: tag || 'gp' });
+        n.onclick = () => { try { window.focus(); window.__gpOpenTarget(target); n.close(); } catch (e) {} };
       } catch (e) {}
     };
+
+    // v184.41: 點擊通知 → 跳到對應畫面
+    window.__gpOpenTarget = function (target) {
+      if (!target) return;
+      try {
+        if (target === 'telegram') {
+          // 地緣情報 → 開監控面板(Telegram 部件在裡面)
+          if (typeof setRoute === 'function') setRoute('geo');
+          setTimeout(() => {
+            const p = document.getElementById('monPanel');
+            if (p && (p.style.display === 'none' || !p.style.display) && typeof window.toggleMonPanel === 'function') window.toggleMonPanel();
+            const w = document.querySelector('#monPanel .gp-mp-w[data-w="telegram"]');
+            if (w) { w.scrollIntoView({ behavior: 'smooth', block: 'center' }); w.style.transition = 'box-shadow .4s'; w.style.boxShadow = '0 0 0 2px var(--amber)'; setTimeout(() => { w.style.boxShadow = ''; }, 2500); }
+          }, 400);
+        } else if (target === 'node') {
+          if (typeof setRoute === 'function') setRoute('node');
+        } else if (target === 'quake') {
+          if (typeof setRoute === 'function') setRoute('geo');
+          setTimeout(() => {
+            const cb = document.getElementById('monShowQuakes');
+            if (cb && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change', { bubbles: true })); }
+          }, 400);
+        }
+      } catch (e) {}
+    };
+    // SW 轉來的點擊事件(網站已開著的情況)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', ev => {
+        const d = ev.data || {};
+        if (d.type === 'GP_OPEN') window.__gpOpenTarget(d.target);
+      });
+    }
+    // 從通知冷啟動(網站原本沒開)→ 讀網址參數跳轉
+    try {
+      const _gp = new URLSearchParams(location.search).get('gp');
+      if (_gp) {
+        setTimeout(() => window.__gpOpenTarget(_gp), 1200);
+        history.replaceState(null, '', location.pathname);   // 清掉參數,避免重整又跳
+      }
+    } catch (e) {}
     function playSound(key, volOverride) {
       const def = SOUNDS[key]; if (!def || !def.seq.length) return;
       try {
@@ -36603,7 +36702,7 @@ window.fmtHHMM = function(date) {
       if (e.target.id === 'notifTestBtn') {
         if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           if (prefs._master === false) { alert('通知總開關目前是關閉的,請先點擊「🔕 通知已關閉」開啟'); return; }
-          window.__gpNotify('◆ 測試通知', '如果你看到這則,通知運作正常 ✅', 'gp-test'); playSound(sPrefs.telegram || 'chime');
+          window.__gpNotify('◆ 測試通知', '點我會跳到地緣情報畫面 ✅', 'gp-test', 'telegram'); playSound(sPrefs.telegram || 'chime');
         }
         else if (typeof Notification !== 'undefined' && Notification.permission === 'denied') alert('通知已被拒絕,請到系統設定開啟後再試');
         else alert('請先按左邊的「① 點此允許通知」,並在系統跳出的視窗按「允許」');
@@ -36631,7 +36730,7 @@ window.fmtHHMM = function(date) {
         fresh.slice(0, 3).reverse().forEach(m => {
           try {
             const body = (m.zh || m.text || '').slice(0, 140);
-            window.__gpNotify('◆ ' + (m.chName || '地緣情報'), body, 'gptg-' + _tgKey(m));
+            window.__gpNotify('◆ ' + (m.chName || '地緣情報'), body, 'gptg-' + _tgKey(m), 'telegram');
             playSound(sPrefs.telegram || 'none');
           } catch (e) {}
         });
