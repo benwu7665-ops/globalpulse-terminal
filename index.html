@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.48</b></div>
+        <div>BUILD <b>v184.49</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -3683,6 +3683,135 @@ window.L_DISABLE_3D = true;
       </section>
     </div>
   </section>
+
+  <!-- ===== v184.49: GP 多標的比較圖(彭博 GP 風格)===== -->
+  <section class="page" data-page="fin-gp">
+    <div class="terminal-page">
+      <section class="box" data-no-i18n>
+        <div class="box-head">
+          <span><span class="t-zh">走勢比較圖</span><span class="t-en">PRICE_GRAPH · GP</span></span>
+          <span class="box-meta" id="gpMeta" style="cursor:pointer;" title="重新整理">↻ 載入中</span>
+        </div>
+        <div class="box-body" id="gpBody" style="font-family:var(--font-mono);font-size:12px;">
+          <div style="color:var(--text-dim);padding:12px;">載入中…</div>
+        </div>
+      </section>
+    </div>
+  </section>
+  <script>
+  /* v184.49 — GP 多標的比較圖。自給自足,重用 Worker /history。
+     自繪 SVG(零新依賴):多標的疊圖、normalize 百分比比較、區間切換、加/減標的。 */
+  (function () {
+    var WK = 'https://ais-proxy.2syzkjy2vq.workers.dev';
+    var COLORS = ['#ff8c00', '#4da3ff', '#26d07c', '#ff4d4d', '#c07cff', '#ffd166'];
+    var S = { syms: ['^TWII', '^GSPC', '^N225'], range: '1y', norm: true, data: null };
+    var RANGES = [['1mo', '1月'], ['3mo', '3月'], ['6mo', '6月'], ['1y', '1年'], ['2y', '2年'], ['5y', '5年']];
+    function esc(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    function ivOf(r) { return (r === '1mo' || r === '3mo') ? '1d' : (r === '5y' ? '1mo' : '1wk'); }
+    function dstr(ep) { try { var d = new Date(ep * 1000); return (d.getMonth() + 1) + '/' + d.getDate() + '/' + String(d.getFullYear()).slice(2); } catch (e) { return ''; } }
+    function chart(series, syms) {
+      var W = 900, H = 340, PL = 58, PR = 14, PT = 14, PB = 26;
+      var live = syms.filter(function (s) { return series[s] && series[s].c && series[s].c.length > 1; });
+      if (!live.length) return '<div style="color:var(--text-dim);padding:16px;">沒有可畫的資料</div>';
+      var vals = [], maxLen = 0;
+      live.forEach(function (s) {
+        var c = series[s].c; maxLen = Math.max(maxLen, c.length);
+        c.forEach(function (v) { vals.push(S.norm ? ((v - c[0]) / c[0]) * 100 : v); });
+      });
+      var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+      if (lo === hi) { lo -= 1; hi += 1; }
+      var pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
+      var IW = W - PL - PR, IH = H - PT - PB;
+      var x = function (i, n) { return PL + (n <= 1 ? 0 : (i / (n - 1)) * IW); };
+      var y = function (v) { return PT + IH - ((v - lo) / (hi - lo)) * IH; };
+      var g = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;display:block;">';
+      for (var k = 0; k <= 4; k++) {
+        var gv = lo + ((hi - lo) * k) / 4, gy = y(gv);
+        g += '<line x1="' + PL + '" y1="' + gy.toFixed(1) + '" x2="' + (W - PR) + '" y2="' + gy.toFixed(1) + '" stroke="rgba(255,255,255,.08)" stroke-width="1"/>';
+        g += '<text x="' + (PL - 6) + '" y="' + (gy + 3.5).toFixed(1) + '" text-anchor="end" font-size="10" fill="#8a8a8a">' + (S.norm ? (gv >= 0 ? '+' : '') + gv.toFixed(1) + '%' : gv.toLocaleString('en-US', { maximumFractionDigits: 0 })) + '</text>';
+      }
+      if (S.norm && lo < 0 && hi > 0) g += '<line x1="' + PL + '" y1="' + y(0).toFixed(1) + '" x2="' + (W - PR) + '" y2="' + y(0).toFixed(1) + '" stroke="rgba(255,255,255,.28)" stroke-width="1" stroke-dasharray="3,3"/>';
+      var t0 = series[live[0]].t || [];
+      [0, Math.floor((maxLen - 1) / 2), maxLen - 1].forEach(function (i) {
+        if (t0[i] == null) return;
+        g += '<text x="' + x(i, maxLen).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="10" fill="#8a8a8a">' + dstr(t0[i]) + '</text>';
+      });
+      live.forEach(function (s, si) {
+        var c = series[s].c, n = c.length, col = COLORS[syms.indexOf(s) % COLORS.length], pts = [];
+        for (var i = 0; i < n; i++) { var v = S.norm ? ((c[i] - c[0]) / c[0]) * 100 : c[i]; pts.push(x(i, n).toFixed(1) + ',' + y(v).toFixed(1)); }
+        g += '<polyline points="' + pts.join(' ') + '" fill="none" stroke="' + col + '" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>';
+      });
+      g += '</svg>';
+      return g;
+    }
+    function legend(series, syms) {
+      return '<div style="display:flex;flex-wrap:wrap;gap:14px;padding:10px 2px 2px;">' + syms.map(function (s, i) {
+        var d = series && series[s], col = COLORS[i % COLORS.length];
+        var pct = d && d.chgPct != null ? ((d.chgPct >= 0 ? '+' : '') + d.chgPct + '%') : '—';
+        var pcol = d && d.chgPct != null ? (d.chgPct >= 0 ? 'var(--up,#26d07c)' : 'var(--down,#ff4d4d)') : 'var(--text-dim)';
+        return '<span style="display:inline-flex;align-items:center;gap:6px;">'
+          + '<span style="width:14px;height:2.5px;background:' + col + ';display:inline-block;"></span>'
+          + '<span>' + esc(s) + '</span><span style="color:' + pcol + ';font-variant-numeric:tabular-nums;">' + pct + '</span>'
+          + '<span class="gp-del" data-sym="' + esc(s) + '" style="cursor:pointer;color:var(--text-dim);padding:0 2px;" title="移除">✕</span></span>';
+      }).join('') + '</div>';
+    }
+    function controls() {
+      var rb = RANGES.map(function (r) {
+        var on = S.range === r[0];
+        return '<button class="gp-range" data-r="' + r[0] + '" style="font-size:11px;padding:3px 9px;margin-right:4px;border-radius:3px;cursor:pointer;background:' + (on ? 'var(--amber,#ff8c00)' : 'transparent') + ';color:' + (on ? '#000' : 'var(--text)') + ';border:1px solid ' + (on ? 'var(--amber,#ff8c00)' : 'rgba(255,180,20,.35)') + ';">' + r[1] + '</button>';
+      }).join('');
+      return '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:2px 2px 10px;border-bottom:1px solid rgba(255,180,20,.15);margin-bottom:8px;">'
+        + '<span>' + rb + '</span>'
+        + '<button id="gpNorm" style="font-size:11px;padding:3px 9px;border-radius:3px;cursor:pointer;background:' + (S.norm ? 'var(--amber,#ff8c00)' : 'transparent') + ';color:' + (S.norm ? '#000' : 'var(--text)') + ';border:1px solid rgba(255,180,20,.35);">% 比較</button>'
+        + '<span style="flex:1"></span>'
+        + '<input id="gpAdd" placeholder="加標的 (AAPL / ^HSI / 2330.TW)" style="font-size:11px;padding:4px 8px;border-radius:3px;background:rgba(255,255,255,.05);border:1px solid rgba(255,180,20,.3);color:var(--text);font-family:var(--font-mono);width:210px;">'
+        + '<button id="gpAddBtn" style="font-size:11px;padding:4px 10px;border-radius:3px;cursor:pointer;background:transparent;color:var(--text);border:1px solid rgba(255,180,20,.35);">＋ 加入</button>'
+        + '</div>';
+    }
+    function paint() {
+      var body = document.getElementById('gpBody'); if (!body) return;
+      body.innerHTML = controls() + (S.data ? chart(S.data, S.syms) + legend(S.data, S.syms) : '<div style="color:var(--text-dim);padding:16px;">載入中…</div>');
+    }
+    window.renderGP = async function () {
+      var body = document.getElementById('gpBody'), meta = document.getElementById('gpMeta');
+      if (!body) return;
+      paint();
+      if (meta) meta.textContent = '↻ 載入中…';
+      try {
+        var res = await fetch(WK + '/history?syms=' + encodeURIComponent(S.syms.join(',')) + '&range=' + S.range + '&interval=' + ivOf(S.range), { cache: 'no-store' });
+        var d = await res.json();
+        if (!d || !d.ok || !d.series) {
+          body.innerHTML = controls() + '<div style="color:var(--text-dim);padding:16px;">拿不到歷史資料 — 請先在 Cloudflare 部署含 /history 的 worker.js</div>';
+          if (meta) meta.textContent = '↻ 重試'; return;
+        }
+        S.data = d.series; paint();
+        var now = new Date();
+        if (meta) meta.textContent = S.syms.length + ' 檔 · ' + S.range + ' · ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ' · ↻';
+      } catch (e) {
+        body.innerHTML = controls() + '<div style="color:var(--down,#ff4d4d);padding:16px;">載入失敗,稍後再試</div>';
+        if (meta) meta.textContent = '↻ 重試';
+      }
+    };
+    function addSym(v) {
+      v = String(v || '').trim().toUpperCase();
+      if (!v || !/^[A-Z0-9.^=_-]{1,20}$/.test(v)) return;
+      if (S.syms.indexOf(v) !== -1 || S.syms.length >= 6) return;
+      S.syms.push(v); window.renderGP();
+    }
+    document.addEventListener('click', function (e) {
+      var t = e.target; if (!t || !t.closest) return;
+      if (t.closest('#gpMeta')) { window.renderGP(); return; }
+      var r = t.closest('.gp-range'); if (r) { S.range = r.getAttribute('data-r'); window.renderGP(); return; }
+      if (t.closest('#gpNorm')) { S.norm = !S.norm; paint(); return; }
+      if (t.closest('#gpAddBtn')) { var i = document.getElementById('gpAdd'); if (i) { addSym(i.value); i.value = ''; } return; }
+      var del = t.closest('.gp-del');
+      if (del) { var s = del.getAttribute('data-sym'); if (S.syms.length > 1) { S.syms = S.syms.filter(function (x) { return x !== s; }); window.renderGP(); } return; }
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && e.target && e.target.id === 'gpAdd') { addSym(e.target.value); e.target.value = ''; }
+    });
+  })();
+  </script>
   <script>
   /* v184.48 — WEI 世界指數。彩化 + 走勢線/1年%(重用 Worker /history)。
      自給自足;/history 若尚未部署,走勢線/1年%欄優雅降級為「—」,不影響其餘。 */
@@ -5764,6 +5893,7 @@ const TAB_GROUPS = [
   { id: 'g-fin',    label: '金融市場', children: [
       { label: '市場儀表板', route: 'fin-home' },
       { label: '世界指數 WEI', route: 'fin-wei' },
+      { label: '走勢比較 GP', route: 'fin-gp' },
       { label: '個股詳情',   route: 'fin-stock' },
       { label: '總經面板',   route: 'fin-macro' },
       { label: '美股市場',   route: 'us-market' },
@@ -6598,6 +6728,7 @@ function setRoute(route) {
   if (route === 'fin-stock') renderStock();
   if (route === 'fin-macro') renderMacro();
   if (route === 'fin-wei') { if (typeof window.renderWEI === 'function') window.renderWEI(); }
+  if (route === 'fin-gp') { if (typeof window.renderGP === 'function') window.renderGP(); }
   if (route === 'fin-config') renderWorkerStatus();
   if (route === 'geo') setTimeout(onResize, 60);
   if (route === 'us-market') {
@@ -23608,6 +23739,17 @@ document.addEventListener('keydown', e => {
       action: () => {
         if (typeof openRouteTab === 'function') openRouteTab('fin-wei', 'WEI');
         else if (typeof setRoute === 'function') setRoute('fin-wei');
+      }
+    });
+    list.push({
+      kind: 'page',
+      kindLabel: '功能',
+      name: 'GP · 走勢比較圖',
+      sub: 'Price Graph / Compare',
+      terms: ['gp', '走勢', '比較', '比較圖', 'graph', 'chart', 'compare', 'price graph'],
+      action: () => {
+        if (typeof openRouteTab === 'function') openRouteTab('fin-gp', 'GP');
+        else if (typeof setRoute === 'function') setRoute('fin-gp');
       }
     });
     // ---- v184.18: 動作 / 圖層 / 快捷指令(補齊「召喚不出來」的缺口)
