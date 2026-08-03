@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.55</b></div>
+        <div>BUILD <b>v184.56</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -3796,6 +3796,7 @@ window.L_DISABLE_3D = true;
         + cell('交易所', esc(d.exch || '—'))
         + cell('估值來源', esc(d.valSource || (d.pe != null ? 'Finnhub' : '—'))) + '</div>';
       h += '</div>';
+      if (d.fundamentalsMismatch) h += '<div style="padding:10px 2px 2px;color:var(--text-dim);font-size:11px;">※ 此標的為 ADR/跨市場掛牌,基本面資料源以當地幣別計價與報價幣別不符,已略去市值/EPS/營收等絕對金額欄位(比率型指標不受影響)。</div>';
       if (d.website) h += '<div style="padding:12px 2px;color:var(--text-dim);font-size:11px;">' + esc(d.website) + '</div>';
       body.innerHTML = h;
     }
