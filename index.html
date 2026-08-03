@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.59</b></div>
+        <div>BUILD <b>v184.60</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -3587,7 +3587,7 @@ window.L_DISABLE_3D = true;
   <section class="page" data-page="fin-stock">
     <div class="terminal-page"><div class="layout">
       <div>
-        <section class="box"><div class="box-head"><span><span class="t-zh">個股詳情</span><span class="t-en">STOCK_DETAIL</span> :: <span id="stockSymHead">NVDA</span></span><span class="box-meta"><button class="kline-expand-btn" onclick="expandStockKline()" title="放大檢視 K 線 / Expand K-line">⛶ <span class="t-zh">K 線</span><span class="t-en">K-LINE</span></button><select id="stockPicker" class="key-input" style="display:inline-block;width:auto;margin-left:8px;"><option>NVDA</option><option>AAPL</option><option>TSLA</option><option>SPY</option><option>QQQ</option><option>MSFT</option><option>GOOGL</option><option>META</option></select></span></div>
+        <section class="box"><div class="box-head"><span><span class="t-zh">個股詳情</span><span class="t-en">STOCK_DETAIL</span> :: <span id="stockSymHead">NVDA</span></span><span class="box-meta"><button class="kline-expand-btn" id="stockToDes" title="估值 / 營運 / 風險報酬 / 跨市場搜尋">↗ DES</button><button class="kline-expand-btn" onclick="expandStockKline()" title="放大檢視 K 線 / Expand K-line">⛶ <span class="t-zh">K 線</span><span class="t-en">K-LINE</span></button><select id="stockPicker" class="key-input" style="display:inline-block;width:auto;margin-left:8px;"><option>NVDA</option><option>AAPL</option><option>TSLA</option><option>SPY</option><option>QQQ</option><option>MSFT</option><option>GOOGL</option><option>META</option></select></span></div>
           <div class="box-body">
             <div class="stock-hero">
               <div>
@@ -3746,6 +3746,7 @@ window.L_DISABLE_3D = true;
       h += '<div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:12px;padding:0 2px 10px;">'
         + '<span style="font-size:17px;font-weight:700;color:var(--amber,#ff8c00);">' + esc(dispName) + '</span>'
         + '<button id="desToGp" data-sym="' + esc(d.sym || D.sym) + '" style="font-size:11px;padding:3px 10px;border-radius:3px;cursor:pointer;background:transparent;color:var(--text);border:1px solid rgba(255,180,20,.4);">↗ 加入 GP 比較</button>'
+        + '<button id="desToStock" data-sym="' + esc(d.sym || D.sym) + '" style="font-size:11px;padding:3px 10px;border-radius:3px;cursor:pointer;background:transparent;color:var(--text);border:1px solid rgba(255,180,20,.4);" title="閃訊 / AI 情報 / 同類股 / 訊號日誌">↗ 個股詳情</button>'
         + '<span style="color:var(--text-dim);">' + esc(d.exch || '') + '</span>'
         + '<span style="font-size:17px;font-variant-numeric:tabular-nums;">' + n2(d.price) + ' <span style="font-size:11px;color:var(--text-dim);">' + esc(d.currency || '') + '</span></span>'
         + '<span style="color:' + col + ';font-variant-numeric:tabular-nums;">' + (up ? '▲ +' : '▼ ') + n2(d.chg) + ' (' + (d.chgPct != null ? (up ? '+' : '') + d.chgPct + '%' : '—') + ')</span>'
@@ -3826,6 +3827,14 @@ window.L_DISABLE_3D = true;
       } catch (e) { if (my === SUG.seq) hideSug(); }
     }
     // v184.58: 對外 API — 從別頁開 DES 並指定標的
+    // v184.60: 開既有「個股詳情」頁並指定標的(閃訊/AI情報/同類股/訊號是那頁的強項)
+    window.__openStock = function (sym) {
+      sym = String(sym || '').trim().toUpperCase();
+      if (!sym) return;
+      try { if (window.state) window.state.currentStock = sym; } catch (e) {}
+      var _o = window.openRouteTab, _s = window.setRoute;
+      if (_o) _o('fin-stock', '個股詳情'); else if (_s) _s('fin-stock');
+    };
     window.__openDES = function (sym) {
       var _ort = window.openRouteTab || (typeof openRouteTab === 'function' ? openRouteTab : null);
       var _sr = window.setRoute || (typeof setRoute === 'function' ? setRoute : null);
@@ -3858,6 +3867,16 @@ window.L_DISABLE_3D = true;
       if (t.closest('#desMeta')) { window.renderDES(); return; }
       var gpBtn = t.closest('#desToGp');
       if (gpBtn) { var gs = gpBtn.getAttribute('data-sym'); if (gs && typeof window.__gpCompare === 'function') window.__gpCompare(gs); return; }
+      var stBtn = t.closest('#desToStock');
+      if (stBtn) { var ss = stBtn.getAttribute('data-sym'); if (ss && typeof window.__openStock === 'function') window.__openStock(ss); return; }
+      // 反向:個股詳情頁的「↗ DES」按鈕 → 帶著 currentStock 開 DES
+      if (t.closest('#stockToDes')) {
+        var cs = '';
+        try { cs = (window.state && window.state.currentStock) || ''; } catch (e) {}
+        if (!cs) { var hd = document.getElementById('stockSymHead'); cs = hd ? (hd.textContent || '').trim() : ''; }
+        if (cs && typeof window.__openDES === 'function') window.__openDES(cs);
+        return;
+      }
       var it = t.closest('.des-sug-item');
       if (it) { hideSug(); var i2 = document.getElementById('desQ'); if (i2) i2.value = ''; window.renderDES(it.getAttribute('data-sym')); return; }
       if (!t.closest('#desQ') && !t.closest('#desSug')) hideSug();
