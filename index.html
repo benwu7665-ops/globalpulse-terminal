@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.52</b></div>
+        <div>BUILD <b>v184.53</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -3742,8 +3742,9 @@ window.L_DISABLE_3D = true;
       if (d.__err) { body.innerHTML = searchBar() + '<div style="color:var(--text-dim);padding:16px;">' + esc(d.__err) + '</div>'; return; }
       var up = (d.chg || 0) >= 0, col = up ? 'var(--up,#26d07c)' : 'var(--down,#ff4d4d)';
       var h = searchBar();
+      var dispName = d.nameZh ? (d.nameZh + (d.name && d.name !== d.nameZh ? '　' + d.name : '')) : (d.name || d.sym);
       h += '<div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:12px;padding:0 2px 10px;">'
-        + '<span style="font-size:17px;font-weight:700;color:var(--amber,#ff8c00);">' + esc(d.name || d.sym) + '</span>'
+        + '<span style="font-size:17px;font-weight:700;color:var(--amber,#ff8c00);">' + esc(dispName) + '</span>'
         + '<span style="color:var(--text-dim);">' + esc(d.exch || '') + '</span>'
         + '<span style="font-size:17px;font-variant-numeric:tabular-nums;">' + n2(d.price) + ' <span style="font-size:11px;color:var(--text-dim);">' + esc(d.currency || '') + '</span></span>'
         + '<span style="color:' + col + ';font-variant-numeric:tabular-nums;">' + (up ? '▲ +' : '▼ ') + n2(d.chg) + ' (' + (d.chgPct != null ? (up ? '+' : '') + d.chgPct + '%' : '—') + ')</span>'
@@ -3757,7 +3758,7 @@ window.L_DISABLE_3D = true;
         + cell('成交量', big(d.volume))
         + cell('幣別', esc(d.currency || '—')) + '</div>';
       h += '<div><div style="color:var(--amber,#ff8c00);font-weight:700;padding:6px 0;border-bottom:1px solid rgba(255,180,20,.2);">估值 · VALUATION</div>'
-        + cell('市值 Mkt Cap', big(d.mktCap))
+        + cell('市值 Mkt Cap', big(d.mktCap) + (d.mktCapEst ? ' <span style="color:var(--text-dim);font-size:10px;">(估)</span>' : ''))
         + cell('本益比 P/E', n2(d.pe))
         + cell('股價淨值比 P/B', n2(d.pbQuarterly))
         + cell('股價營收比 P/S', n2(d.psTTM))
@@ -3769,12 +3770,14 @@ window.L_DISABLE_3D = true;
         + cell('股東權益報酬 ROE', d.roe != null ? d.roe + '%' : '—')
         + cell('殖利率', d.divYield != null ? d.divYield + '%' : '—')
         + cell('流通股數', big(d.shares))
+        + cell('實收資本額', big(d.paidInCapital))
         + cell('上市日 IPO', esc(d.ipo || '—')) + '</div>';
       h += '<div><div style="color:var(--amber,#ff8c00);font-weight:700;padding:6px 0;border-bottom:1px solid rgba(255,180,20,.2);">1年走勢</div>'
         + '<div id="desSpark" style="padding:8px 0;">' + (D.hist ? spark(D.hist) : '<span style="color:var(--text-dim);font-size:11px;">載入中…</span>') + '</div>'
         + cell('產業 Industry', esc(d.industry || '—'))
-        + cell('國別', esc(d.country || '—'))
-        + cell('交易所', esc(d.exch || '—')) + '</div>';
+        + cell('董事長', esc(d.chairman || '—'))
+        + cell('交易所', esc(d.exch || '—'))
+        + cell('估值來源', esc(d.valSource || (d.pe != null ? 'Finnhub' : '—'))) + '</div>';
       h += '</div>';
       if (d.website) h += '<div style="padding:12px 2px;color:var(--text-dim);font-size:11px;">' + esc(d.website) + '</div>';
       body.innerHTML = h;
