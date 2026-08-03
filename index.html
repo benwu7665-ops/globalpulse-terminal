@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.60</b></div>
+        <div>BUILD <b>v184.61</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -6176,7 +6176,10 @@ const TAB_GROUPS = [
       { label: '世界指數 WEI', route: 'fin-wei' },
       { label: '走勢比較 GP', route: 'fin-gp' },
       { label: '證券說明 DES', route: 'fin-des' },
-      { label: '個股詳情',   route: 'fin-stock' },
+      // v184.61: 「個股詳情」自下拉移除(與 DES 功能重疊)。頁面與功能完全保留,
+      //   入口改為:DES 的「↗ 個股詳情」按鈕、儀錶板點股票、指令列搜尋、同類股矩陣等。
+      //   要復原只需取消下一行註解。
+      // { label: '個股詳情',   route: 'fin-stock' },
       { label: '總經面板',   route: 'fin-macro' },
       { label: '美股市場',   route: 'us-market' },
       { label: '台股市場',   route: 'tw-market' },
