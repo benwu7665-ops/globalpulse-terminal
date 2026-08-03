@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.56</b></div>
+        <div>BUILD <b>v184.57</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -3792,7 +3792,9 @@ window.L_DISABLE_3D = true;
       h += '<div><div style="color:var(--amber,#ff8c00);font-weight:700;padding:6px 0;border-bottom:1px solid rgba(255,180,20,.2);">1年走勢</div>'
         + '<div id="desSpark" style="padding:8px 0;">' + (D.hist ? spark(D.hist) : '<span style="color:var(--text-dim);font-size:11px;">載入中…</span>') + '</div>'
         + cell('產業 Industry', esc(d.industry || '—'))
-        + cell('董事長', esc(d.chairman || '—'))
+        + (d.chairman
+            ? cell('董事長', esc(d.chairman)) + (d.ceo ? cell('總經理', esc(d.ceo)) : '')
+            : cell('國別', esc(d.country || '—')))
         + cell('交易所', esc(d.exch || '—'))
         + cell('估值來源', esc(d.valSource || (d.pe != null ? 'Finnhub' : '—'))) + '</div>';
       h += '</div>';
