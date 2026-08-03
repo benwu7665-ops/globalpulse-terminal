@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.54</b></div>
+        <div>BUILD <b>v184.55</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -3749,7 +3749,7 @@ window.L_DISABLE_3D = true;
         + '<span style="font-size:17px;font-variant-numeric:tabular-nums;">' + n2(d.price) + ' <span style="font-size:11px;color:var(--text-dim);">' + esc(d.currency || '') + '</span></span>'
         + '<span style="color:' + col + ';font-variant-numeric:tabular-nums;">' + (up ? '▲ +' : '▼ ') + n2(d.chg) + ' (' + (d.chgPct != null ? (up ? '+' : '') + d.chgPct + '%' : '—') + ')</span>'
         + '</div>';
-      h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;align-items:start;">';
+      h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;align-items:start;">';
       h += '<div><div style="color:var(--amber,#ff8c00);font-weight:700;padding:6px 0;border-bottom:1px solid rgba(255,180,20,.2);">交易 · TRADING</div>'
         + cell('當日高', n2(d.dayHigh))
         + cell('當日低', n2(d.dayLow))
@@ -3776,6 +3776,19 @@ window.L_DISABLE_3D = true;
         + cell('營益率', d.opMargin != null ? d.opMargin + '%' : '—')
         + cell('資產報酬 ROA', d.roa != null ? d.roa + '%' : '—')
         + cell('上市日 IPO', esc(d.ipo || '—')) + '</div>';
+      var sgn = function (v, suf) { if (v == null) return '—'; var c = v >= 0 ? 'var(--up,#26d07c)' : 'var(--down,#ff4d4d)'; return '<span style="color:' + c + ';">' + (v >= 0 ? '+' : '') + v + (suf || '%') + '</span>'; };
+      h += '<div><div style="color:var(--amber,#ff8c00);font-weight:700;padding:6px 0;border-bottom:1px solid rgba(255,180,20,.2);">風險 · 報酬</div>'
+        + cell('近1月', sgn(d.ret1m))
+        + cell('近3月', sgn(d.ret3m))
+        + cell('近6月', sgn(d.ret6m))
+        + cell('近1年', sgn(d.ret1y))
+        + cell('年化波動率', d.volatility != null ? d.volatility + '%' : '—')
+        + cell('最大回撤', sgn(d.maxDrawdown))
+        + cell('52週位置', d.rangePos != null ? d.rangePos + '%' : '—')
+        + cell('相對大盤' + (d.benchSym ? ' (' + esc(d.benchSym) + ')' : ''), sgn(d.relStrength))
+        + cell('50日均線', d.ma50 != null ? n2(d.ma50) + ' <span style="color:var(--text-dim);font-size:10px;">' + (d.biasMa50 >= 0 ? '+' : '') + d.biasMa50 + '%</span>' : '—')
+        + cell('200日均線', d.ma200 != null ? n2(d.ma200) + ' <span style="color:var(--text-dim);font-size:10px;">' + (d.biasMa200 >= 0 ? '+' : '') + d.biasMa200 + '%</span>' : '—')
+        + '</div>';
       h += '<div><div style="color:var(--amber,#ff8c00);font-weight:700;padding:6px 0;border-bottom:1px solid rgba(255,180,20,.2);">1年走勢</div>'
         + '<div id="desSpark" style="padding:8px 0;">' + (D.hist ? spark(D.hist) : '<span style="color:var(--text-dim);font-size:11px;">載入中…</span>') + '</div>'
         + cell('產業 Industry', esc(d.industry || '—'))
