@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.53</b></div>
+        <div>BUILD <b>v184.54</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -3765,12 +3765,16 @@ window.L_DISABLE_3D = true;
         + cell('每股盈餘 EPS', n2(d.eps))
         + cell('Beta', n2(d.beta)) + '</div>';
       h += '<div><div style="color:var(--amber,#ff8c00);font-weight:700;padding:6px 0;border-bottom:1px solid rgba(255,180,20,.2);">營運 · FUNDAMENTALS</div>'
-        + cell('營收 TTM', big(d.revenue))
+        + cell('營收 TTM', big(d.revenue) + (d.revSource === 'calc' ? ' <span style="color:var(--text-dim);font-size:10px;">(推算)</span>' : ''))
         + cell('淨利率', d.margin != null ? d.margin + '%' : '—')
         + cell('股東權益報酬 ROE', d.roe != null ? d.roe + '%' : '—')
         + cell('殖利率', d.divYield != null ? d.divYield + '%' : '—')
         + cell('流通股數', big(d.shares))
-        + cell('實收資本額', big(d.paidInCapital))
+        + (d.paidInCapital != null
+            ? cell('實收資本額', big(d.paidInCapital))
+            : cell('毛利率', d.grossMargin != null ? d.grossMargin + '%' : '—'))
+        + cell('營益率', d.opMargin != null ? d.opMargin + '%' : '—')
+        + cell('資產報酬 ROA', d.roa != null ? d.roa + '%' : '—')
         + cell('上市日 IPO', esc(d.ipo || '—')) + '</div>';
       h += '<div><div style="color:var(--amber,#ff8c00);font-weight:700;padding:6px 0;border-bottom:1px solid rgba(255,180,20,.2);">1年走勢</div>'
         + '<div id="desSpark" style="padding:8px 0;">' + (D.hist ? spark(D.hist) : '<span style="color:var(--text-dim);font-size:11px;">載入中…</span>') + '</div>'
