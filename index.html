@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.46</b></div>
+        <div>BUILD <b>v184.47</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -3684,43 +3684,59 @@ window.L_DISABLE_3D = true;
     </div>
   </section>
   <script>
-  /* v184.46 — WEI 世界指數渲染。自給自足:自帶 fetch/escape/Worker 網址,
-     不依賴任何模組內作用域函式。資料重用 /gindices(indices[]={sym,px,chg,chgPct,t})。
-     分區用指數名稱關鍵字比對 + 全球/其他 catch-all(比對不到不會出錯)。 */
+  /* v184.47 — WEI 世界指數(彩化升級)。自給自足,不依賴模組內作用域。
+     資料重用 /gindices(sym 為 Yahoo 代碼)。sym→區域/名稱精確對照,
+     備援名稱關鍵字比對,都拿不到才落【全球/其他】。 */
   (function () {
     var WK = 'https://ais-proxy.2syzkjy2vq.workers.dev';
-    var REGIONS = [
-      { key: 'AMER', kws: ['DOW','S&P 500','SPX','NASDAQ','TSX','BOVESPA','IBOVESPA','IPC','MERVAL','MEXBOL','RUSSELL','S&P/BMV'] },
-      { key: 'EMEA', kws: ['FTSE','DAX','CAC','IBEX','STOXX','MIB','OMX','SWISS','SMI','AEX','MOEX','JSE','TA-35','TA 35','PSI','ATX','WIG','BEL','ISEQ'] },
-      { key: 'APAC', kws: ['NIKKEI','HANG SENG','HSI','CSI','SHANGHAI','SSE','SHENZHEN','KOSPI','KOSDAQ','ASX','SENSEX','BSE','NIFTY','TAIEX','TWSE','加權','STI','SET','JAKARTA','JCI','KLCI','NZX','PSEI'] },
-    ];
-    function esc(t) { return String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-    function hms(ep) { try { var d = new Date(ep * 1000); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); } catch (e) { return '-'; } }
-    function regionOf(sym) {
+    var META = {
+      '^GSPC':{r:'AMER',n:'S&P 500'}, '^DJI':{r:'AMER',n:'道瓊工業'}, '^IXIC':{r:'AMER',n:'那斯達克綜合'},
+      '^NDX':{r:'AMER',n:'那斯達克100'}, '^RUT':{r:'AMER',n:'羅素2000'}, '^GSPTSE':{r:'AMER',n:'加拿大 S&P/TSX'},
+      '^BVSP':{r:'AMER',n:'巴西 Bovespa'}, '^MXX':{r:'AMER',n:'墨西哥 IPC'}, '^MERV':{r:'AMER',n:'阿根廷 Merval'},
+      '^FTSE':{r:'EMEA',n:'英國 FTSE 100'}, '^GDAXI':{r:'EMEA',n:'德國 DAX'}, '^FCHI':{r:'EMEA',n:'法國 CAC 40'},
+      '^STOXX50E':{r:'EMEA',n:'歐洲 Stoxx 50'}, '^IBEX':{r:'EMEA',n:'西班牙 IBEX 35'}, 'FTSEMIB.MI':{r:'EMEA',n:'義大利 FTSE MIB'},
+      '^OMX':{r:'EMEA',n:'瑞典 OMX 30'}, '^SSMI':{r:'EMEA',n:'瑞士 SMI'}, '^AEX':{r:'EMEA',n:'荷蘭 AEX'}, 'IMOEX.ME':{r:'EMEA',n:'俄羅斯 MOEX'},
+      '^HSI':{r:'APAC',n:'香港 恆生'}, '^HSCE':{r:'APAC',n:'香港 國企指數'}, '^N225':{r:'APAC',n:'日本 日經225'},
+      '000001.SS':{r:'APAC',n:'上海 上證綜指'}, '399001.SZ':{r:'APAC',n:'深圳 深證成指'}, '^KS11':{r:'APAC',n:'韓國 KOSPI'},
+      '^AXJO':{r:'APAC',n:'澳洲 ASX 200'}, '^BSESN':{r:'APAC',n:'印度 Sensex'}, '^NSEI':{r:'APAC',n:'印度 Nifty 50'},
+      '^TWII':{r:'APAC',n:'台灣 加權指數'}, '^STI':{r:'APAC',n:'新加坡 STI'}, '^JKSE':{r:'APAC',n:'印尼 JCI'},
+      '^KLSE':{r:'APAC',n:'馬來西亞 KLCI'}, '^NZ50':{r:'APAC',n:'紐西蘭 NZX 50'}
+    };
+    var KW = { AMER:['DOW','S&P','SPX','NASDAQ','NDX','RUSSELL','TSX','BOVESPA','IPC','MERVAL'],
+               EMEA:['FTSE','DAX','CAC','STOXX','IBEX','MIB','OMX','SMI','AEX','MOEX'],
+               APAC:['HSI','NIKKEI','N225','CSI','SHANGHAI','SHENZHEN','KOSPI','ASX','SENSEX','NIFTY','TWII','TAIEX','STI','JCI','KLCI'] };
+    function metaOf(sym) {
+      if (META[sym]) return META[sym];
       var S = String(sym || '').toUpperCase();
-      for (var i = 0; i < REGIONS.length; i++) {
-        for (var j = 0; j < REGIONS[i].kws.length; j++) { if (S.indexOf(REGIONS[i].kws[j]) !== -1) return REGIONS[i].key; }
-      }
-      return 'GLOB';
+      for (var r in KW) { for (var i = 0; i < KW[r].length; i++) { if (S.indexOf(KW[r][i]) !== -1) return { r: r, n: sym }; } }
+      return { r: 'GLOB', n: sym };
+    }
+    function esc(t) { return String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function num(v, d) { return (v != null) ? Number(v).toLocaleString('en-US', { maximumFractionDigits: d }) : '-'; }
+    function hms(ep) { try { var dt = new Date(ep * 1000); return String(dt.getHours()).padStart(2,'0') + ':' + String(dt.getMinutes()).padStart(2,'0'); } catch (e) { return '-'; } }
+    function bar(pct) {
+      var p = Math.max(-1, Math.min(1, (Number(pct) || 0) / 3));
+      var up = p >= 0, w = Math.abs(p) * 100, col = up ? 'var(--up,#26d07c)' : 'var(--down,#ff4d4d)';
+      return '<span style="display:inline-block;position:relative;width:56px;height:7px;vertical-align:middle;margin-left:10px;background:rgba(255,255,255,.05);border-radius:1px;">'
+        + '<span style="position:absolute;left:50%;top:0;bottom:0;' + (up ? '' : 'transform:translateX(-100%);') + 'width:' + (w / 2) + '%;background:' + col + ';border-radius:1px;"></span>'
+        + '<span style="position:absolute;left:50%;top:-1px;bottom:-1px;width:1px;background:rgba(255,255,255,.2);"></span></span>';
     }
     function rowHtml(o) {
-      var up = (o.chg || 0) >= 0;
-      var col = up ? 'var(--up,#26d07c)' : 'var(--down,#ff4d4d)';
-      var px = (o.px != null) ? Number(o.px).toLocaleString('en-US', { maximumFractionDigits: 2 }) : '-';
+      var m = metaOf(o.sym), up = (o.chg || 0) >= 0, col = up ? 'var(--up,#26d07c)' : 'var(--down,#ff4d4d)';
       var chg = (o.chg != null) ? (up ? '+' : '') + o.chg : '-';
       var pct = (o.chgPct != null) ? (up ? '+' : '') + o.chgPct + '%' : '-';
-      return '<tr>'
-        + '<td style="padding:3px 10px 3px 0;white-space:nowrap;">' + esc(o.sym) + '</td>'
-        + '<td style="padding:3px 10px;text-align:right;white-space:nowrap;">' + px + '</td>'
-        + '<td style="padding:3px 10px;text-align:right;white-space:nowrap;color:' + col + ';">' + chg + '</td>'
-        + '<td style="padding:3px 10px;text-align:right;white-space:nowrap;color:' + col + ';">' + (up ? '▲ ' : '▼ ') + pct + '</td>'
-        + '<td style="padding:3px 0 3px 10px;text-align:right;white-space:nowrap;color:var(--text-dim);">' + (o.t ? hms(o.t) : '-') + '</td>'
+      return '<tr class="wei-row">'
+        + '<td style="padding:5px 10px 5px 2px;white-space:nowrap;">' + esc(m.n) + ' <span style="color:var(--text-dim);font-size:10px;">' + esc(o.sym) + '</span></td>'
+        + '<td style="padding:5px 10px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;">' + num(o.px, 2) + '</td>'
+        + '<td style="padding:5px 10px;text-align:right;white-space:nowrap;color:' + col + ';font-variant-numeric:tabular-nums;">' + chg + '</td>'
+        + '<td style="padding:5px 10px;text-align:right;white-space:nowrap;color:' + col + ';font-variant-numeric:tabular-nums;">' + (up ? '▲' : '▼') + ' ' + pct + bar(o.chgPct) + '</td>'
+        + '<td style="padding:5px 2px 5px 10px;text-align:right;white-space:nowrap;color:var(--text-dim);">' + (o.t ? hms(o.t) : '-') + '</td>'
         + '</tr>';
     }
     window.renderWEI = async function () {
-      var body = document.getElementById('weiBody');
-      var meta = document.getElementById('weiMeta');
+      var body = document.getElementById('weiBody'), meta = document.getElementById('weiMeta');
       if (!body) return;
+      if (!document.getElementById('wei-style')) { var st = document.createElement('style'); st.id = 'wei-style'; st.textContent = '.wei-row:hover{background:rgba(255,180,20,.06);}'; document.head.appendChild(st); }
       if (meta) meta.textContent = '↻ 載入中…';
       try {
         var res = await fetch(WK + '/gindices', { cache: 'no-store' });
@@ -3728,7 +3744,7 @@ window.L_DISABLE_3D = true;
         var arr = (d && d.indices) || [];
         if (!d || !d.ok || !arr.length) { body.innerHTML = '<div style="color:var(--text-dim);padding:12px;">指數暫時拿不到,稍後再試</div>'; if (meta) meta.textContent = '↻ 重試'; return; }
         var buckets = { AMER: [], EMEA: [], APAC: [], GLOB: [] };
-        arr.forEach(function (o) { (buckets[regionOf(o.sym)] || buckets.GLOB).push(o); });
+        arr.forEach(function (o) { (buckets[metaOf(o.sym).r] || buckets.GLOB).push(o); });
         var order = [
           { key: 'AMER', label: '美洲 · Americas' },
           { key: 'EMEA', label: '歐洲/非洲/中東 · EMEA' },
@@ -3737,22 +3753,23 @@ window.L_DISABLE_3D = true;
         ];
         var html = '<table style="width:100%;border-collapse:collapse;font-size:12px;">';
         html += '<thead><tr style="color:var(--text-dim);border-bottom:1px solid rgba(255,180,20,.25);">'
-          + '<th style="text-align:left;padding:4px 10px 4px 0;font-weight:600;">指數 Index</th>'
-          + '<th style="text-align:right;padding:4px 10px;font-weight:600;">Value</th>'
-          + '<th style="text-align:right;padding:4px 10px;font-weight:600;">淨變動</th>'
-          + '<th style="text-align:right;padding:4px 10px;font-weight:600;">漲跌 %</th>'
-          + '<th style="text-align:right;padding:4px 0 4px 10px;font-weight:600;">時間</th>'
+          + '<th style="text-align:left;padding:5px 10px 5px 2px;font-weight:600;">指數 Index</th>'
+          + '<th style="text-align:right;padding:5px 10px;font-weight:600;">Value</th>'
+          + '<th style="text-align:right;padding:5px 10px;font-weight:600;">淨變動</th>'
+          + '<th style="text-align:right;padding:5px 10px;font-weight:600;">漲跌 %</th>'
+          + '<th style="text-align:right;padding:5px 2px 5px 10px;font-weight:600;">時間</th>'
           + '</tr></thead><tbody>';
         var shown = 0;
         order.forEach(function (g) {
           var rows = buckets[g.key];
           if (!rows || !rows.length) return;
-          html += '<tr><td colspan="5" style="color:var(--amber,#ff8c00);font-weight:700;padding:10px 0 4px;border-bottom:1px solid rgba(255,180,20,.15);">' + esc(g.label) + '</td></tr>';
+          html += '<tr><td colspan="5" style="color:var(--amber,#ff8c00);font-weight:700;padding:12px 0 5px;border-bottom:1px solid rgba(255,180,20,.15);">' + esc(g.label) + ' <span style="color:var(--text-dim);font-weight:400;font-size:10px;">(' + rows.length + ')</span></td></tr>';
           rows.forEach(function (o) { html += rowHtml(o); shown++; });
         });
         html += '</tbody></table>';
         body.innerHTML = html;
-        if (meta) meta.textContent = shown + ' 個指數 · ↻ 重新整理';
+        var now = new Date();
+        if (meta) meta.textContent = shown + ' 個指數 · ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ' · ↻';
       } catch (e) {
         body.innerHTML = '<div style="color:var(--down,#ff4d4d);padding:12px;">載入失敗,稍後再試</div>';
         if (meta) meta.textContent = '↻ 重試';
