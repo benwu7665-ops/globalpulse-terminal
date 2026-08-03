@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.58</b></div>
+        <div>BUILD <b>v184.59</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -3827,8 +3827,9 @@ window.L_DISABLE_3D = true;
     }
     // v184.58: 對外 API — 從別頁開 DES 並指定標的
     window.__openDES = function (sym) {
-      if (typeof openRouteTab === 'function') openRouteTab('fin-des', 'DES');
-      else if (typeof setRoute === 'function') setRoute('fin-des');
+      var _ort = window.openRouteTab || (typeof openRouteTab === 'function' ? openRouteTab : null);
+      var _sr = window.setRoute || (typeof setRoute === 'function' ? setRoute : null);
+      if (_ort) _ort('fin-des', 'DES'); else if (_sr) _sr('fin-des');
       if (typeof window.renderDES === 'function') window.renderDES(sym);
     };
     window.renderDES = async function (sym) {
@@ -3907,8 +3908,9 @@ window.L_DISABLE_3D = true;
       if (!sym) return;
       if (replace) S.syms = [sym];
       else if (S.syms.indexOf(sym) === -1) { if (S.syms.length >= 6) S.syms.shift(); S.syms.push(sym); }
-      if (typeof openRouteTab === 'function') openRouteTab('fin-gp', 'GP');
-      else if (typeof setRoute === 'function') setRoute('fin-gp');
+      var _ort2 = window.openRouteTab || (typeof openRouteTab === 'function' ? openRouteTab : null);
+      var _sr2 = window.setRoute || (typeof setRoute === 'function' ? setRoute : null);
+      if (_ort2) _ort2('fin-gp', 'GP'); else if (_sr2) _sr2('fin-gp');
       if (typeof window.renderGP === 'function') window.renderGP();
     };
     var RANGES = [['1mo', '1月'], ['3mo', '3月'], ['6mo', '6月'], ['1y', '1年'], ['2y', '2年'], ['5y', '5年']];
@@ -6216,6 +6218,8 @@ function openRouteTab(route, label) {
   if (!tabState.open.includes(id)) tabState.open.push(id);
   switchTab(id);
 }
+window.openRouteTab = openRouteTab;   // v184.59: 供非 module 區塊(DES/GP/WEI 互聯)呼叫
+
 
 function renderMainTabs() {
   const el = document.getElementById('tabbarMain');
