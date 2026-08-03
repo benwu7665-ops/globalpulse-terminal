@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.51</b></div>
+        <div>BUILD <b>v184.52</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -3748,43 +3748,35 @@ window.L_DISABLE_3D = true;
         + '<span style="font-size:17px;font-variant-numeric:tabular-nums;">' + n2(d.price) + ' <span style="font-size:11px;color:var(--text-dim);">' + esc(d.currency || '') + '</span></span>'
         + '<span style="color:' + col + ';font-variant-numeric:tabular-nums;">' + (up ? '▲ +' : '▼ ') + n2(d.chg) + ' (' + (d.chgPct != null ? (up ? '+' : '') + d.chgPct + '%' : '—') + ')</span>'
         + '</div>';
-      h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;align-items:start;">';
-      h += '<div><div style="color:var(--amber,#ff8c00);font-weight:700;padding:6px 0;border-bottom:1px solid rgba(255,180,20,.2);">估值 · VALUATION</div>'
-        + cell('市值 Mkt Cap', big(d.mktCap))
-        + cell('本益比 P/E', n2(d.pe))
-        + cell('預估 P/E', n2(d.fwdPe))
-        + cell('每股盈餘 EPS', n2(d.eps))
-        + cell('股價淨值比 P/B', n2(d.pbQuarterly))
-        + cell('股價營收比 P/S', n2(d.psTTM)) + '</div>';
+      h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;align-items:start;">';
       h += '<div><div style="color:var(--amber,#ff8c00);font-weight:700;padding:6px 0;border-bottom:1px solid rgba(255,180,20,.2);">交易 · TRADING</div>'
+        + cell('當日高', n2(d.dayHigh))
+        + cell('當日低', n2(d.dayLow))
         + cell('52週高', n2(d.high52))
         + cell('52週低', n2(d.low52))
         + cell('成交量', big(d.volume))
-        + cell('均量', big(d.avgVolume))
-        + cell('Beta', n2(d.beta))
-        + cell('殖利率', d.divYield != null ? d.divYield + '%' : '—') + '</div>';
+        + cell('幣別', esc(d.currency || '—')) + '</div>';
+      h += '<div><div style="color:var(--amber,#ff8c00);font-weight:700;padding:6px 0;border-bottom:1px solid rgba(255,180,20,.2);">估值 · VALUATION</div>'
+        + cell('市值 Mkt Cap', big(d.mktCap))
+        + cell('本益比 P/E', n2(d.pe))
+        + cell('股價淨值比 P/B', n2(d.pbQuarterly))
+        + cell('股價營收比 P/S', n2(d.psTTM))
+        + cell('每股盈餘 EPS', n2(d.eps))
+        + cell('Beta', n2(d.beta)) + '</div>';
       h += '<div><div style="color:var(--amber,#ff8c00);font-weight:700;padding:6px 0;border-bottom:1px solid rgba(255,180,20,.2);">營運 · FUNDAMENTALS</div>'
-        + cell('營收', big(d.revenue))
+        + cell('營收 TTM', big(d.revenue))
         + cell('淨利率', d.margin != null ? d.margin + '%' : '—')
         + cell('股東權益報酬 ROE', d.roe != null ? d.roe + '%' : '—')
-        + cell('目標價', n2(d.targetPrice))
-        + cell('分析師評等', esc(d.recommend || '—'))
-        + cell('員工數', d.employees != null ? n2(d.employees, 0) : '—') + '</div>';
+        + cell('殖利率', d.divYield != null ? d.divYield + '%' : '—')
+        + cell('流通股數', big(d.shares))
+        + cell('上市日 IPO', esc(d.ipo || '—')) + '</div>';
       h += '<div><div style="color:var(--amber,#ff8c00);font-weight:700;padding:6px 0;border-bottom:1px solid rgba(255,180,20,.2);">1年走勢</div>'
-        + '<div id="desSpark" style="padding:8px 0;">' + (D.hist ? spark(D.hist) : '<span style="color:var(--text-dim);font-size:11px;">—</span>') + '</div>'
-        + cell('產業 Sector', esc(d.sector || '—'))
-        + cell('細分 Industry', esc(d.industry || '—'))
-        + cell('總部', esc([d.city, d.country].filter(Boolean).join(', ') || '—')) + '</div>';
+        + '<div id="desSpark" style="padding:8px 0;">' + (D.hist ? spark(D.hist) : '<span style="color:var(--text-dim);font-size:11px;">載入中…</span>') + '</div>'
+        + cell('產業 Industry', esc(d.industry || '—'))
+        + cell('國別', esc(d.country || '—'))
+        + cell('交易所', esc(d.exch || '—')) + '</div>';
       h += '</div>';
-      if (d.summary) {
-        h += '<div style="margin-top:14px;"><div style="color:var(--amber,#ff8c00);font-weight:700;padding:6px 0;border-bottom:1px solid rgba(255,180,20,.2);">公司簡介 · BUSINESS SUMMARY</div>'
-          + '<div style="padding:10px 2px;line-height:1.65;color:var(--text);">' + esc(d.summary) + '</div></div>';
-      }
-      if (d.officers && d.officers.length) {
-        h += '<div style="margin-top:6px;"><div style="color:var(--amber,#ff8c00);font-weight:700;padding:6px 0;border-bottom:1px solid rgba(255,180,20,.2);">經營團隊 · MANAGEMENT</div>'
-          + d.officers.map(function (o) { return cell(o.name || '—', esc(o.title || '')); }).join('') + '</div>';
-      }
-      if (d.website) h += '<div style="padding:10px 2px;color:var(--text-dim);font-size:11px;">' + esc(d.website) + '</div>';
+      if (d.website) h += '<div style="padding:12px 2px;color:var(--text-dim);font-size:11px;">' + esc(d.website) + '</div>';
       body.innerHTML = h;
     }
     function sugEl() { return document.getElementById('desSug'); }
