@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.47</b></div>
+        <div>BUILD <b>v184.48</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -3684,9 +3684,8 @@ window.L_DISABLE_3D = true;
     </div>
   </section>
   <script>
-  /* v184.47 — WEI 世界指數(彩化升級)。自給自足,不依賴模組內作用域。
-     資料重用 /gindices(sym 為 Yahoo 代碼)。sym→區域/名稱精確對照,
-     備援名稱關鍵字比對,都拿不到才落【全球/其他】。 */
+  /* v184.48 — WEI 世界指數。彩化 + 走勢線/1年%(重用 Worker /history)。
+     自給自足;/history 若尚未部署,走勢線/1年%欄優雅降級為「—」,不影響其餘。 */
   (function () {
     var WK = 'https://ais-proxy.2syzkjy2vq.workers.dev';
     var META = {
@@ -3714,15 +3713,23 @@ window.L_DISABLE_3D = true;
     function esc(t) { return String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
     function num(v, d) { return (v != null) ? Number(v).toLocaleString('en-US', { maximumFractionDigits: d }) : '-'; }
     function hms(ep) { try { var dt = new Date(ep * 1000); return String(dt.getHours()).padStart(2,'0') + ':' + String(dt.getMinutes()).padStart(2,'0'); } catch (e) { return '-'; } }
+    function idOf(sym) { return 'wei_' + String(sym).replace(/[^A-Za-z0-9]/g, '_'); }
     function bar(pct) {
       var p = Math.max(-1, Math.min(1, (Number(pct) || 0) / 3));
       var up = p >= 0, w = Math.abs(p) * 100, col = up ? 'var(--up,#26d07c)' : 'var(--down,#ff4d4d)';
-      return '<span style="display:inline-block;position:relative;width:56px;height:7px;vertical-align:middle;margin-left:10px;background:rgba(255,255,255,.05);border-radius:1px;">'
+      return '<span style="display:inline-block;position:relative;width:52px;height:7px;vertical-align:middle;margin-left:8px;background:rgba(255,255,255,.05);border-radius:1px;">'
         + '<span style="position:absolute;left:50%;top:0;bottom:0;' + (up ? '' : 'transform:translateX(-100%);') + 'width:' + (w / 2) + '%;background:' + col + ';border-radius:1px;"></span>'
         + '<span style="position:absolute;left:50%;top:-1px;bottom:-1px;width:1px;background:rgba(255,255,255,.2);"></span></span>';
     }
+    function spark(c) {
+      if (!c || c.length < 2) return '';
+      var min = Math.min.apply(null, c), max = Math.max.apply(null, c), rng = (max - min) || 1, W = 66, H = 18, n = c.length;
+      var pts = c.map(function (v, i) { var x = (i / (n - 1)) * W; var y = H - ((v - min) / rng) * (H - 2) - 1; return x.toFixed(1) + ',' + y.toFixed(1); }).join(' ');
+      var up = c[c.length - 1] >= c[0], col = up ? 'var(--up,#26d07c)' : 'var(--down,#ff4d4d)';
+      return '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" style="vertical-align:middle;"><polyline points="' + pts + '" fill="none" stroke="' + col + '" stroke-width="1.2" stroke-linejoin="round"/></svg>';
+    }
     function rowHtml(o) {
-      var m = metaOf(o.sym), up = (o.chg || 0) >= 0, col = up ? 'var(--up,#26d07c)' : 'var(--down,#ff4d4d)';
+      var m = metaOf(o.sym), up = (o.chg || 0) >= 0, col = up ? 'var(--up,#26d07c)' : 'var(--down,#ff4d4d)', id = idOf(o.sym);
       var chg = (o.chg != null) ? (up ? '+' : '') + o.chg : '-';
       var pct = (o.chgPct != null) ? (up ? '+' : '') + o.chgPct + '%' : '-';
       return '<tr class="wei-row">'
@@ -3730,8 +3737,25 @@ window.L_DISABLE_3D = true;
         + '<td style="padding:5px 10px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;">' + num(o.px, 2) + '</td>'
         + '<td style="padding:5px 10px;text-align:right;white-space:nowrap;color:' + col + ';font-variant-numeric:tabular-nums;">' + chg + '</td>'
         + '<td style="padding:5px 10px;text-align:right;white-space:nowrap;color:' + col + ';font-variant-numeric:tabular-nums;">' + (up ? '▲' : '▼') + ' ' + pct + bar(o.chgPct) + '</td>'
+        + '<td id="' + id + '_sp" style="padding:5px 10px;text-align:center;white-space:nowrap;color:var(--text-dim);">·</td>'
+        + '<td id="' + id + '_1y" style="padding:5px 10px;text-align:right;white-space:nowrap;color:var(--text-dim);font-variant-numeric:tabular-nums;">—</td>'
         + '<td style="padding:5px 2px 5px 10px;text-align:right;white-space:nowrap;color:var(--text-dim);">' + (o.t ? hms(o.t) : '-') + '</td>'
         + '</tr>';
+    }
+    async function enrich(syms) {
+      if (!syms.length) return;
+      try {
+        var res = await fetch(WK + '/history?syms=' + encodeURIComponent(syms.join(',')) + '&range=1y&interval=1wk', { cache: 'no-store' });
+        var d = await res.json();
+        if (!d || !d.ok || !d.series) return;
+        syms.forEach(function (sym) {
+          var s = d.series[sym]; if (!s) return;
+          var id = idOf(sym);
+          var spEl = document.getElementById(id + '_sp'); if (spEl && s.c) spEl.innerHTML = spark(s.c);
+          var yEl = document.getElementById(id + '_1y');
+          if (yEl && s.chgPct != null) { var up = s.chgPct >= 0; yEl.textContent = (up ? '+' : '') + s.chgPct + '%'; yEl.style.color = up ? 'var(--up,#26d07c)' : 'var(--down,#ff4d4d)'; }
+        });
+      } catch (e) {}
     }
     window.renderWEI = async function () {
       var body = document.getElementById('weiBody'), meta = document.getElementById('weiMeta');
@@ -3757,19 +3781,22 @@ window.L_DISABLE_3D = true;
           + '<th style="text-align:right;padding:5px 10px;font-weight:600;">Value</th>'
           + '<th style="text-align:right;padding:5px 10px;font-weight:600;">淨變動</th>'
           + '<th style="text-align:right;padding:5px 10px;font-weight:600;">漲跌 %</th>'
+          + '<th style="text-align:center;padding:5px 10px;font-weight:600;">走勢(1年)</th>'
+          + '<th style="text-align:right;padding:5px 10px;font-weight:600;">1年 %</th>'
           + '<th style="text-align:right;padding:5px 2px 5px 10px;font-weight:600;">時間</th>'
           + '</tr></thead><tbody>';
         var shown = 0;
         order.forEach(function (g) {
           var rows = buckets[g.key];
           if (!rows || !rows.length) return;
-          html += '<tr><td colspan="5" style="color:var(--amber,#ff8c00);font-weight:700;padding:12px 0 5px;border-bottom:1px solid rgba(255,180,20,.15);">' + esc(g.label) + ' <span style="color:var(--text-dim);font-weight:400;font-size:10px;">(' + rows.length + ')</span></td></tr>';
+          html += '<tr><td colspan="7" style="color:var(--amber,#ff8c00);font-weight:700;padding:12px 0 5px;border-bottom:1px solid rgba(255,180,20,.15);">' + esc(g.label) + ' <span style="color:var(--text-dim);font-weight:400;font-size:10px;">(' + rows.length + ')</span></td></tr>';
           rows.forEach(function (o) { html += rowHtml(o); shown++; });
         });
         html += '</tbody></table>';
         body.innerHTML = html;
         var now = new Date();
         if (meta) meta.textContent = shown + ' 個指數 · ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ' · ↻';
+        enrich(arr.map(function (o) { return o.sym; }));
       } catch (e) {
         body.innerHTML = '<div style="color:var(--down,#ff4d4d);padding:12px;">載入失敗,稍後再試</div>';
         if (meta) meta.textContent = '↻ 重試';
