@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.63</b></div>
+        <div>BUILD <b>v184.64</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -3753,7 +3753,10 @@ window.L_DISABLE_3D = true;
       var h = '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="color:var(--text-dim);border-bottom:1px solid rgba(255,180,20,.25);">'
         + '<th style="text-align:left;padding:6px 10px 6px 2px;font-weight:600;">項目</th>';
       ps.forEach(function (p) {
-        var lbl = F.freq === 'annual' ? String(p.year) : (p.year + ' Q' + p.quarter);
+        // 台股年度為民國年(如 114),換算西元顯示
+        var yr = p.year;
+        if (yr != null && yr < 200) yr = yr + 1911;
+        var lbl = (F.freq === 'annual' && !p.quarter) ? String(yr) : (yr + ' Q' + (p.quarter || ''));
         h += '<th style="text-align:right;padding:6px 10px;font-weight:600;">' + esc(lbl) + '</th>';
       });
       h += '</tr></thead><tbody>';
@@ -3767,7 +3770,8 @@ window.L_DISABLE_3D = true;
         h += '</tr>';
       });
       h += '</tbody></table>';
-      h += '<div style="padding:10px 2px;color:var(--text-dim);font-size:10px;">資料來源:公司申報財報(Finnhub reported)。最新一期顯示年增率。</div>';
+      var src = (F.data && F.data.source) || 'Finnhub';
+      h += '<div style="padding:10px 2px;color:var(--text-dim);font-size:10px;">資料來源:' + esc(src) + ' 公司申報財報。最新一期顯示年增率。' + (src !== 'Finnhub' ? ' 台股金額單位為新台幣仟元。' : '') + '</div>';
       return h;
     }
     function paint() {
