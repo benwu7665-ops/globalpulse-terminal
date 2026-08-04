@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.67</b></div>
+        <div>BUILD <b>v184.68</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -3683,6 +3683,163 @@ window.L_DISABLE_3D = true;
       </section>
     </div>
   </section>
+
+  <!-- ===== v184.68: ERN 財報行事曆(彭博 ERN 風格)===== -->
+  <section class="page" data-page="fin-ern">
+    <div class="terminal-page">
+      <section class="box" data-no-i18n>
+        <div class="box-head">
+          <span><span class="t-zh">財報行事曆</span><span class="t-en">EARNINGS_CALENDAR · ERN</span></span>
+          <span class="box-meta" id="ernMeta" style="cursor:pointer;" title="重新整理">↻</span>
+        </div>
+        <div class="box-body" id="ernBody" style="font-family:var(--font-mono);font-size:12px;overflow-x:auto;">
+          <div style="color:var(--text-dim);padding:12px;">載入中…</div>
+        </div>
+      </section>
+    </div>
+  </section>
+  <script>
+  /* v184.68 — ERN 財報行事曆。自給自足;重用 /earnings、/symsearch。
+     全市場模式(未來 N 天)或單一標的模式(歷史+預估),依日期分組。 */
+  (function () {
+    var WK = 'https://ais-proxy.2syzkjy2vq.workers.dev';
+    var E = { sym: '', days: 14, data: null };
+    var SUG = { items: [], idx: -1, timer: null, seq: 0 };
+    var DAYS = [[7, '7天'], [14, '14天'], [30, '30天'], [60, '60天']];
+    function esc(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    function n2(v, d) { return (v == null || isNaN(v)) ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: d == null ? 2 : d }); }
+    function bigv(v) {
+      var x = Number(String(v == null ? '' : v).replace(/,/g, ''));
+      if (!isFinite(x) || !x) return '—';
+      var a = Math.abs(x);
+      if (a >= 1e12) return (x / 1e12).toFixed(2) + 'T';
+      if (a >= 1e8) return (x / 1e8).toFixed(2) + '億';
+      if (a >= 1e6) return (x / 1e6).toFixed(1) + 'M';
+      return Number(x).toLocaleString('en-US');
+    }
+    function wd(dstr) {
+      try { var d = new Date(dstr + 'T00:00:00'); return ['日', '一', '二', '三', '四', '五', '六'][d.getDay()]; } catch (e) { return ''; }
+    }
+    function bar() {
+      var db = DAYS.map(function (r) {
+        var on = E.days === r[0];
+        return '<button class="ern-day" data-d="' + r[0] + '" style="font-size:11px;padding:3px 9px;margin-right:4px;border-radius:3px;cursor:pointer;background:' + (on ? 'var(--amber,#ff8c00)' : 'transparent') + ';color:' + (on ? '#000' : 'var(--text)') + ';border:1px solid ' + (on ? 'var(--amber,#ff8c00)' : 'rgba(255,180,20,.35)') + ';">' + r[1] + '</button>';
+      }).join('');
+      return '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:2px 2px 10px;border-bottom:1px solid rgba(255,180,20,.15);margin-bottom:8px;">'
+        + '<span style="position:relative;display:inline-block;">'
+        +   '<input id="ernQ" autocomplete="off" placeholder="單一標的(留空=全市場)…" style="font-size:11px;padding:4px 8px;border-radius:3px;background:rgba(255,255,255,.05);border:1px solid rgba(255,180,20,.3);color:var(--text);font-family:var(--font-mono);width:200px;">'
+        +   '<div id="ernSug" style="display:none;position:absolute;top:100%;left:0;margin-top:3px;min-width:300px;max-height:240px;overflow-y:auto;background:#0d0d0d;border:1px solid rgba(255,180,20,.35);border-radius:4px;z-index:9999;box-shadow:0 6px 20px rgba(0,0,0,.6);"></div>'
+        + '</span>'
+        + (E.sym ? '<span style="color:var(--amber,#ff8c00);font-weight:700;">' + esc(E.sym) + '</span><button id="ernClear" style="font-size:11px;padding:3px 8px;border-radius:3px;cursor:pointer;background:transparent;color:var(--text-dim);border:1px solid rgba(255,180,20,.3);">✕ 全市場</button>' : '')
+        + '<span style="flex:1"></span>' + (E.sym ? '' : db)
+        + '</div>';
+    }
+    function table() {
+      var its = (E.data && E.data.items) || [];
+      if (!its.length) return '<div style="color:var(--text-dim);padding:16px;">這段期間沒有排定的財報/股利日程</div>';
+      var byDate = {};
+      its.forEach(function (o) { (byDate[o.date] = byDate[o.date] || []).push(o); });
+      var dates = Object.keys(byDate).sort();
+      var h = '';
+      dates.forEach(function (d) {
+        h += '<div style="color:var(--amber,#ff8c00);font-weight:700;padding:12px 2px 5px;border-bottom:1px solid rgba(255,180,20,.15);">' + esc(d) + ' <span style="color:var(--text-dim);font-weight:400;font-size:10px;">(週' + wd(d) + ' · ' + byDate[d].length + ' 檔)</span></div>';
+        h += '<table style="width:100%;border-collapse:collapse;font-size:12px;"><tbody>';
+        byDate[d].forEach(function (o) {
+          if (o.kind === 'dividend') {
+            h += '<tr class="ern-row"><td style="padding:5px 8px 5px 2px;white-space:nowrap;"><span class="ern-open" data-sym="' + esc(o.sym) + '" style="cursor:pointer;color:var(--amber,#ff8c00);">' + esc(o.sym) + '</span> <span style="color:var(--text-dim);">' + esc(o.name || '') + '</span></td>'
+              + '<td style="padding:5px 8px;color:var(--text-dim);">股利 ' + esc(o.dividendYear || '') + '</td>'
+              + '<td style="padding:5px 8px;text-align:right;">淨利 ' + bigv(o.netIncome) + '</td>'
+              + '<td style="padding:5px 8px;text-align:right;">可分配 ' + bigv(o.distributable) + '</td>'
+              + '<td style="padding:5px 2px 5px 8px;text-align:right;color:var(--text-dim);">' + esc(o.progress || '') + '</td></tr>';
+          } else {
+            var beat = (o.epsAct != null && o.epsEst != null) ? (o.epsAct - o.epsEst) : null;
+            var bc = beat == null ? 'var(--text-dim)' : (beat >= 0 ? 'var(--up,#26d07c)' : 'var(--down,#ff4d4d)');
+            h += '<tr class="ern-row"><td style="padding:5px 8px 5px 2px;white-space:nowrap;"><span class="ern-open" data-sym="' + esc(o.sym) + '" style="cursor:pointer;color:var(--amber,#ff8c00);">' + esc(o.sym) + '</span></td>'
+              + '<td style="padding:5px 8px;color:var(--text-dim);white-space:nowrap;">' + (o.hour === 'bmo' ? '盤前' : o.hour === 'amc' ? '盤後' : esc(o.hour || '')) + (o.year ? ' ' + o.year + 'Q' + o.quarter : '') + '</td>'
+              + '<td style="padding:5px 8px;text-align:right;font-variant-numeric:tabular-nums;">EPS預估 ' + n2(o.epsEst) + '</td>'
+              + '<td style="padding:5px 8px;text-align:right;font-variant-numeric:tabular-nums;color:' + bc + ';">實際 ' + n2(o.epsAct) + (beat != null ? ' (' + (beat >= 0 ? '+' : '') + beat.toFixed(2) + ')' : '') + '</td>'
+              + '<td style="padding:5px 2px 5px 8px;text-align:right;color:var(--text-dim);">營收預估 ' + bigv(o.revEst) + '</td></tr>';
+          }
+        });
+        h += '</tbody></table>';
+      });
+      h += '<div style="padding:12px 2px;color:var(--text-dim);font-size:10px;">共 ' + its.length + ' 筆 · 美股為財報日(Finnhub),台股為股利分派/股東會日程(TWSE)</div>';
+      return h;
+    }
+    function paint() {
+      var b = document.getElementById('ernBody'); if (!b) return;
+      if (!document.getElementById('ern-style')) { var st = document.createElement('style'); st.id = 'ern-style'; st.textContent = '.ern-row:hover{background:rgba(255,180,20,.06);}'; document.head.appendChild(st); }
+      b.innerHTML = bar() + (E.data ? table() : '<div style="color:var(--text-dim);padding:16px;">載入中…</div>');
+    }
+    function sugEl() { return document.getElementById('ernSug'); }
+    function hideSug() { var e = sugEl(); if (e) { e.style.display = 'none'; e.innerHTML = ''; } SUG.items = []; SUG.idx = -1; }
+    function paintSug() {
+      var e = sugEl(); if (!e) return;
+      if (!SUG.items.length) { e.style.display = 'none'; e.innerHTML = ''; return; }
+      e.innerHTML = SUG.items.map(function (o, i) {
+        return '<div class="ern-sug-item" data-sym="' + esc(o.sym) + '" style="padding:6px 10px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);background:' + (i === SUG.idx ? 'rgba(255,180,20,.15)' : 'transparent') + ';">'
+          + '<span style="color:var(--amber,#ff8c00);font-weight:600;">' + esc(o.sym) + '</span>'
+          + '<div style="color:var(--text-dim);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(o.name || '') + '</div></div>';
+      }).join('');
+      e.style.display = 'block';
+    }
+    async function doSearch(q) {
+      q = String(q || '').trim(); if (!q) { hideSug(); return; }
+      var my = ++SUG.seq;
+      try {
+        var r = await fetch(WK + '/symsearch?q=' + encodeURIComponent(q), { cache: 'no-store' });
+        var j = await r.json(); if (my !== SUG.seq) return;
+        SUG.items = (j && j.results) || []; SUG.idx = -1; paintSug();
+      } catch (e) { if (my === SUG.seq) hideSug(); }
+    }
+    window.renderERN = async function (sym) {
+      if (sym !== undefined) E.sym = sym ? String(sym).toUpperCase() : '';
+      var meta = document.getElementById('ernMeta');
+      E.data = null; paint();
+      if (meta) meta.textContent = '↻ 載入中…';
+      try {
+        var q = E.sym ? ('sym=' + encodeURIComponent(E.sym)) : ('days=' + E.days);
+        var r = await fetch(WK + '/earnings?' + q, { cache: 'no-store' });
+        var j = await r.json();
+        E.data = (j && j.ok) ? j : { items: [] };
+        paint();
+        if (meta) meta.textContent = (E.sym || ('未來' + E.days + '天')) + ' · ' + ((E.data.items || []).length) + ' 筆 · ↻';
+      } catch (e) { E.data = { items: [] }; paint(); if (meta) meta.textContent = '↻ 重試'; }
+    };
+    window.__openERN = function (sym) {
+      var _o = window.openRouteTab, _s = window.setRoute;
+      if (_o) _o('fin-ern', 'ERN'); else if (_s) _s('fin-ern');
+      if (typeof window.renderERN === 'function') window.renderERN(sym || '');
+    };
+    document.addEventListener('click', function (e) {
+      var t = e.target; if (!t || !t.closest) return;
+      if (t.closest('#ernMeta')) { window.renderERN(); return; }
+      var db = t.closest('.ern-day'); if (db) { E.days = parseInt(db.getAttribute('data-d'), 10); window.renderERN(''); return; }
+      if (t.closest('#ernClear')) { window.renderERN(''); return; }
+      var op = t.closest('.ern-open');
+      if (op) { var os = op.getAttribute('data-sym'); if (os && typeof window.__openDES === 'function') window.__openDES(os); return; }
+      var it = t.closest('.ern-sug-item');
+      if (it) { hideSug(); var i2 = document.getElementById('ernQ'); if (i2) i2.value = ''; window.renderERN(it.getAttribute('data-sym')); return; }
+      if (!t.closest('#ernQ') && !t.closest('#ernSug')) hideSug();
+    });
+    document.addEventListener('input', function (e) {
+      if (!e.target || e.target.id !== 'ernQ') return;
+      var v = e.target.value; clearTimeout(SUG.timer);
+      SUG.timer = setTimeout(function () { doSearch(v); }, 220);
+    });
+    document.addEventListener('keydown', function (e) {
+      if (!e.target || e.target.id !== 'ernQ') return;
+      if (e.key === 'ArrowDown' && SUG.items.length) { e.preventDefault(); SUG.idx = Math.min(SUG.idx + 1, SUG.items.length - 1); paintSug(); return; }
+      if (e.key === 'ArrowUp' && SUG.items.length) { e.preventDefault(); SUG.idx = Math.max(SUG.idx - 1, 0); paintSug(); return; }
+      if (e.key === 'Escape') { hideSug(); return; }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        var pick = (SUG.idx >= 0 && SUG.items[SUG.idx]) ? SUG.items[SUG.idx].sym : (SUG.items.length ? SUG.items[0].sym : e.target.value);
+        hideSug(); e.target.value = ''; if (pick) window.renderERN(pick);
+      }
+    });
+  })();
+  </script>
 
   <!-- ===== v184.67: HP 歷史價格表(彭博 HP 風格)===== -->
   <section class="page" data-page="fin-hp">
@@ -6525,6 +6682,7 @@ const TAB_GROUPS = [
       { label: '證券說明 DES', route: 'fin-des' },
       { label: '財務報表 FA', route: 'fin-fa' },
       { label: '歷史價格 HP', route: 'fin-hp' },
+      { label: '財報行事曆 ERN', route: 'fin-ern' },
       // v184.61: 「個股詳情」自下拉移除(與 DES 功能重疊)。頁面與功能完全保留,
       //   入口改為:DES 的「↗ 個股詳情」按鈕、儀錶板點股票、指令列搜尋、同類股矩陣等。
       //   要復原只需取消下一行註解。
@@ -7368,6 +7526,7 @@ function setRoute(route) {
   if (route === 'fin-des') { if (typeof window.renderDES === 'function') window.renderDES(); }
   if (route === 'fin-fa') { if (typeof window.renderFA === 'function') window.renderFA(); }
   if (route === 'fin-hp') { if (typeof window.renderHP === 'function') window.renderHP(); }
+  if (route === 'fin-ern') { if (typeof window.renderERN === 'function') window.renderERN(); }
   if (route === 'fin-config') renderWorkerStatus();
   if (route === 'geo') setTimeout(onResize, 60);
   if (route === 'us-market') {
@@ -24479,6 +24638,7 @@ document.addEventListener('keydown', e => {
     FA:  { route: 'fin-fa',  label: 'FA',  name: '財務報表', fn: 'renderFA',  needSym: true },
     GP:  { route: 'fin-gp',  label: 'GP',  name: '走勢比較', fn: null,        needSym: true, compare: true },
     HP:  { route: 'fin-hp',  label: 'HP',  name: '歷史價格', fn: 'renderHP',  needSym: true },
+    ERN: { route: 'fin-ern', label: 'ERN', name: '財報行事曆', fn: 'renderERN', needSym: false },
     WEI: { route: 'fin-wei', label: 'WEI', name: '世界指數', fn: 'renderWEI', needSym: false },
   };
   function parseCommand(raw) {
