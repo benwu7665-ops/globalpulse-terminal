@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.79</b></div>
+        <div>BUILD <b>v184.80</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -3707,11 +3707,12 @@ window.L_DISABLE_3D = true;
       if (document.getElementById('multi-style')) return;
       var st = document.createElement('style'); st.id = 'multi-style';
       st.textContent =
-        '.gp-multi.gp-multi{display:grid;gap:1px;background:rgba(255,180,20,.18);' +
-        'overflow-y:auto !important;overflow-x:hidden;align-content:start;' +
+        '.gp-multi.gp-multi{display:grid;gap:8px;background:transparent;' +
+        'overflow-y:auto !important;overflow-x:hidden;align-content:start;padding:8px;' +
         'grid-auto-rows:var(--gp-cell,430px);}' +
         '.gp-multi .page.active{display:block;overflow:auto;background:var(--bg,#000);' +
-        'min-width:0;height:var(--gp-cell,430px);}' +
+        'min-width:0;height:var(--gp-cell,430px);' +
+        'border:1px solid rgba(255,180,20,.22);border-radius:4px;}' +
         '.gp-multi .page.active .terminal-page{padding:8px;}' +
         '.gp-multi.c1{grid-template-columns:1fr;}' +
         '.gp-multi.c2{grid-template-columns:repeat(2,1fr);}' +
@@ -3748,13 +3749,13 @@ window.L_DISABLE_3D = true;
       var allPanes = [mainRoute].concat(list);
       // 先清掉所有頁的行內排版(還原用)
       document.querySelectorAll('.page').forEach(function (p) {
-        p.style.removeProperty('height');
-        p.style.removeProperty('min-width');
-        p.style.removeProperty('overflow');
+        ['height', 'min-width', 'overflow', 'border', 'border-radius', 'box-sizing'].forEach(function (k) {
+          p.style.removeProperty(k);
+        });
       });
       if (!list.length) {
         if (wrap.classList) wrap.classList.remove('gp-multi');
-        ['display', 'grid-template-columns', 'grid-auto-rows', 'gap', 'overflow-y', 'overflow-x', 'align-content', 'background'].forEach(function (k) {
+        ['display', 'grid-template-columns', 'grid-auto-rows', 'gap', 'overflow-y', 'overflow-x', 'align-content', 'background', 'padding', 'box-sizing'].forEach(function (k) {
           try { wrap.style.removeProperty(k); } catch (e) {}
         });
         syncUI(); return;
@@ -3778,11 +3779,13 @@ window.L_DISABLE_3D = true;
       wrap.style.setProperty('display', 'grid', 'important');
       wrap.style.setProperty('grid-template-columns', 'repeat(' + cols + ', minmax(0, 1fr))', 'important');
       wrap.style.setProperty('grid-auto-rows', cell + 'px', 'important');
-      wrap.style.setProperty('gap', '1px', 'important');
+      wrap.style.setProperty('gap', '8px', 'important');
+      wrap.style.setProperty('padding', '8px', 'important');
+      wrap.style.setProperty('box-sizing', 'border-box', 'important');
       wrap.style.setProperty('overflow-y', 'auto', 'important');
       wrap.style.setProperty('overflow-x', 'hidden', 'important');
       wrap.style.setProperty('align-content', 'start', 'important');
-      wrap.style.setProperty('background', 'rgba(255,180,20,.18)', 'important');
+      wrap.style.setProperty('background', 'transparent', 'important');
 
       allPanes.forEach(function (r) {
         var el = document.querySelector('.page[data-page="' + r + '"]');
@@ -3790,6 +3793,9 @@ window.L_DISABLE_3D = true;
         el.style.setProperty('height', cell + 'px', 'important');
         el.style.setProperty('min-width', '0', 'important');
         el.style.setProperty('overflow', 'auto', 'important');
+        el.style.setProperty('border', '1px solid rgba(255,180,20,.22)', 'important');
+        el.style.setProperty('border-radius', '4px', 'important');
+        el.style.setProperty('box-sizing', 'border-box', 'important');
       });
       syncUI();
     };
