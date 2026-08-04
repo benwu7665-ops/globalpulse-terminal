@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.65</b></div>
+        <div>BUILD <b>v184.66</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -24297,6 +24297,55 @@ document.addEventListener('keydown', e => {
   }
 
   // ---- Search → returns top N entries with scores
+  // ---- v184.66: 彭博式命令語言 —— 「代碼 + 功能碼」直接開功能頁
+  //   例:「2330 DES」「AAPL FA」「NVDA GP」「2454.TW FA」「TSM HP」
+  //   也支援反序(「DES 2330」)與單獨功能碼(「WEI」)。
+  const FUNC_CODES = {
+    DES: { route: 'fin-des', label: 'DES', name: '證券說明', fn: 'renderDES', needSym: true },
+    FA:  { route: 'fin-fa',  label: 'FA',  name: '財務報表', fn: 'renderFA',  needSym: true },
+    GP:  { route: 'fin-gp',  label: 'GP',  name: '走勢比較', fn: null,        needSym: true, compare: true },
+    WEI: { route: 'fin-wei', label: 'WEI', name: '世界指數', fn: 'renderWEI', needSym: false },
+  };
+  function parseCommand(raw) {
+    const t = String(raw || '').trim().toUpperCase().split(/\s+/).filter(Boolean);
+    if (!t.length || t.length > 2) return null;
+    const isCode = (x) => FUNC_CODES[x] != null;
+    // 標的樣式:AAPL / 2330 / 2330.TW / ^TWII / 0700.HK
+    const isSym = (x) => /^[A-Z0-9.^=_-]{1,20}$/.test(x) && !isCode(x);
+    let sym = null, code = null;
+    if (t.length === 1) {
+      if (isCode(t[0])) code = t[0]; else return null;
+    } else {
+      if (isCode(t[0]) && isSym(t[1])) { code = t[0]; sym = t[1]; }
+      else if (isSym(t[0]) && isCode(t[1])) { sym = t[0]; code = t[1]; }
+      else return null;
+    }
+    const def = FUNC_CODES[code];
+    if (def.needSym && sym) {
+      // 純數字 4~6 碼 → 視為台股,自動補 .TW
+      if (/^\d{4,6}$/.test(sym)) sym = sym + '.TW';
+    }
+    return { code, sym, def };
+  }
+  function commandEntry(raw) {
+    const p = parseCommand(raw);
+    if (!p) return null;
+    const { code, sym, def } = p;
+    return {
+      kind: 'cmd',
+      kindLabel: '指令',
+      name: (sym ? sym + ' ' : '') + code + '  ·  ' + def.name,
+      sub: sym ? ('開啟 ' + def.name + ':' + sym) : ('開啟 ' + def.name),
+      terms: [],
+      action: () => {
+        const ort = window.openRouteTab, sr = window.setRoute;
+        if (def.compare && sym && typeof window.__gpCompare === 'function') { window.__gpCompare(sym); return; }
+        if (ort) ort(def.route, def.label); else if (sr) sr(def.route);
+        if (def.fn && typeof window[def.fn] === 'function') window[def.fn](sym || undefined);
+      }
+    };
+  }
+
   function search(query) {
     const q = (query || '').trim().toLowerCase();
     if (!q) return [];
@@ -24311,6 +24360,9 @@ document.addEventListener('keydown', e => {
       return a.entry.name.length - b.entry.name.length;
     });
     const out = scored.slice(0, MAX_RESULTS).map(x => x.entry);
+    // v184.66: 命令語言命中時排第一(按 Enter 直接執行)
+    const cmdEntry = commandEntry(query);
+    if (cmdEntry) out.unshift(cmdEntry);
     // v184.19: 「打什麼都能問」— 任何輸入都在最下面追加「用 AI 回答」。
     // 沒有其他結果時它就是唯一選項(直接 Enter 問 AI);有結果時它墊底當 fallback。
     const raw = (query || '').trim();
