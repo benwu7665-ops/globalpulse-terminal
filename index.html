@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.71</b></div>
+        <div>BUILD <b>v184.72</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -3683,6 +3683,112 @@ window.L_DISABLE_3D = true;
       </section>
     </div>
   </section>
+
+  <script>
+  /* v184.72 — 並排面板(SPLIT / 類型B 最小版)。
+     做法:並排時讓「副面板路由」的 .page 也保持 active,再用 CSS 排成左右兩欄。
+     不改任何 render 函式、不動容器綁定 → 風險最低。
+     限制:同一功能不能左右各開一次(容器 id 唯一),已在 UI 阻擋。 */
+  (function () {
+    var KEY = 'gp-split-v1';
+    var S = { on: false, right: '' };
+    var OPTS = [
+      ['fin-wei', 'WEI 世界指數'], ['fin-gp', 'GP 走勢比較'], ['fin-des', 'DES 證券說明'],
+      ['fin-fa', 'FA 財務報表'], ['fin-hp', 'HP 歷史價格'], ['fin-ern', 'ERN 財報行事曆'],
+      ['fin-fx', 'FXC 匯率矩陣'], ['fin-alrt', 'ALRT 價格警報'], ['fin-macro', '總經數據']
+    ];
+    try { S = Object.assign(S, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) {}
+    function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+
+    function ensureStyle() {
+      if (document.getElementById('split-style')) return;
+      var st = document.createElement('style'); st.id = 'split-style';
+      st.textContent =
+        '.gp-split .page.active{display:block;float:left;width:50%;height:100%;overflow:auto;' +
+        'border-right:1px solid rgba(255,180,20,.18);box-sizing:border-box;}' +
+        '.gp-split .page.active:last-of-type{border-right:none;}' +
+        '.gp-split .page.active .terminal-page{padding-left:10px;padding-right:10px;}' +
+        '@media (max-width: 900px){ .gp-split .page.active{float:none;width:100%;height:50%;border-right:none;border-bottom:1px solid rgba(255,180,20,.18);} }' +
+        '#splitBtn{font-size:11px;padding:2px 9px;margin-left:8px;border-radius:3px;cursor:pointer;' +
+        'background:transparent;color:var(--text-dim);border:1px solid rgba(255,180,20,.3);}' +
+        '#splitBtn.on{background:var(--amber,#ff8c00);color:#000;border-color:var(--amber,#ff8c00);}' +
+        '#splitSel{font-size:11px;padding:2px 6px;margin-left:5px;border-radius:3px;background:rgba(255,255,255,.05);' +
+        'border:1px solid rgba(255,180,20,.3);color:var(--text);font-family:var(--font-mono);}';
+      document.head.appendChild(st);
+    }
+    function curRoute() {
+      var a = document.querySelector('.page.active');
+      return a ? a.dataset.page : '';
+    }
+    // 取 .page 真正的父容器(不寫死類名,結構改變也不會壞)
+    function pageWrap() {
+      var p = document.querySelector('.page');
+      return (p && p.parentElement) ? p.parentElement : document.body;
+    }
+    // 供 setRoute 呼叫:主路由切換後,補上副面板
+    window.__splitApply = function (mainRoute) {
+      var wrap = pageWrap();
+      if (!S.on || !S.right || S.right === mainRoute) {
+        if (wrap.classList) wrap.classList.remove('gp-split');
+        syncBtn();
+        return;
+      }
+      ensureStyle();
+      var el = document.querySelector('.page[data-page="' + S.right + '"]');
+      if (el) {
+        el.classList.add('active');
+        if (wrap.classList) wrap.classList.add('gp-split');
+        // 觸發副面板的 render(若尚未載入)
+        var FN = { 'fin-wei': 'renderWEI', 'fin-gp': 'renderGP', 'fin-des': 'renderDES', 'fin-fa': 'renderFA',
+                   'fin-hp': 'renderHP', 'fin-ern': 'renderERN', 'fin-fx': 'renderFX', 'fin-alrt': 'renderALRT' };
+        var fn = FN[S.right];
+        if (fn && typeof window[fn] === 'function') { try { window[fn](); } catch (e) {} }
+      }
+      syncBtn();
+    };
+    function syncBtn() {
+      var b = document.getElementById('splitBtn');
+      if (b) b.classList.toggle('on', !!(S.on && S.right));
+      var sel = document.getElementById('splitSel');
+      if (sel) { sel.style.display = S.on ? '' : 'none'; sel.value = S.right || ''; }
+    }
+    function mount() {
+      var bar = document.getElementById('tabbarMain') || document.querySelector('.tabbar-main');
+      if (!bar || document.getElementById('splitBtn')) return;
+      ensureStyle();
+      var wrapEl = document.createElement('span');
+      wrapEl.style.cssText = 'display:inline-flex;align-items:center;white-space:nowrap;';
+      var btn = document.createElement('button');
+      btn.id = 'splitBtn'; btn.textContent = '⫿⫿ 並排'; btn.title = '左右並排兩個功能頁';
+      var sel = document.createElement('select');
+      sel.id = 'splitSel';
+      sel.innerHTML = '<option value="">選右側功能…</option>' + OPTS.map(function (o) {
+        return '<option value="' + o[0] + '">' + o[1] + '</option>';
+      }).join('');
+      sel.style.display = 'none';
+      wrapEl.appendChild(btn); wrapEl.appendChild(sel);
+      bar.appendChild(wrapEl);
+      btn.addEventListener('click', function () {
+        S.on = !S.on; save();
+        if (!S.on) {
+          var wrap = pageWrap();
+          if (wrap.classList) wrap.classList.remove('gp-split');
+          document.querySelectorAll('.page.active').forEach(function (p, i) { if (p.dataset.page !== curRoute() && i > 0) p.classList.remove('active'); });
+          if (typeof window.setRoute === 'function') window.setRoute(curRoute());
+        }
+        syncBtn();
+        if (S.on && S.right && typeof window.setRoute === 'function') window.setRoute(curRoute());
+      });
+      sel.addEventListener('change', function () {
+        S.right = sel.value; save();
+        if (typeof window.setRoute === 'function') window.setRoute(curRoute());
+      });
+      syncBtn();
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount);
+    else setTimeout(mount, 300);
+  })();
+  </script>
 
   <!-- ===== v184.71: ALRT 價格警報(彭博 ALRT 風格)===== -->
   <section class="page" data-page="fin-alrt">
@@ -7831,6 +7937,8 @@ initGlobe();
 /* ========== ROUTING ========== */
 function setRoute(route) {
   document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.dataset.page === route));
+  // v184.72: 並排模式 — 讓副面板的頁也保持 active(CSS 會把兩者排成左右兩欄)
+  try { if (window.__splitApply) window.__splitApply(route); } catch (e) {}
   document.querySelectorAll('.nav-item, .sub-item').forEach(el => el.classList.remove('active'));
   const navEl = document.querySelector('[data-route="' + route + '"]');
   if (navEl) {
