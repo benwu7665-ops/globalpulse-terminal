@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.81</b></div>
+        <div>BUILD <b>v184.82</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -21422,8 +21422,10 @@ async function seedWatchlistFromRest() {
   // in a tight burst. We use small batches (8 symbols = 8 concurrent
   // fetches inside the worker) AND space them out with a short delay
   // so the total request rate stays gentle.
-  const BATCH_SIZE = 8;
-  const BATCH_DELAY_MS = 250;   // ~32 req/sec sustained, well under Finnhub's 60/sec
+  // v184.82: Finnhub 免費層實測會 429(DES/FA/ERN 也共用同一把金鑰),
+  //   降低併發與速率:4 併發 + 600ms 間隔 ≈ 6.7 req/s,對免費層友善得多。
+  const BATCH_SIZE = 4;
+  const BATCH_DELAY_MS = 600;
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   let writtenCount = 0;
   const allMissing = [];
@@ -21433,7 +21435,10 @@ async function seedWatchlistFromRest() {
       // Cache-bust: previous failed batches may have left bad responses
       // cached at the edge for 30s. Adding a unique param forces a fresh
       // fetch on every seed attempt so we never inherit stale partial data.
-      const cacheBuster = '&_t=' + Date.now();
+      // v184.82: 移除無條件 cache-bust —— 先前每次都用唯一網址,
+      //   讓邊緣快取完全失效,49 檔每次載入都真打 Finnhub → 429。
+      //   改為以「整分鐘」為單位分桶:同一分鐘內可命中快取,又不會拿到過舊資料。
+      const cacheBuster = '&_t=' + Math.floor(Date.now() / 60000);
       const r = await fetch(QUOTE_PROXY_URL + '?symbols=' + batch.join(',') + cacheBuster);
       if (!r.ok) {
         console.warn('[WATCHLIST] seed batch', i, 'proxy returned', r.status);
@@ -21485,7 +21490,7 @@ async function seedWatchlistFromRest() {
         for (let i = 0; i < stillMissing.length; i += BATCH_SIZE) {
           const batch = stillMissing.slice(i, i + BATCH_SIZE);
           try {
-            const r = await fetch(QUOTE_PROXY_URL + '?symbols=' + batch.join(',') + '&_t=' + Date.now());
+            const r = await fetch(QUOTE_PROXY_URL + '?symbols=' + batch.join(',') + '&_t=' + Math.floor(Date.now() / 60000));
             if (!r.ok) continue;
             const j = await r.json();
             if (!j || !j.ok || !j.quotes) continue;
