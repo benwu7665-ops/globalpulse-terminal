@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.80</b></div>
+        <div>BUILD <b>v184.81</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -20939,14 +20939,16 @@ async function _myMemoryTranslateDirect(text, cache) {
     if (Date.now() - (cached._t || 0) < 6 * 3600_000) return null;
   }
   try {
-    const u = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text) + '&langpair=en|zh-TW';
+    // v184.81: 改走自家 Worker /translate(Worker 端有快取 + MyMemory→Libre 備援),
+    //   不再從瀏覽器直打 MyMemory 免費 API —— 先前一次 30 則會被 429 限流洗版。
+    const u = 'https://ais-proxy.2syzkjy2vq.workers.dev/translate?q=' + encodeURIComponent(String(text).slice(0, 450));
     const r = await fetch(u);
     if (!r.ok) {
       cache[text] = { zh: null, _t: Date.now() };
       return null;
     }
     const j = await r.json();
-    const zh = j && j.responseData && j.responseData.translatedText;
+    const zh = j && j.zh;
     if (!zh || typeof zh !== 'string') {
       cache[text] = { zh: null, _t: Date.now() };
       return null;
@@ -20981,8 +20983,10 @@ async function fillMissingTranslations() {
   );
   if (targets.length === 0) return;
 
-  const BATCH = 3;
+  const BATCH = 2;                 // v184.81: 併發降到 2
+  const GAP_MS = 400;              // 批次之間間隔,避免瞬間灌爆上游
   for (let i = 0; i < targets.length; i += BATCH) {
+    if (i > 0) await new Promise(r => setTimeout(r, GAP_MS));
     const chunk = targets.slice(i, i + BATCH);
     const results = await Promise.all(chunk.map(f => _myMemoryTranslateDirect(f.msg, cache)));
     for (let j = 0; j < chunk.length; j++) {
