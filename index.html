@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.69</b></div>
+        <div>BUILD <b>v184.70</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -3616,7 +3616,7 @@ window.L_DISABLE_3D = true;
         <!-- v180.15 — TW-only aside boxes. Only shown for TW symbols.
              Filled by renderTwStock() in tw-stock module. -->
         <section class="box tw-only-box" data-no-i18n style="display:none;">
-          <div class="box-head">歷史報酬 <span style="color:var(--text-dim);font-size:10px;">// 期間報酬率</span></div>
+          <div class="box-head">歷史報酬 <span style="color:var(--text-dim);font-size:10px;">// 期間報酬率</span><span class="box-meta"><span class="goto-hp" style="cursor:pointer;color:var(--amber,#ff8c00);font-size:10px;" title="逐日開高低收 / 成交量 / CSV 匯出">↗ 逐日明細 HP</span></span></div>
           <div class="box-body">
             <div id="twStockReturns" style="font-family:var(--font-mono);font-size:12px;">
               <div style="padding:6px;color:var(--text-dim);font-size:11px;">[ 載入中… ]</div>
@@ -3625,7 +3625,7 @@ window.L_DISABLE_3D = true;
         </section>
 
         <section class="box tw-only-box" data-no-i18n style="display:none;">
-          <div class="box-head">52 週區間 <span style="color:var(--text-dim);font-size:10px;">// 高低 / 距高點</span></div>
+          <div class="box-head">52 週區間 <span style="color:var(--text-dim);font-size:10px;">// 高低 / 距高點</span><span class="box-meta"><span class="goto-des" style="cursor:pointer;color:var(--amber,#ff8c00);font-size:10px;" title="波動率 / 最大回撤 / 相對大盤強弱 / 估值">↗ 完整風險指標 DES</span></span></div>
           <div class="box-body">
             <div id="twStock52w" style="font-family:var(--font-mono);font-size:12px;">
               <div style="padding:6px;color:var(--text-dim);font-size:11px;">[ 載入中… ]</div>
@@ -4468,6 +4468,15 @@ window.L_DISABLE_3D = true;
       if (faBtn) { var fs = faBtn.getAttribute('data-sym'); if (fs && typeof window.__openFA === 'function') window.__openFA(fs); return; }
       var stBtn = t.closest('#desToStock');
       if (stBtn) { var ss = stBtn.getAttribute('data-sym'); if (ss && typeof window.__openStock === 'function') window.__openStock(ss); return; }
+      // v184.70: 個股詳情的「歷史報酬」→ HP 逐日明細 / 「52週區間」→ DES 完整風險指標
+      if (t.closest('.goto-hp') || t.closest('.goto-des')) {
+        var cur = '';
+        try { cur = (window.state && window.state.currentStock) || ''; } catch (er) {}
+        if (!cur) { var hd0 = document.getElementById('stockSymHead'); cur = hd0 ? (hd0.textContent || '').trim() : ''; }
+        if (t.closest('.goto-hp')) { if (cur && typeof window.__openHP === 'function') window.__openHP(cur); }
+        else { if (cur && typeof window.__openDES === 'function') window.__openDES(cur); }
+        return;
+      }
       // 反向:個股詳情頁的「↗ DES」按鈕 → 帶著 currentStock 開 DES
       if (t.closest('#stockToDes')) {
         var cs = '';
