@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.68</b></div>
+        <div>BUILD <b>v184.69</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -3683,6 +3683,101 @@ window.L_DISABLE_3D = true;
       </section>
     </div>
   </section>
+
+  <!-- ===== v184.69: FXC 匯率交叉矩陣(彭博 FXC 風格)===== -->
+  <section class="page" data-page="fin-fx">
+    <div class="terminal-page">
+      <section class="box" data-no-i18n>
+        <div class="box-head">
+          <span><span class="t-zh">匯率交叉矩陣</span><span class="t-en">FX_CROSS_RATES · FXC</span></span>
+          <span class="box-meta" id="fxMeta" style="cursor:pointer;" title="重新整理">↻</span>
+        </div>
+        <div class="box-body" id="fxBody" style="font-family:var(--font-mono);font-size:12px;overflow-x:auto;">
+          <div style="color:var(--text-dim);padding:12px;">載入中…</div>
+        </div>
+      </section>
+    </div>
+  </section>
+  <script>
+  /* v184.69 — FXC 匯率交叉矩陣。自給自足;重用 /fx。
+     12 種貨幣兩兩交叉(讀法:1 [列] = N [欄]),對角線標示,USD 列/欄顯示日變動。 */
+  (function () {
+    var WK = 'https://ais-proxy.2syzkjy2vq.workers.dev';
+    var X = { data: null, base: 'USD' };
+    var NAMES = { USD: '美元', EUR: '歐元', JPY: '日圓', GBP: '英鎊', CHF: '瑞郎', AUD: '澳幣', CAD: '加幣', CNY: '人民幣', TWD: '台幣', HKD: '港幣', KRW: '韓元', SGD: '新幣' };
+    function esc(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+    function fmt(v) {
+      if (v == null || !isFinite(v)) return '—';
+      var a = Math.abs(v);
+      if (a >= 1000) return v.toFixed(0);
+      if (a >= 100) return v.toFixed(2);
+      if (a >= 1) return v.toFixed(4);
+      return v.toFixed(5);
+    }
+    function table() {
+      var d = X.data;
+      if (!d || !d.rates) return '<div style="color:var(--text-dim);padding:16px;">拿不到匯率(或 Worker 未更新)</div>';
+      var cs = (d.currencies || []).filter(function (c) { return d.rates[c] != null; });
+      if (cs.length < 2) return '<div style="color:var(--text-dim);padding:16px;">匯率資料不足</div>';
+      var cross = function (a, b) { return d.rates[b] / d.rates[a]; };
+      var h = '<div style="padding:2px 2px 10px;color:var(--text-dim);font-size:11px;">讀法:<span style="color:var(--text);">1 [左側貨幣] = 表格數字 [上方貨幣]</span>　·　USD 列另標示當日變動</div>';
+      h += '<table style="border-collapse:collapse;font-size:11px;white-space:nowrap;"><thead><tr>'
+        + '<th style="position:sticky;left:0;background:var(--bg,#000);padding:6px 10px;text-align:left;color:var(--text-dim);border-bottom:1px solid rgba(255,180,20,.25);">1 ↓ = →</th>';
+      cs.forEach(function (c) {
+        h += '<th style="padding:6px 10px;text-align:right;color:var(--amber,#ff8c00);border-bottom:1px solid rgba(255,180,20,.25);">' + esc(c) + '</th>';
+      });
+      h += '</tr></thead><tbody>';
+      cs.forEach(function (a) {
+        h += '<tr class="fx-row"><td style="position:sticky;left:0;background:var(--bg,#000);padding:5px 10px;color:var(--amber,#ff8c00);font-weight:700;">' + esc(a)
+          + ' <span style="color:var(--text-dim);font-weight:400;font-size:10px;">' + esc(NAMES[a] || '') + '</span></td>';
+        cs.forEach(function (b) {
+          if (a === b) {
+            h += '<td style="padding:5px 10px;text-align:right;color:rgba(255,255,255,.18);">—</td>';
+            return;
+          }
+          var v = cross(a, b);
+          var extra = '';
+          if (a === 'USD' && d.chgPct && d.chgPct[b] != null) {
+            var p = d.chgPct[b], col = p >= 0 ? 'var(--up,#26d07c)' : 'var(--down,#ff4d4d)';
+            extra = '<div style="font-size:9px;color:' + col + ';">' + (p >= 0 ? '+' : '') + p.toFixed(2) + '%</div>';
+          }
+          h += '<td style="padding:5px 10px;text-align:right;font-variant-numeric:tabular-nums;">' + fmt(v) + extra + '</td>';
+        });
+        h += '</tr>';
+      });
+      h += '</tbody></table>';
+      h += '<div style="padding:12px 2px;color:var(--text-dim);font-size:10px;">共 ' + cs.length + ' 種貨幣 · 以 USD 為樞紐計算交叉匯率 · 資料來源 Yahoo</div>';
+      return h;
+    }
+    function paint() {
+      var b = document.getElementById('fxBody'); if (!b) return;
+      if (!document.getElementById('fx-style')) { var st = document.createElement('style'); st.id = 'fx-style'; st.textContent = '.fx-row:hover{background:rgba(255,180,20,.06);}'; document.head.appendChild(st); }
+      b.innerHTML = X.data ? table() : '<div style="color:var(--text-dim);padding:16px;">載入中…</div>';
+    }
+    window.renderFX = async function () {
+      var meta = document.getElementById('fxMeta');
+      X.data = null; paint();
+      if (meta) meta.textContent = '↻ 載入中…';
+      try {
+        var r = await fetch(WK + '/fx', { cache: 'no-store' });
+        var j = await r.json();
+        X.data = (j && j.ok) ? j : null;
+        paint();
+        var now = new Date();
+        if (meta) meta.textContent = ((X.data && X.data.currencies || []).length) + ' 貨幣 · ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ' · ↻';
+      } catch (e) { X.data = null; paint(); if (meta) meta.textContent = '↻ 重試'; }
+    };
+    window.__openFX = function () {
+      var _o = window.openRouteTab, _s = window.setRoute;
+      if (_o) _o('fin-fx', 'FXC'); else if (_s) _s('fin-fx');
+      if (typeof window.renderFX === 'function') window.renderFX();
+    };
+    document.addEventListener('click', function (e) {
+      var t = e.target; if (!t || !t.closest) return;
+      if (t.closest('#fxMeta')) { window.renderFX(); return; }
+    });
+  })();
+  </script>
 
   <!-- ===== v184.68: ERN 財報行事曆(彭博 ERN 風格)===== -->
   <section class="page" data-page="fin-ern">
@@ -6683,6 +6778,7 @@ const TAB_GROUPS = [
       { label: '財務報表 FA', route: 'fin-fa' },
       { label: '歷史價格 HP', route: 'fin-hp' },
       { label: '財報行事曆 ERN', route: 'fin-ern' },
+      { label: '匯率矩陣 FXC', route: 'fin-fx' },
       // v184.61: 「個股詳情」自下拉移除(與 DES 功能重疊)。頁面與功能完全保留,
       //   入口改為:DES 的「↗ 個股詳情」按鈕、儀錶板點股票、指令列搜尋、同類股矩陣等。
       //   要復原只需取消下一行註解。
@@ -7527,6 +7623,7 @@ function setRoute(route) {
   if (route === 'fin-fa') { if (typeof window.renderFA === 'function') window.renderFA(); }
   if (route === 'fin-hp') { if (typeof window.renderHP === 'function') window.renderHP(); }
   if (route === 'fin-ern') { if (typeof window.renderERN === 'function') window.renderERN(); }
+  if (route === 'fin-fx') { if (typeof window.renderFX === 'function') window.renderFX(); }
   if (route === 'fin-config') renderWorkerStatus();
   if (route === 'geo') setTimeout(onResize, 60);
   if (route === 'us-market') {
@@ -24639,6 +24736,7 @@ document.addEventListener('keydown', e => {
     GP:  { route: 'fin-gp',  label: 'GP',  name: '走勢比較', fn: null,        needSym: true, compare: true },
     HP:  { route: 'fin-hp',  label: 'HP',  name: '歷史價格', fn: 'renderHP',  needSym: true },
     ERN: { route: 'fin-ern', label: 'ERN', name: '財報行事曆', fn: 'renderERN', needSym: false },
+    FXC: { route: 'fin-fx',  label: 'FXC', name: '匯率矩陣', fn: 'renderFX',  needSym: false },
     WEI: { route: 'fin-wei', label: 'WEI', name: '世界指數', fn: 'renderWEI', needSym: false },
   };
   function parseCommand(raw) {
