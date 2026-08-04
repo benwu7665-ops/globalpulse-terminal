@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.70</b></div>
+        <div>BUILD <b>v184.71</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -3683,6 +3683,226 @@ window.L_DISABLE_3D = true;
       </section>
     </div>
   </section>
+
+  <!-- ===== v184.71: ALRT 價格警報(彭博 ALRT 風格)===== -->
+  <section class="page" data-page="fin-alrt">
+    <div class="terminal-page">
+      <section class="box" data-no-i18n>
+        <div class="box-head">
+          <span><span class="t-zh">價格警報</span><span class="t-en">PRICE_ALERTS · ALRT</span></span>
+          <span class="box-meta" id="alrtMeta" style="cursor:pointer;" title="立即檢查">↻</span>
+        </div>
+        <div class="box-body" id="alrtBody" style="font-family:var(--font-mono);font-size:12px;">
+          <div style="color:var(--text-dim);padding:12px;">載入中…</div>
+        </div>
+      </section>
+    </div>
+  </section>
+  <script>
+  /* v184.71 — ALRT 價格警報。自給自足;重用 /symsearch、/history(取價)、
+     以及既有通知設施 window.__gpNotify / window.__notifOn('alrt')。
+     警報存 localStorage,背景每 60 秒檢查,edge-trigger 不重複通知。 */
+  (function () {
+    var WK = 'https://ais-proxy.2syzkjy2vq.workers.dev';
+    var KEY = 'gp-price-alerts-v1';
+    var A = { list: [], draft: { sym: '', op: 'gte', px: '' } };
+    var SUG = { items: [], idx: -1, timer: null, seq: 0 };
+    function load() { try { A.list = JSON.parse(localStorage.getItem(KEY) || '[]') || []; } catch (e) { A.list = []; } }
+    function save() { try { localStorage.setItem(KEY, JSON.stringify(A.list)); } catch (e) {} }
+    function esc(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    function n2(v) { return (v == null || isNaN(v)) ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 2 }); }
+    function uid() { return 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+    function form() {
+      return '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:2px 2px 12px;border-bottom:1px solid rgba(255,180,20,.15);margin-bottom:10px;">'
+        + '<span style="position:relative;display:inline-block;">'
+        +   '<input id="alrtQ" autocomplete="off" placeholder="搜尋標的…" value="' + esc(A.draft.sym) + '" style="font-size:11px;padding:4px 8px;border-radius:3px;background:rgba(255,255,255,.05);border:1px solid rgba(255,180,20,.3);color:var(--text);font-family:var(--font-mono);width:180px;">'
+        +   '<div id="alrtSug" style="display:none;position:absolute;top:100%;left:0;margin-top:3px;min-width:300px;max-height:240px;overflow-y:auto;background:#0d0d0d;border:1px solid rgba(255,180,20,.35);border-radius:4px;z-index:9999;box-shadow:0 6px 20px rgba(0,0,0,.6);"></div>'
+        + '</span>'
+        + '<select id="alrtOp" style="font-size:11px;padding:4px 8px;border-radius:3px;background:rgba(255,255,255,.05);border:1px solid rgba(255,180,20,.3);color:var(--text);font-family:var(--font-mono);">'
+        +   '<option value="gte"' + (A.draft.op === 'gte' ? ' selected' : '') + '>漲破 ≥</option>'
+        +   '<option value="lte"' + (A.draft.op === 'lte' ? ' selected' : '') + '>跌破 ≤</option>'
+        + '</select>'
+        + '<input id="alrtPx" placeholder="價格" value="' + esc(A.draft.px) + '" style="font-size:11px;padding:4px 8px;border-radius:3px;background:rgba(255,255,255,.05);border:1px solid rgba(255,180,20,.3);color:var(--text);font-family:var(--font-mono);width:100px;">'
+        + '<button id="alrtAdd" style="font-size:11px;padding:4px 12px;border-radius:3px;cursor:pointer;background:var(--amber,#ff8c00);color:#000;border:1px solid var(--amber,#ff8c00);font-weight:600;">＋ 新增警報</button>'
+        + '<span style="flex:1"></span>'
+        + '<span style="color:var(--text-dim);font-size:10px;">通知開關在「設定 → 通知中心」</span>'
+        + '</div>';
+    }
+    function table() {
+      if (!A.list.length) return '<div style="color:var(--text-dim);padding:16px;">尚未設定警報。搜尋標的、選漲破/跌破、輸入價格後按「＋ 新增警報」。</div>';
+      var h = '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="color:var(--text-dim);border-bottom:1px solid rgba(255,180,20,.25);">'
+        + '<th style="text-align:left;padding:5px 10px 5px 2px;font-weight:600;">標的</th>'
+        + '<th style="text-align:left;padding:5px 10px;font-weight:600;">條件</th>'
+        + '<th style="text-align:right;padding:5px 10px;font-weight:600;">目標價</th>'
+        + '<th style="text-align:right;padding:5px 10px;font-weight:600;">現價</th>'
+        + '<th style="text-align:right;padding:5px 10px;font-weight:600;">距離</th>'
+        + '<th style="text-align:center;padding:5px 10px;font-weight:600;">狀態</th>'
+        + '<th style="text-align:right;padding:5px 2px 5px 10px;font-weight:600;">移除</th>'
+        + '</tr></thead><tbody>';
+      A.list.forEach(function (a) {
+        var cur = a.last != null ? a.last : null;
+        var dist = (cur != null && a.px) ? ((cur - a.px) / a.px) * 100 : null;
+        var fired = a.fired;
+        var stCol = fired ? 'var(--up,#26d07c)' : 'var(--text-dim)';
+        h += '<tr class="alrt-row">'
+          + '<td style="padding:5px 10px 5px 2px;white-space:nowrap;"><span class="alrt-open" data-sym="' + esc(a.sym) + '" style="cursor:pointer;color:var(--amber,#ff8c00);">' + esc(a.sym) + '</span></td>'
+          + '<td style="padding:5px 10px;white-space:nowrap;">' + (a.op === 'gte' ? '漲破 ≥' : '跌破 ≤') + '</td>'
+          + '<td style="padding:5px 10px;text-align:right;font-variant-numeric:tabular-nums;">' + n2(a.px) + '</td>'
+          + '<td style="padding:5px 10px;text-align:right;font-variant-numeric:tabular-nums;">' + n2(cur) + '</td>'
+          + '<td style="padding:5px 10px;text-align:right;font-variant-numeric:tabular-nums;color:' + (dist == null ? 'var(--text-dim)' : (dist >= 0 ? 'var(--up,#26d07c)' : 'var(--down,#ff4d4d)')) + ';">' + (dist == null ? '—' : (dist >= 0 ? '+' : '') + dist.toFixed(2) + '%') + '</td>'
+          + '<td style="padding:5px 10px;text-align:center;color:' + stCol + ';">' + (fired ? '● 已觸發' : '○ 監控中') + '</td>'
+          + '<td style="padding:5px 2px 5px 10px;text-align:right;"><span class="alrt-del" data-id="' + esc(a.id) + '" style="cursor:pointer;color:var(--text-dim);">✕</span></td>'
+          + '</tr>';
+      });
+      h += '</tbody></table>';
+      h += '<div style="padding:12px 2px;color:var(--text-dim);font-size:10px;">共 ' + A.list.length + ' 筆 · 每 60 秒自動檢查 · 觸發後不重複通知(價格回到條件外會重新武裝)</div>';
+      return h;
+    }
+    function paint() {
+      var b = document.getElementById('alrtBody'); if (!b) return;
+      if (!document.getElementById('alrt-style')) { var st = document.createElement('style'); st.id = 'alrt-style'; st.textContent = '.alrt-row:hover{background:rgba(255,180,20,.06);}'; document.head.appendChild(st); }
+      b.innerHTML = form() + table();
+    }
+    // ---- 取價(重用 /history 最後一根,跨市場通用)
+    async function fetchPrices(syms) {
+      if (!syms.length) return {};
+      try {
+        var r = await fetch(WK + '/history?syms=' + encodeURIComponent(syms.join(',')) + '&range=5d&interval=1d', { cache: 'no-store' });
+        var j = await r.json();
+        var out = {};
+        if (j && j.series) { for (var k in j.series) { var c = j.series[k].c; if (c && c.length) out[k] = c[c.length - 1]; } }
+        return out;
+      } catch (e) { return {}; }
+    }
+    async function checkAll(silent) {
+      if (!A.list.length) { if (!silent) paint(); return; }
+      var syms = A.list.map(function (a) { return a.sym; });
+      var px = await fetchPrices(syms.filter(function (v, i, s2) { return s2.indexOf(v) === i; }));
+      var changed = false;
+      A.list.forEach(function (a) {
+        var cur = px[a.sym];
+        if (cur == null) return;
+        a.last = cur; changed = true;
+        var hit = (a.op === 'gte') ? (cur >= a.px) : (cur <= a.px);
+        if (hit && !a.fired) {
+          a.fired = true;
+          var title = '◈ 價格警報 ' + a.sym;
+          var body = a.sym + ' ' + (a.op === 'gte' ? '漲破' : '跌破') + ' ' + a.px + '(現價 ' + n2(cur) + ')';
+          try {
+            if (!window.__notifOn || window.__notifOn('alrt')) {
+              if (typeof window.__gpNotify === 'function') window.__gpNotify(title, body, 'gpalrt-' + a.id, 'alrt');
+            }
+          } catch (e) {}
+        } else if (!hit && a.fired) {
+          a.fired = false;   // 回到條件外 → 重新武裝
+        }
+      });
+      if (changed) save();
+      paint();
+    }
+    window.renderALRT = async function () {
+      load(); paint();
+      var meta = document.getElementById('alrtMeta');
+      if (meta) meta.textContent = '↻ 檢查中…';
+      await checkAll(false);
+      if (meta) meta.textContent = A.list.length + ' 筆 · ↻';
+    };
+    window.__openALRT = function () {
+      var _o = window.openRouteTab, _s = window.setRoute;
+      if (_o) _o('fin-alrt', 'ALRT'); else if (_s) _s('fin-alrt');
+      if (typeof window.renderALRT === 'function') window.renderALRT();
+    };
+    // ---- 背景檢查(不限在此頁)
+    load();
+    setInterval(function () { try { load(); checkAllQuiet(); } catch (e) {} }, 60000);
+    async function checkAllQuiet() {
+      if (!A.list.length) return;
+      var syms = A.list.map(function (a) { return a.sym; }).filter(function (v, i, s2) { return s2.indexOf(v) === i; });
+      var px = await fetchPrices(syms);
+      var changed = false;
+      A.list.forEach(function (a) {
+        var cur = px[a.sym]; if (cur == null) return;
+        a.last = cur; changed = true;
+        var hit = (a.op === 'gte') ? (cur >= a.px) : (cur <= a.px);
+        if (hit && !a.fired) {
+          a.fired = true;
+          try {
+            if (!window.__notifOn || window.__notifOn('alrt')) {
+              if (typeof window.__gpNotify === 'function') window.__gpNotify('◈ 價格警報 ' + a.sym, a.sym + ' ' + (a.op === 'gte' ? '漲破' : '跌破') + ' ' + a.px + '(現價 ' + n2(cur) + ')', 'gpalrt-' + a.id, 'alrt');
+            }
+          } catch (e) {}
+        } else if (!hit && a.fired) { a.fired = false; }
+      });
+      if (changed) { save(); var b = document.getElementById('alrtBody'); if (b && b.offsetParent !== null) paint(); }
+    }
+    // ---- 搜尋
+    function sugEl() { return document.getElementById('alrtSug'); }
+    function hideSug() { var e = sugEl(); if (e) { e.style.display = 'none'; e.innerHTML = ''; } SUG.items = []; SUG.idx = -1; }
+    function paintSug() {
+      var e = sugEl(); if (!e) return;
+      if (!SUG.items.length) { e.style.display = 'none'; e.innerHTML = ''; return; }
+      e.innerHTML = SUG.items.map(function (o, i) {
+        return '<div class="alrt-sug-item" data-sym="' + esc(o.sym) + '" style="padding:6px 10px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);background:' + (i === SUG.idx ? 'rgba(255,180,20,.15)' : 'transparent') + ';">'
+          + '<span style="color:var(--amber,#ff8c00);font-weight:600;">' + esc(o.sym) + '</span>'
+          + '<div style="color:var(--text-dim);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(o.name || '') + '</div></div>';
+      }).join('');
+      e.style.display = 'block';
+    }
+    async function doSearch(q) {
+      q = String(q || '').trim(); if (!q) { hideSug(); return; }
+      var my = ++SUG.seq;
+      try {
+        var r = await fetch(WK + '/symsearch?q=' + encodeURIComponent(q), { cache: 'no-store' });
+        var j = await r.json(); if (my !== SUG.seq) return;
+        SUG.items = (j && j.results) || []; SUG.idx = -1; paintSug();
+      } catch (e) { if (my === SUG.seq) hideSug(); }
+    }
+    function addAlert() {
+      var qi = document.getElementById('alrtQ'), pi = document.getElementById('alrtPx'), oi = document.getElementById('alrtOp');
+      var sym = String(qi ? qi.value : '').trim().toUpperCase();
+      var px = parseFloat(pi ? pi.value : '');
+      var op = oi ? oi.value : 'gte';
+      if (!sym || !/^[A-Z0-9.^=_-]{1,20}$/.test(sym) || !isFinite(px) || px <= 0) return;
+      if (/^\d{4,6}$/.test(sym)) sym = sym + '.TW';
+      A.list.push({ id: uid(), sym: sym, op: op, px: px, fired: false, last: null, created: Date.now() });
+      save();
+      A.draft = { sym: '', op: op, px: '' };
+      if (qi) qi.value = ''; if (pi) pi.value = '';
+      checkAll(false);
+    }
+    document.addEventListener('click', function (e) {
+      var t = e.target; if (!t || !t.closest) return;
+      if (t.closest('#alrtMeta')) { window.renderALRT(); return; }
+      if (t.closest('#alrtAdd')) { addAlert(); return; }
+      var del = t.closest('.alrt-del');
+      if (del) { var id = del.getAttribute('data-id'); A.list = A.list.filter(function (x) { return x.id !== id; }); save(); paint(); return; }
+      var op2 = t.closest('.alrt-open');
+      if (op2) { var os = op2.getAttribute('data-sym'); if (os && typeof window.__openDES === 'function') window.__openDES(os); return; }
+      var it = t.closest('.alrt-sug-item');
+      if (it) { var qi2 = document.getElementById('alrtQ'); if (qi2) qi2.value = it.getAttribute('data-sym'); hideSug(); return; }
+      if (!t.closest('#alrtQ') && !t.closest('#alrtSug')) hideSug();
+    });
+    document.addEventListener('input', function (e) {
+      if (!e.target || e.target.id !== 'alrtQ') return;
+      var v = e.target.value; clearTimeout(SUG.timer);
+      SUG.timer = setTimeout(function () { doSearch(v); }, 220);
+    });
+    document.addEventListener('keydown', function (e) {
+      if (!e.target) return;
+      if (e.target.id === 'alrtPx' && e.key === 'Enter') { e.preventDefault(); addAlert(); return; }
+      if (e.target.id !== 'alrtQ') return;
+      if (e.key === 'ArrowDown' && SUG.items.length) { e.preventDefault(); SUG.idx = Math.min(SUG.idx + 1, SUG.items.length - 1); paintSug(); return; }
+      if (e.key === 'ArrowUp' && SUG.items.length) { e.preventDefault(); SUG.idx = Math.max(SUG.idx - 1, 0); paintSug(); return; }
+      if (e.key === 'Escape') { hideSug(); return; }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        var pick = (SUG.idx >= 0 && SUG.items[SUG.idx]) ? SUG.items[SUG.idx].sym : (SUG.items.length ? SUG.items[0].sym : e.target.value);
+        hideSug(); if (pick) { e.target.value = pick; var pi2 = document.getElementById('alrtPx'); if (pi2 && pi2.focus) pi2.focus(); }
+      }
+    });
+  })();
+  </script>
 
   <!-- ===== v184.69: FXC 匯率交叉矩陣(彭博 FXC 風格)===== -->
   <section class="page" data-page="fin-fx">
@@ -6788,6 +7008,7 @@ const TAB_GROUPS = [
       { label: '歷史價格 HP', route: 'fin-hp' },
       { label: '財報行事曆 ERN', route: 'fin-ern' },
       { label: '匯率矩陣 FXC', route: 'fin-fx' },
+      { label: '價格警報 ALRT', route: 'fin-alrt' },
       // v184.61: 「個股詳情」自下拉移除(與 DES 功能重疊)。頁面與功能完全保留,
       //   入口改為:DES 的「↗ 個股詳情」按鈕、儀錶板點股票、指令列搜尋、同類股矩陣等。
       //   要復原只需取消下一行註解。
@@ -7633,6 +7854,7 @@ function setRoute(route) {
   if (route === 'fin-hp') { if (typeof window.renderHP === 'function') window.renderHP(); }
   if (route === 'fin-ern') { if (typeof window.renderERN === 'function') window.renderERN(); }
   if (route === 'fin-fx') { if (typeof window.renderFX === 'function') window.renderFX(); }
+  if (route === 'fin-alrt') { if (typeof window.renderALRT === 'function') window.renderALRT(); }
   if (route === 'fin-config') renderWorkerStatus();
   if (route === 'geo') setTimeout(onResize, 60);
   if (route === 'us-market') {
@@ -24746,6 +24968,7 @@ document.addEventListener('keydown', e => {
     HP:  { route: 'fin-hp',  label: 'HP',  name: '歷史價格', fn: 'renderHP',  needSym: true },
     ERN: { route: 'fin-ern', label: 'ERN', name: '財報行事曆', fn: 'renderERN', needSym: false },
     FXC: { route: 'fin-fx',  label: 'FXC', name: '匯率矩陣', fn: 'renderFX',  needSym: false },
+    ALRT:{ route: 'fin-alrt',label: 'ALRT',name: '價格警報', fn: 'renderALRT',needSym: false },
     WEI: { route: 'fin-wei', label: 'WEI', name: '世界指數', fn: 'renderWEI', needSym: false },
   };
   function parseCommand(raw) {
@@ -37755,7 +37978,7 @@ window.fmtHHMM = function(date) {
       pulse:  { label: '脈衝', seq: [[440, 0, 0.08, 'square'], [440, 0.12, 0.08, 'square'], [440, 0.24, 0.08, 'square']] },
       deep:   { label: '低頻警示', seq: [[220, 0, 0.3, 'triangle'], [165, 0.28, 0.35, 'triangle']] },
     };
-    const SOUND_DEFAULTS = { telegram: 'chime', node: 'alert', news: 'double', quake: 'deep' };
+    const SOUND_DEFAULTS = { telegram: 'chime', node: 'alert', news: 'double', quake: 'deep', alrt: 'bell' };
     let sPrefs = (() => { try { return Object.assign({ _vol: 0.5 }, SOUND_DEFAULTS, JSON.parse(localStorage.getItem(SKEY) || '{}')); } catch (e) { return Object.assign({ _vol: 0.5 }, SOUND_DEFAULTS); } })();
     const sSave = () => { try { localStorage.setItem(SKEY, JSON.stringify(sPrefs)); } catch (e) {} };
     let _ac = null;
@@ -37853,8 +38076,9 @@ window.fmtHHMM = function(date) {
       { id: 'node',    icon: '▲', zh: '節點警報',     en: 'Alert nodes',  desc: 'IF/THEN 規則觸發' },
       { id: 'news',    icon: '■', zh: '財經快訊音效', en: 'News chime',    desc: '重要財經新聞提示音' },
       { id: 'quake',   icon: '⬡', zh: '強震快報',     en: 'Big quakes',    desc: '規模 6 以上地震(需開地震圖層)' },
+      { id: 'alrt',    icon: '◈', zh: '價格警報',     en: 'Price alerts',  desc: '個股/指數到價提醒(在 ALRT 頁設定)' },
     ];
-    const DEFAULTS = { telegram: true, node: true, news: false, quake: true };
+    const DEFAULTS = { telegram: true, node: true, news: false, quake: true, alrt: true };
     function load() { try { return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { return Object.assign({}, DEFAULTS); } }
     function save(p) { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch (e) {} }
     let prefs = load();
