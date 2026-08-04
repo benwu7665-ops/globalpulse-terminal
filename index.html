@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.75</b></div>
+        <div>BUILD <b>v184.76</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -3707,8 +3707,8 @@ window.L_DISABLE_3D = true;
       if (document.getElementById('multi-style')) return;
       var st = document.createElement('style'); st.id = 'multi-style';
       st.textContent =
-        '.gp-multi{display:grid;gap:1px;background:rgba(255,180,20,.18);height:100%;}' +
-        '.gp-multi .page.active{display:block;overflow:auto;background:var(--bg,#000);min-width:0;min-height:0;}' +
+        '.gp-multi{display:grid;gap:1px;background:rgba(255,180,20,.18);height:100%;overflow-y:auto;overflow-x:hidden;align-content:start;}' +
+        '.gp-multi .page.active{display:block;overflow:auto;background:var(--bg,#000);min-width:0;height:auto;min-height:320px;max-height:70vh;}' +
         '.gp-multi .page.active .terminal-page{padding:8px;}' +
         '.gp-multi.c1{grid-template-columns:1fr;}' +
         '.gp-multi.c2{grid-template-columns:repeat(2,1fr);}' +
@@ -3727,11 +3727,17 @@ window.L_DISABLE_3D = true;
         '#multiPop .mp-head{padding:5px 12px;color:var(--text-dim);font-size:10px;border-bottom:1px solid rgba(255,180,20,.15);margin-bottom:4px;}';
       document.head.appendChild(st);
     }
-    function curRoute() { var a = document.querySelector('.page.active'); return a ? a.dataset.page : ''; }
+    var mainRouteRef = '';   // v184.76: 獨立記住主路由(多格時 .page.active 有多個,不能用 querySelector 取)
+    function curRoute() {
+      if (mainRouteRef) return mainRouteRef;
+      var a = document.querySelector('.page.active');
+      return a ? a.dataset.page : '';
+    }
     function pageWrap() { var p = document.querySelector('.page'); return (p && p.parentElement) ? p.parentElement : document.body; }
 
     // 供 setRoute 呼叫:主路由切換後補上其餘面板
     window.__splitApply = function (mainRoute) {
+      if (mainRoute) mainRouteRef = mainRoute;
       var wrap = pageWrap();
       ensureStyle();
       var list = S.on ? S.panes.filter(function (r) { return r && r !== mainRoute; }) : [];
@@ -3753,7 +3759,7 @@ window.L_DISABLE_3D = true;
         wrap.classList.add('gp-multi');
         wrap.classList.remove('c1', 'c2', 'c3', 'r2', 'r3');
         wrap.classList.add('c' + cols);
-        if (rows >= 2) wrap.classList.add('r' + Math.min(rows, 3));
+        // v184.76: 不再鎖定 grid-template-rows —— 讓每格依內容自動高度,整體可垂直捲動
       }
       syncUI();
     };
