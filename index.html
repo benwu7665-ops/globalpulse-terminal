@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.74</b></div>
+        <div>BUILD <b>v184.75</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -3720,7 +3720,7 @@ window.L_DISABLE_3D = true;
         '#multiBtn{font-size:11px;padding:2px 9px;margin-left:8px;border-radius:3px;cursor:pointer;' +
         'background:transparent;color:var(--text-dim);border:1px solid rgba(255,180,20,.3);}' +
         '#multiBtn.on{background:var(--amber,#ff8c00);color:#000;border-color:var(--amber,#ff8c00);}' +
-        '#multiPop{position:absolute;top:100%;right:0;margin-top:4px;min-width:210px;background:#0d0d0d;' +
+        '#multiPop{position:fixed;min-width:220px;background:#0d0d0d;' +
         'border:1px solid rgba(255,180,20,.35);border-radius:4px;z-index:10000;box-shadow:0 8px 24px rgba(0,0,0,.7);padding:6px 0;display:none;}' +
         '#multiPop label{display:flex;align-items:center;gap:8px;padding:5px 12px;cursor:pointer;font-size:11px;color:var(--text);}' +
         '#multiPop label:hover{background:rgba(255,180,20,.1);}' +
@@ -3794,7 +3794,19 @@ window.L_DISABLE_3D = true;
       var pop = document.getElementById('multiPop');
       if (t.closest('#multiBtn')) {
         e.stopPropagation(); e.preventDefault();
-        if (pop) pop.style.display = (pop.style.display === 'block') ? 'none' : 'block';
+        if (pop) {
+          var willOpen = pop.style.display !== 'block';
+          if (willOpen) {
+            var b2 = document.getElementById('multiBtn');
+            if (b2 && b2.getBoundingClientRect) {
+              var r = b2.getBoundingClientRect();
+              pop.style.top = (r.bottom + 4) + 'px';
+              var lf = Math.min(r.left, (window.innerWidth || 1200) - 240);
+              pop.style.left = Math.max(8, lf) + 'px';
+            }
+          }
+          pop.style.display = willOpen ? 'block' : 'none';
+        }
         return;
       }
       if (t.closest('#multiPop')) { e.stopPropagation(); return; }
