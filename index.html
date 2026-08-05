@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.83</b></div>
+        <div>BUILD <b>v184.84</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -4153,8 +4153,20 @@ window.L_DISABLE_3D = true;
     function grid() {
       var d = V.data;
       if (!d || !d.points || !d.points.length) return '<div style="color:var(--text-dim);padding:16px;">拿不到選擇權資料(或 Worker 未更新)</div>';
-      var pts = d.points.filter(function (p) { return p.type === V.type && p.moneyness != null; });
-      if (!pts.length) return '<div style="color:var(--text-dim);padding:16px;">此類型無資料</div>';
+      // v184.84: 若 Worker 沒拿到現貨價,moneyness 會是 null。
+      //   改為前端自行以「該幣所有履約價中位數」估算,避免整批被篩掉。
+      var raw = d.points.filter(function (p) { return p.type === V.type; });
+      if (!raw.length) return '<div style="color:var(--text-dim);padding:16px;">此類型無資料</div>';
+      var ref = d.spot;
+      if (!ref) {
+        var ks = raw.map(function (p) { return p.strike; }).sort(function (a, b) { return a - b; });
+        ref = ks[Math.floor(ks.length / 2)] || null;
+      }
+      var pts = raw.map(function (p) {
+        if (p.moneyness != null) return p;
+        return Object.assign({}, p, { moneyness: ref ? +(p.strike / ref).toFixed(4) : null });
+      }).filter(function (p) { return p.moneyness != null; });
+      if (!pts.length) return '<div style="color:var(--text-dim);padding:16px;">資料不足以計算價外程度</div>';
       // 價外程度分桶(0.7 ~ 1.3)
       var BUCKETS = [];
       for (var m = 0.70; m <= 1.301; m += 0.05) BUCKETS.push(+m.toFixed(2));
