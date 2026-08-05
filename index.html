@@ -3211,7 +3211,7 @@ window.L_DISABLE_3D = true;
         <div class="boot-sub">Geopolitical &middot; Financial &middot; Maritime Intelligence Terminal</div>
       </div>
       <div class="boot-meta">
-        <div>BUILD <b>v184.82</b></div>
+        <div>BUILD <b>v184.83</b></div>
         <div>NODE <b id="bootNode">XX-XX-XX</b></div>
         <div>UTC <b id="bootUTC">00:00:00</b></div>
       </div>
@@ -4096,6 +4096,157 @@ window.L_DISABLE_3D = true;
         var pick = (SUG.idx >= 0 && SUG.items[SUG.idx]) ? SUG.items[SUG.idx].sym : (SUG.items.length ? SUG.items[0].sym : e.target.value);
         hideSug(); if (pick) { e.target.value = pick; var pi2 = document.getElementById('alrtPx'); if (pi2 && pi2.focus) pi2.focus(); }
       }
+    });
+  })();
+  </script>
+
+  <!-- ===== v184.83: OVDV 波動率曲面(彭博 OVDV 風格)===== -->
+  <section class="page" data-page="fin-ovdv">
+    <div class="terminal-page">
+      <section class="box" data-no-i18n>
+        <div class="box-head">
+          <span><span class="t-zh">波動率曲面</span><span class="t-en">VOLATILITY_SURFACE · OVDV</span></span>
+          <span class="box-meta" id="ovMeta" style="cursor:pointer;" title="重新整理">↻</span>
+        </div>
+        <div class="box-body" id="ovBody" style="font-family:var(--font-mono);font-size:12px;overflow-x:auto;">
+          <div style="color:var(--text-dim);padding:12px;">載入中…</div>
+        </div>
+      </section>
+    </div>
+  </section>
+  <script>
+  /* v184.83 — OVDV 波動率曲面。自給自足;重用 Worker /vol-surface(Deribit 公開 API)。
+     熱力圖:縱軸到期、橫軸價外程度(moneyness)、顏色=隱含波動率;下方為波動率微笑曲線。
+     僅支援加密(BTC/ETH/SOL)—— 美股選擇權鏈無免費資料源。 */
+  (function () {
+    var WK = 'https://ais-proxy.2syzkjy2vq.workers.dev';
+    var V = { cur: 'BTC', type: 'C', data: null };
+    var CURS = ['BTC', 'ETH', 'SOL'];
+    function esc(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+    function n2(v, d) { return (v == null || isNaN(v)) ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: d == null ? 2 : d }); }
+    // IV → 顏色(低=藍綠,中=黃,高=紅)
+    function ivColor(iv, lo, hi) {
+      if (iv == null || hi <= lo) return 'rgba(255,255,255,.06)';
+      var t = Math.max(0, Math.min(1, (iv - lo) / (hi - lo)));
+      var r, g, b;
+      if (t < 0.5) { var u = t / 0.5; r = Math.round(40 + u * 200); g = Math.round(190 + u * 40); b = Math.round(160 - u * 130); }
+      else { var u2 = (t - 0.5) / 0.5; r = 240; g = Math.round(230 - u2 * 180); b = Math.round(30 + u2 * 20); }
+      return 'rgb(' + r + ',' + g + ',' + b + ')';
+    }
+    function bar() {
+      var cb = CURS.map(function (c) {
+        var on = V.cur === c;
+        return '<button class="ov-cur" data-c="' + c + '" style="font-size:11px;padding:3px 12px;margin-right:5px;border-radius:3px;cursor:pointer;background:' + (on ? 'var(--amber,#ff8c00)' : 'transparent') + ';color:' + (on ? '#000' : 'var(--text)') + ';border:1px solid ' + (on ? 'var(--amber,#ff8c00)' : 'rgba(255,180,20,.35)') + ';">' + c + '</button>';
+      }).join('');
+      var tb = [['C', 'Call'], ['P', 'Put']].map(function (t) {
+        var on = V.type === t[0];
+        return '<button class="ov-type" data-t="' + t[0] + '" style="font-size:11px;padding:3px 10px;margin-right:4px;border-radius:3px;cursor:pointer;background:' + (on ? 'rgba(255,180,20,.25)' : 'transparent') + ';color:var(--text);border:1px solid rgba(255,180,20,.3);">' + t[1] + '</button>';
+      }).join('');
+      var sp = (V.data && V.data.spot) ? ('現貨 $' + n2(V.data.spot, 0)) : '';
+      return '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:2px 2px 10px;border-bottom:1px solid rgba(255,180,20,.15);margin-bottom:10px;">'
+        + cb + '<span style="width:8px;"></span>' + tb
+        + '<span style="color:var(--amber,#ff8c00);font-weight:700;">' + esc(sp) + '</span>'
+        + '<span style="flex:1"></span>'
+        + '<span style="color:var(--text-dim);font-size:10px;">資料來源 Deribit · 僅加密選擇權</span>'
+        + '</div>';
+    }
+    function grid() {
+      var d = V.data;
+      if (!d || !d.points || !d.points.length) return '<div style="color:var(--text-dim);padding:16px;">拿不到選擇權資料(或 Worker 未更新)</div>';
+      var pts = d.points.filter(function (p) { return p.type === V.type && p.moneyness != null; });
+      if (!pts.length) return '<div style="color:var(--text-dim);padding:16px;">此類型無資料</div>';
+      // 價外程度分桶(0.7 ~ 1.3)
+      var BUCKETS = [];
+      for (var m = 0.70; m <= 1.301; m += 0.05) BUCKETS.push(+m.toFixed(2));
+      var exps = (d.expiries || []).filter(function (e) { return e.dte >= 0; }).slice(0, 10);
+      var cellMap = {}, ivAll = [];
+      pts.forEach(function (p) {
+        var bi = 0;
+        for (var i = 0; i < BUCKETS.length - 1; i++) { if (p.moneyness >= BUCKETS[i] && p.moneyness < BUCKETS[i + 1]) { bi = i; break; } }
+        if (p.moneyness < BUCKETS[0] || p.moneyness >= BUCKETS[BUCKETS.length - 1]) return;
+        var key = p.exp + '|' + bi;
+        (cellMap[key] = cellMap[key] || []).push(p.iv);
+        ivAll.push(p.iv);
+      });
+      if (!ivAll.length) return '<div style="color:var(--text-dim);padding:16px;">資料不足以繪製曲面</div>';
+      var lo = Math.min.apply(null, ivAll), hi = Math.max.apply(null, ivAll);
+      var h = '<div style="color:var(--text-dim);font-size:11px;padding:0 2px 8px;">縱軸=到期日　橫軸=價外程度(履約價/現貨)　顏色=隱含波動率 IV%　　'
+        + '<span style="display:inline-block;width:12px;height:8px;background:' + ivColor(lo, lo, hi) + ';"></span> 低 ' + n2(lo, 0) + '%'
+        + ' <span style="display:inline-block;width:12px;height:8px;background:' + ivColor((lo + hi) / 2, lo, hi) + ';"></span>'
+        + ' <span style="display:inline-block;width:12px;height:8px;background:' + ivColor(hi, lo, hi) + ';"></span> 高 ' + n2(hi, 0) + '%</div>';
+      h += '<table style="border-collapse:collapse;font-size:10px;"><thead><tr>'
+        + '<th style="padding:4px 8px;text-align:left;color:var(--text-dim);position:sticky;left:0;background:var(--bg,#000);">到期 (DTE)</th>';
+      for (var i = 0; i < BUCKETS.length - 1; i++) {
+        h += '<th style="padding:4px 6px;text-align:center;color:var(--text-dim);white-space:nowrap;">' + BUCKETS[i].toFixed(2) + '</th>';
+      }
+      h += '</tr></thead><tbody>';
+      exps.forEach(function (e) {
+        h += '<tr><td style="padding:3px 8px;white-space:nowrap;color:var(--amber,#ff8c00);position:sticky;left:0;background:var(--bg,#000);">' + esc(e.exp) + ' <span style="color:var(--text-dim);">(' + e.dte + 'd)</span></td>';
+        for (var i = 0; i < BUCKETS.length - 1; i++) {
+          var arr = cellMap[e.exp + '|' + i];
+          if (!arr || !arr.length) { h += '<td style="padding:3px 6px;background:rgba(255,255,255,.03);"></td>'; continue; }
+          var avg = arr.reduce(function (a, b2) { return a + b2; }, 0) / arr.length;
+          h += '<td title="IV ' + avg.toFixed(1) + '%" style="padding:3px 6px;text-align:center;background:' + ivColor(avg, lo, hi) + ';color:#000;font-weight:600;white-space:nowrap;">' + avg.toFixed(0) + '</td>';
+        }
+        h += '</tr>';
+      });
+      h += '</tbody></table>';
+      // 波動率微笑:取最近到期
+      if (exps.length) {
+        var near = exps[0].exp;
+        var smile = pts.filter(function (p) { return p.exp === near; }).sort(function (a, b) { return a.strike - b.strike; });
+        if (smile.length > 2) {
+          var W = 760, H = 150, PL = 44, PB = 22;
+          var ivs = smile.map(function (p) { return p.iv; });
+          var slo = Math.min.apply(null, ivs), shi = Math.max.apply(null, ivs);
+          if (shi === slo) shi = slo + 1;
+          var xs = smile.map(function (p) { return p.moneyness; });
+          var xlo = Math.min.apply(null, xs), xhi = Math.max.apply(null, xs);
+          var px = function (m) { return PL + ((m - xlo) / ((xhi - xlo) || 1)) * (W - PL - 10); };
+          var py = function (iv) { return 8 + (1 - (iv - slo) / (shi - slo)) * (H - PB - 12); };
+          var pline = smile.map(function (p) { return px(p.moneyness).toFixed(1) + ',' + py(p.iv).toFixed(1); }).join(' ');
+          h += '<div style="color:var(--amber,#ff8c00);font-weight:700;padding:14px 2px 4px;border-bottom:1px solid rgba(255,180,20,.15);">波動率微笑 · 最近到期 ' + esc(near) + ' (' + exps[0].dte + '天)</div>';
+          h += '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;display:block;">';
+          [0, 0.5, 1].forEach(function (t) {
+            var v = slo + (shi - slo) * t, y = py(v);
+            h += '<line x1="' + PL + '" y1="' + y.toFixed(1) + '" x2="' + (W - 10) + '" y2="' + y.toFixed(1) + '" stroke="rgba(255,255,255,.08)"/>';
+            h += '<text x="' + (PL - 6) + '" y="' + (y + 3).toFixed(1) + '" text-anchor="end" font-size="9" fill="#8a8a8a">' + v.toFixed(0) + '%</text>';
+          });
+          h += '<line x1="' + px(1).toFixed(1) + '" y1="6" x2="' + px(1).toFixed(1) + '" y2="' + (H - PB) + '" stroke="rgba(255,180,20,.35)" stroke-dasharray="3,3"/>';
+          h += '<text x="' + px(1).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle" font-size="9" fill="#ff8c00">ATM</text>';
+          h += '<polyline points="' + pline + '" fill="none" stroke="var(--amber,#ff8c00)" stroke-width="1.6"/>';
+          h += '</svg>';
+        }
+      }
+      h += '<div style="padding:10px 2px;color:var(--text-dim);font-size:10px;">共 ' + pts.length + ' 個 ' + (V.type === 'C' ? 'Call' : 'Put') + ' 合約 · 空白格代表該履約價/到期無報價</div>';
+      return h;
+    }
+    function paint() {
+      var b = document.getElementById('ovBody'); if (!b) return;
+      b.innerHTML = bar() + (V.data ? grid() : '<div style="color:var(--text-dim);padding:16px;">載入中…</div>');
+    }
+    window.renderOVDV = async function () {
+      var meta = document.getElementById('ovMeta');
+      V.data = null; paint();
+      if (meta) meta.textContent = '↻ 載入中…';
+      try {
+        var r = await fetch(WK + '/vol-surface?cur=' + encodeURIComponent(V.cur), { cache: 'no-store' });
+        var j = await r.json();
+        V.data = (j && j.ok) ? j : null;
+        paint();
+        if (meta) meta.textContent = V.cur + ' · ' + ((V.data && V.data.count) || 0) + ' 合約 · ↻';
+      } catch (e) { V.data = null; paint(); if (meta) meta.textContent = '↻ 重試'; }
+    };
+    window.__openOVDV = function () {
+      var _o = window.openRouteTab, _s = window.setRoute;
+      if (_o) _o('fin-ovdv', 'OVDV'); else if (_s) _s('fin-ovdv');
+      if (typeof window.renderOVDV === 'function') window.renderOVDV();
+    };
+    document.addEventListener('click', function (e) {
+      var t = e.target; if (!t || !t.closest) return;
+      if (t.closest('#ovMeta')) { window.renderOVDV(); return; }
+      var cb = t.closest('.ov-cur'); if (cb) { V.cur = cb.getAttribute('data-c'); window.renderOVDV(); return; }
+      var tb = t.closest('.ov-type'); if (tb) { V.type = tb.getAttribute('data-t'); paint(); return; }
     });
   })();
   </script>
@@ -7204,6 +7355,7 @@ const TAB_GROUPS = [
       { label: '歷史價格 HP', route: 'fin-hp' },
       { label: '財報行事曆 ERN', route: 'fin-ern' },
       { label: '匯率矩陣 FXC', route: 'fin-fx' },
+      { label: '波動率曲面 OVDV', route: 'fin-ovdv' },
       { label: '價格警報 ALRT', route: 'fin-alrt' },
       // v184.61: 「個股詳情」自下拉移除(與 DES 功能重疊)。頁面與功能完全保留,
       //   入口改為:DES 的「↗ 個股詳情」按鈕、儀錶板點股票、指令列搜尋、同類股矩陣等。
@@ -8052,6 +8204,7 @@ function setRoute(route) {
   if (route === 'fin-hp') { if (typeof window.renderHP === 'function') window.renderHP(); }
   if (route === 'fin-ern') { if (typeof window.renderERN === 'function') window.renderERN(); }
   if (route === 'fin-fx') { if (typeof window.renderFX === 'function') window.renderFX(); }
+  if (route === 'fin-ovdv') { if (typeof window.renderOVDV === 'function') window.renderOVDV(); }
   if (route === 'fin-alrt') { if (typeof window.renderALRT === 'function') window.renderALRT(); }
   if (route === 'fin-config') renderWorkerStatus();
   if (route === 'geo') setTimeout(onResize, 60);
@@ -25179,6 +25332,7 @@ document.addEventListener('keydown', e => {
     HP:  { route: 'fin-hp',  label: 'HP',  name: '歷史價格', fn: 'renderHP',  needSym: true },
     ERN: { route: 'fin-ern', label: 'ERN', name: '財報行事曆', fn: 'renderERN', needSym: false },
     FXC: { route: 'fin-fx',  label: 'FXC', name: '匯率矩陣', fn: 'renderFX',  needSym: false },
+    OVDV:{ route: 'fin-ovdv',label:'OVDV',name: '波動率曲面', fn: 'renderOVDV',needSym: false },
     ALRT:{ route: 'fin-alrt',label: 'ALRT',name: '價格警報', fn: 'renderALRT',needSym: false },
     WEI: { route: 'fin-wei', label: 'WEI', name: '世界指數', fn: 'renderWEI', needSym: false },
   };
